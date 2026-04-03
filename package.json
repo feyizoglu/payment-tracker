@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@auth/supabase-adapter": "^1.11.1",
     "@supabase/supabase-js": "^2.101.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^1.7.0",
