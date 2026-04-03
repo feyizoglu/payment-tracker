@@ -5,6 +5,7 @@ import { Payment } from "@/types";
 import { getInstallments, getRemainingAmount, getTotalMonthly } from "@/lib/payments";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Trash2, CheckCircle2, Circle } from "lucide-react";
+import { useLang } from "@/lib/i18n";
 
 interface Props {
   payment: Payment;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function PaymentCard({ payment, onUpdated, onDeleted }: Props) {
+  const { t } = useLang();
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -53,11 +55,11 @@ export default function PaymentCard({ payment, onUpdated, onDeleted }: Props) {
               )}
             </div>
             <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
-              <span>₺{monthly.toFixed(2)}/mo</span>
+              <span>₺{monthly.toFixed(2)}{t.perMonth}</span>
               <span>·</span>
-              <span>{payment.paid_installments}/{payment.total_installments} paid</span>
+              <span>{payment.paid_installments}/{payment.total_installments} {t.paid}</span>
               <span>·</span>
-              <span className="text-orange-500 font-medium">₺{remaining.toFixed(2)} left</span>
+              <span className="text-orange-500 font-medium">₺{remaining.toFixed(2)} {t.left}</span>
             </div>
           </div>
 

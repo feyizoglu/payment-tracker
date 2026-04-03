@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Team } from "@/types";
+import { useLang } from "@/lib/i18n";
 
 interface Props {
   teams: Team[];
@@ -12,13 +13,13 @@ interface Props {
 }
 
 export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }: Props) {
+  const { t } = useLang();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     amount: "",
     start_date: new Date().toISOString().split("T")[0],
-    day_of_month: "1",
     total_installments: "1",
     team_id: defaultTeamId ?? "",
   });
@@ -39,7 +40,6 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
           name: form.name,
           amount: parseFloat(form.amount),
           start_date: form.start_date,
-          day_of_month: parseInt(form.day_of_month),
           total_installments: parseInt(form.total_installments),
           team_id: form.team_id || null,
         }),
@@ -68,7 +68,7 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Add New Payment</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t.addPaymentTitle}</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition"
@@ -81,22 +81,22 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Payment Name
+              {t.paymentName}
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. Car loan, Laptop installment"
+              placeholder={t.paymentNamePlaceholder}
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           {/* Amount */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Total Amount
+              {t.totalAmount}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
@@ -115,42 +115,27 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
             </div>
           </div>
 
-          {/* Start date + Day of month */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Start Date
-              </label>
-              <input
-                type="date"
-                required
-                value={form.start_date}
-                onChange={(e) => set("start_date", e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Due Day / Month
-              </label>
-              <select
-                value={form.day_of_month}
-                onChange={(e) => set("day_of_month", e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                  <option key={d} value={d}>
-                    {d}th
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Payment Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t.firstPaymentDate}
+            </label>
+            <input
+              type="date"
+              required
+              value={form.start_date}
+              onChange={(e) => set("start_date", e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              {t.firstPaymentDateHint}
+            </p>
           </div>
 
           {/* Installments */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Number of Installments
+              {t.numberOfInstallments}
             </label>
             <input
               type="number"
@@ -160,11 +145,11 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
               placeholder="e.g. 12"
               value={form.total_installments}
               onChange={(e) => set("total_installments", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {monthlyAmount && (
               <p className="text-xs text-gray-400 mt-1">
-                Monthly payment: <span className="font-medium text-gray-600">₺{monthlyAmount}</span>
+                {t.monthlyPayment}: <span className="font-medium text-gray-600">₺{monthlyAmount}</span>
               </p>
             )}
           </div>
@@ -173,14 +158,14 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
           {teams.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Add to Team (optional)
+                {t.addToTeam}
               </label>
               <select
                 value={form.team_id}
                 onChange={(e) => set("team_id", e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Personal</option>
+                <option value="">{t.personalOption}</option>
                 {teams.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -202,7 +187,7 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
               onClick={onClose}
               className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
             >
-              Cancel
+              {t.cancel}
             </button>
             <button
               type="submit"
@@ -210,7 +195,7 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
               className="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              Add Payment
+              {loading ? t.adding : t.addPaymentTitle}
             </button>
           </div>
         </form>

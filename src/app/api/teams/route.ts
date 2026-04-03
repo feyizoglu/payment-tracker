@@ -11,12 +11,19 @@ export async function GET() {
   const db = supabaseAdmin();
   const userId = (session.user as any).id;
 
+  if (!userId) {
+    return NextResponse.json({ error: "User not found in database" }, { status: 500 });
+  }
+
   const { data, error } = await db
     .from("team_members")
-    .select("team:teams(*, members:team_members(*, user:users(id, name, email, avatar_url)))")
+    .select("team:teams(*, members:team_members(user_id, role, joined_at))")
     .eq("user_id", userId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("GET /api/teams error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   const teams = data?.map((d: any) => d.team).filter(Boolean) ?? [];
   return NextResponse.json(teams);
@@ -30,6 +37,11 @@ export async function POST(req: NextRequest) {
 
   const db = supabaseAdmin();
   const userId = (session.user as any).id;
+
+  if (!userId) {
+    return NextResponse.json({ error: "User not found in database" }, { status: 500 });
+  }
+
   const { name } = await req.json();
 
   const { data: team, error: teamError } = await db
@@ -38,7 +50,10 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (teamError) return NextResponse.json({ error: teamError.message }, { status: 500 });
+  if (teamError) {
+    console.error("POST /api/teams error:", teamError);
+    return NextResponse.json({ error: teamError.message }, { status: 500 });
+  }
 
   await db.from("team_members").insert({
     team_id: team.id,

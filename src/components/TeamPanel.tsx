@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Team } from "@/types";
 import { Users, Plus, Mail, Loader2 } from "lucide-react";
+import { useLang } from "@/lib/i18n";
 
 interface Props {
   teams: Team[];
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function TeamPanel({ teams, onCreated }: Props) {
+  const { t } = useLang();
   const [newTeamName, setNewTeamName] = useState("");
   const [creatingTeam, setCreatingTeam] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -60,10 +62,10 @@ export default function TeamPanel({ teams, onCreated }: Props) {
       <form onSubmit={createTeam} className="flex gap-2">
         <input
           type="text"
-          placeholder="New team name…"
+          placeholder={t.newTeamName}
           value={newTeamName}
           onChange={(e) => setNewTeamName(e.target.value)}
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
           type="submit"
@@ -71,14 +73,14 @@ export default function TeamPanel({ teams, onCreated }: Props) {
           className="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-1"
         >
           {creatingTeam ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Create
+          {t.create}
         </button>
       </form>
 
       {/* Team list */}
       {teams.length === 0 ? (
         <div className="text-center py-8 text-gray-400 text-sm">
-          No teams yet. Create one above.
+          {t.noTeams}
         </div>
       ) : (
         <div className="space-y-4">
@@ -88,7 +90,7 @@ export default function TeamPanel({ teams, onCreated }: Props) {
                 <Users className="w-4 h-4 text-blue-500" />
                 <h3 className="font-semibold text-gray-900">{team.name}</h3>
                 <span className="text-xs text-gray-400 ml-auto">
-                  {team.members?.length ?? 0} member{(team.members?.length ?? 0) !== 1 ? "s" : ""}
+                  {team.members?.length ?? 0} {t.member}
                 </span>
               </div>
 
@@ -105,7 +107,7 @@ export default function TeamPanel({ teams, onCreated }: Props) {
                     )}
                     <span className="truncate">{m.user?.name ?? m.user?.email}</span>
                     {m.role === "owner" && (
-                      <span className="text-xs text-blue-500 font-medium">owner</span>
+                      <span className="text-xs text-blue-500 font-medium">{t.owner}</span>
                     )}
                   </div>
                 ))}
@@ -116,24 +118,24 @@ export default function TeamPanel({ teams, onCreated }: Props) {
                 <form onSubmit={invite} className="flex gap-2">
                   <input
                     type="email"
-                    placeholder="member@email.com"
+                    placeholder={t.invitePlaceholder}
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-xs text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
                     type="submit"
                     disabled={inviteLoading}
                     className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition disabled:opacity-50"
                   >
-                    {inviteLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Invite"}
+                    {inviteLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : t.invite}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setInvitingTeamId(null); setMsg(null); }}
                     className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition"
                   >
-                    Cancel
+                    {t.cancel}
                   </button>
                 </form>
               ) : (
@@ -141,7 +143,7 @@ export default function TeamPanel({ teams, onCreated }: Props) {
                   onClick={() => { setInvitingTeamId(team.id); setMsg(null); }}
                   className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  <Mail className="w-3 h-3" /> Invite member
+                  <Mail className="w-3 h-3" /> {t.invite}
                 </button>
               )}
 

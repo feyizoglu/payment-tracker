@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Payment, Team } from "@/types";
 import PaymentForm from "@/components/PaymentForm";
 import PaymentCard from "@/components/PaymentCard";
-import MonthlyView from "@/components/MonthlyView";
+import CalendarView from "@/components/CalendarView";
 import TeamPanel from "@/components/TeamPanel";
 import {
   CreditCard,
@@ -17,30 +17,31 @@ import {
   Users,
   ChevronDown,
 } from "lucide-react";
+import { useLang } from "@/lib/i18n";
 
-type Tab = "monthly" | "all" | "teams";
+type View = "monthly" | "all";
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
+  const { lang, setLang, t } = useLang();
   const router = useRouter();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [activeTab, setActiveTab] = useState<Tab>("monthly");
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<View>("monthly");
+  const [activeFilter, setActiveFilter] = useState<string>("all"); // "all" | "personal" | teamId
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showTeamsPanel, setShowTeamsPanel] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/");
   }, [status, router]);
 
   const fetchPayments = useCallback(async () => {
-    const url = selectedTeamId
-      ? `/api/payments?team_id=${selectedTeamId}`
-      : "/api/payments";
+    let url = "/api/payments?filter=all";
     const res = await fetch(url);
     if (res.ok) setPayments(await res.json());
-  }, [selectedTeamId]);
+  }, []);
 
   const fetchTeams = useCallback(async () => {
     const res = await fetch("/api/teams");
@@ -62,14 +63,27 @@ export default function Dashboard() {
     );
   }
 
-  const totalMonthly = payments.reduce(
+  // Apply filter locally
+  const filteredPayments = payments.filter((p) => {
+    if (activeFilter === "all") return true;
+    if (activeFilter === "personal") return !p.team_id;
+    return p.team_id === activeFilter;
+  });
+
+  const totalMonthly = filteredPayments.reduce(
     (s, p) => s + p.amount / p.total_installments,
     0
   );
-  const totalRemaining = payments.reduce((s, p) => {
+  const totalRemaining = filteredPayments.reduce((s, p) => {
     const rem = p.total_installments - p.paid_installments;
     return s + (p.amount / p.total_installments) * rem;
   }, 0);
+
+  const filters = [
+    { id: "all", label: t.all },
+    { id: "personal", label: t.personal },
+    ...teams.map((team) => ({ id: team.id, label: team.name })),
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -81,62 +95,59 @@ export default function Dashboard() {
             <span className="font-bold text-gray-900">PayTrack</span>
           </div>
 
-          {/* Team selector */}
           <div className="flex items-center gap-2">
-            <select
-              value={selectedTeamId ?? ""}
-              onChange={(e) => setSelectedTeamId(e.target.value || null)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              <option value="">Personal</option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* User menu */}
-          <div className="relative">
+            {/* Language toggle */}
             <button
-              onClick={() => setShowUserMenu((v) => !v)}
-              className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
+              onClick={() => setLang(lang === "en" ? "tr" : "en")}
+              className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
             >
-              {session?.user?.image ? (
-                <img
-                  src={session.user.image}
-                  alt=""
-                  className="w-7 h-7 rounded-full"
-                />
-              ) : (
-                <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs">
-                  {session?.user?.name?.[0]?.toUpperCase() ?? "U"}
-                </div>
-              )}
-              <span className="hidden sm:block truncate max-w-[120px]">
-                {session?.user?.name ?? session?.user?.email}
-              </span>
-              <ChevronDown className="w-4 h-4 text-gray-400" />
+              {lang === "en" ? "🇹🇷 TR" : "🇬🇧 EN"}
             </button>
 
-            {showUserMenu && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
-                <div className="px-3 py-2 border-b border-gray-100">
-                  <p className="text-xs font-medium text-gray-900 truncate">
-                    {session?.user?.name}
-                  </p>
-                  <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
+            {/* Teams button */}
+            <button
+              onClick={() => setShowTeamsPanel(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition"
+            >
+              <Users className="w-4 h-4" />
+              <span className="hidden sm:block">{t.teams}</span>
+            </button>
+
+            {/* User menu */}
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu((v) => !v)}
+                className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
+              >
+                {session?.user?.image ? (
+                  <img src={session.user.image} alt="" className="w-7 h-7 rounded-full" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs">
+                    {session?.user?.name?.[0]?.toUpperCase() ?? "U"}
+                  </div>
+                )}
+                <span className="hidden sm:block truncate max-w-[120px]">
+                  {session?.user?.name ?? session?.user?.email}
+                </span>
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              </button>
+
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                  <div className="px-3 py-2 border-b border-gray-100">
+                    <p className="text-xs font-medium text-gray-900 truncate">{session?.user?.name}</p>
+                    <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
+                  </div>
+                  <button
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    {t.signOut}
+                  </button>
                 </div>
-                <button
-                  onClick={() => signOut({ callbackUrl: "/" })}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign out
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -145,44 +156,60 @@ export default function Dashboard() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
           <StatCard
-            label="Active Payments"
-            value={payments.filter((p) => p.paid_installments < p.total_installments).length.toString()}
+            label={t.activePayments}
+            value={filteredPayments.filter((p) => p.paid_installments < p.total_installments).length.toString()}
             color="blue"
           />
           <StatCard
-            label="Monthly Total"
+            label={t.monthlyTotal}
             value={`₺${totalMonthly.toFixed(0)}`}
             color="purple"
           />
           <StatCard
-            label="Total Remaining"
+            label={t.totalRemaining}
             value={`₺${totalRemaining.toFixed(0)}`}
             color="orange"
             className="col-span-2 sm:col-span-1"
           />
         </div>
 
-        {/* Tabs + Add button */}
+        {/* Filter chips */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {filters.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setActiveFilter(f.id)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition border ${
+                activeFilter === f.id
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* View toggle + Add button */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
             {(
               [
-                { id: "monthly", label: "Monthly", icon: <Calendar className="w-4 h-4" /> },
-                { id: "all", label: "All", icon: <LayoutGrid className="w-4 h-4" /> },
-                { id: "teams", label: "Teams", icon: <Users className="w-4 h-4" /> },
-              ] as { id: Tab; label: string; icon: React.ReactNode }[]
-            ).map((tab) => (
+                { id: "monthly", label: t.monthly, icon: <Calendar className="w-4 h-4" /> },
+                { id: "all", label: t.all, icon: <LayoutGrid className="w-4 h-4" /> },
+              ] as { id: View; label: string; icon: React.ReactNode }[]
+            ).map((v) => (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                key={v.id}
+                onClick={() => setActiveView(v.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                  activeTab === tab.id
+                  activeView === v.id
                     ? "bg-white shadow-sm text-gray-900"
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                {tab.icon}
-                {tab.label}
+                {v.icon}
+                {v.label}
               </button>
             ))}
           </div>
@@ -192,26 +219,26 @@ export default function Dashboard() {
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            Add Payment
+            {t.addPayment}
           </button>
         </div>
 
-        {/* Tab content */}
-        {activeTab === "monthly" && (
-          <MonthlyView payments={payments} onUpdated={fetchPayments} />
+        {/* Content */}
+        {activeView === "monthly" && (
+          <CalendarView payments={filteredPayments} onUpdated={fetchPayments} />
         )}
 
-        {activeTab === "all" && (
+        {activeView === "all" && (
           <div>
-            {payments.length === 0 ? (
+            {filteredPayments.length === 0 ? (
               <div className="text-center py-16 text-gray-400">
                 <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p className="font-medium">No payments yet</p>
-                <p className="text-sm mt-1">Click "Add Payment" to get started</p>
+                <p className="font-medium">{t.noPayments}</p>
+                <p className="text-sm mt-1">{t.noPaymentsHint}</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {payments.map((p) => (
+                {filteredPayments.map((p) => (
                   <PaymentCard
                     key={p.id}
                     payment={p}
@@ -223,31 +250,48 @@ export default function Dashboard() {
             )}
           </div>
         )}
-
-        {activeTab === "teams" && (
-          <TeamPanel
-            teams={teams}
-            onCreated={fetchTeams}
-          />
-        )}
       </main>
 
       {/* Payment form modal */}
       {showPaymentForm && (
         <PaymentForm
           teams={teams}
-          defaultTeamId={selectedTeamId}
+          defaultTeamId={activeFilter !== "all" && activeFilter !== "personal" ? activeFilter : null}
           onClose={() => setShowPaymentForm(false)}
           onCreated={fetchPayments}
         />
       )}
 
+      {/* Teams panel modal */}
+      {showTeamsPanel && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-500" />
+                {t.manageTeams}
+              </h2>
+              <button
+                onClick={() => setShowTeamsPanel(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-5">
+              <TeamPanel
+                teams={teams}
+                onCreated={() => { fetchTeams(); }}
+              />
+            </div>
+          </div>
+          <div className="fixed inset-0 bg-black/30 -z-10" onClick={() => setShowTeamsPanel(false)} />
+        </div>
+      )}
+
       {/* Backdrop for user menu */}
       {showUserMenu && (
-        <div
-          className="fixed inset-0 z-30"
-          onClick={() => setShowUserMenu(false)}
-        />
+        <div className="fixed inset-0 z-30" onClick={() => setShowUserMenu(false)} />
       )}
     </div>
   );

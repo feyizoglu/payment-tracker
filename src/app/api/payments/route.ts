@@ -11,17 +11,21 @@ export async function GET(req: NextRequest) {
   const db = supabaseAdmin();
   const { searchParams } = new URL(req.url);
   const teamId = searchParams.get("team_id");
+  const filter = searchParams.get("filter"); // "all" | "personal" | undefined
 
   const userId = (session.user as any).id;
 
   let query = db
     .from("payments")
-    .select("*, user:users(id, name, email, avatar_url)")
+    .select("*")
     .order("start_date", { ascending: true });
 
   if (teamId) {
     query = query.eq("team_id", teamId);
+  } else if (filter === "all") {
+    query = query.eq("user_id", userId);
   } else {
+    // default: personal only
     query = query.eq("user_id", userId).is("team_id", null);
   }
 
@@ -39,7 +43,15 @@ export async function POST(req: NextRequest) {
 
   const db = supabaseAdmin();
   const userId = (session.user as any).id;
+
+  console.log("POST /api/payments - userId:", userId, "email:", session.user.email);
+
+  if (!userId) {
+    return NextResponse.json({ error: "User not found in database. Please sign out and sign in again." }, { status: 500 });
+  }
+
   const body = await req.json();
+  console.log("POST /api/payments - body:", body);
 
   const { data, error } = await db
     .from("payments")
@@ -49,13 +61,16 @@ export async function POST(req: NextRequest) {
       name: body.name,
       amount: body.amount,
       start_date: body.start_date,
-      day_of_month: body.day_of_month,
+      day_of_month: new Date(body.start_date).getDate(),
       total_installments: body.total_installments,
       paid_installments: 0,
     })
-    .select("*, user:users(id, name, email, avatar_url)")
+    .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("POST /api/payments Supabase error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json(data, { status: 201 });
 }

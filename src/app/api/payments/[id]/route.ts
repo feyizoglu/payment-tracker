@@ -19,7 +19,7 @@ export async function PATCH(
     .from("payments")
     .update(body)
     .eq("id", id)
-    .select("*, user:users(id, name, email, avatar_url)")
+    .select("*")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
