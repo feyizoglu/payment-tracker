@@ -2,12 +2,13 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Payment, Team } from "@/types";
 import PaymentForm from "@/components/PaymentForm";
 import PaymentCard from "@/components/PaymentCard";
-import CalendarView from "@/components/CalendarView";
+import CalendarView, { UserMap } from "@/components/CalendarView";
 import TeamPanel from "@/components/TeamPanel";
+import DateRangeReport from "@/components/DateRangeReport";
 import {
   CreditCard,
   Plus,
@@ -16,8 +17,10 @@ import {
   Calendar,
   Users,
   ChevronDown,
+  CalendarRange,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { getPaymentsForMonth } from "@/lib/payments";
 
 type View = "monthly" | "all";
 
@@ -28,10 +31,14 @@ export default function Dashboard() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [activeView, setActiveView] = useState<View>("monthly");
-  const [activeFilter, setActiveFilter] = useState<string>("all"); // "all" | "personal" | teamId
+  const [activeFilter, setActiveFilter] = useState<string>("all");
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showTeamsPanel, setShowTeamsPanel] = useState(false);
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<Date | null>(null);
+  const [calendarDate, setCalendarDate] = useState(new Date());
+  const [showDateRange, setShowDateRange] = useState(false);
+  const [myColor, setMyColor] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/");
@@ -55,6 +62,48 @@ export default function Dashboard() {
     }
   }, [status, fetchPayments, fetchTeams]);
 
+  // Load current user's saved color from teams data
+  useEffect(() => {
+    if (teams.length > 0 && session?.user) {
+      const uid = (session.user as any).id;
+      for (const team of teams) {
+        const me = team.members?.find((m) => m.user_id === uid);
+        if (me?.user && (me.user as any).color) {
+          setMyColor((me.user as any).color);
+          break;
+        }
+      }
+    }
+  }, [teams, session]);
+
+  // Build a map of userId -> user info from session + team members (must be before early return)
+  const userMap = useMemo<UserMap>(() => {
+    const map: UserMap = {};
+    if (session?.user) {
+      const uid = (session.user as any).id;
+      if (uid) map[uid] = {
+        name: session.user.name ?? null,
+        email: session.user.email!,
+        avatar_url: session.user.image ?? null,
+        color: myColor,
+      };
+    }
+    teams.forEach((team) => {
+      team.members?.forEach((m) => {
+        if (m.user) {
+          const isMe = m.user_id === (session?.user as any)?.id;
+          map[m.user_id] = {
+            name: m.user.name,
+            email: m.user.email,
+            avatar_url: m.user.avatar_url,
+            color: isMe ? myColor : (m.user as any).color ?? null,
+          };
+        }
+      });
+    });
+    return map;
+  }, [session, teams, myColor]);
+
   if (status === "loading" || status === "unauthenticated") {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -70,14 +119,33 @@ export default function Dashboard() {
     return p.team_id === activeFilter;
   });
 
-  const totalMonthly = filteredPayments.reduce(
-    (s, p) => s + p.amount / p.total_installments,
-    0
-  );
-  const totalRemaining = filteredPayments.reduce((s, p) => {
-    const rem = p.total_installments - p.paid_installments;
-    return s + (p.amount / p.total_installments) * rem;
-  }, 0);
+  // Monthly total: only payments due in the currently viewed calendar month
+  const calYear = calendarDate.getFullYear();
+  const calMonth = calendarDate.getMonth();
+  const currentMonthEntries = getPaymentsForMonth(filteredPayments, calYear, calMonth);
+  const totalMonthly = currentMonthEntries
+    .filter(({ installment }) => !installment.isPaid)
+    .reduce((s, { installment }) => s + installment.amount, 0);
+
+  // Weekly total: payments due in the current real week (Mon–Sun)
+  const today = new Date();
+  const dayOfWeek = (today.getDay() + 6) % 7; // Monday = 0
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - dayOfWeek);
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  const weekEntries = currentMonthEntries.filter(({ installment }) => {
+    const d = installment.dueDate;
+    return d >= weekStart && d <= weekEnd && !installment.isPaid;
+  });
+  const totalWeekly = weekEntries.reduce((s, { installment }) => s + installment.amount, 0);
+
+  function fmtStat(n: number) {
+    return n.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
 
   const filters = [
     { id: "all", label: t.all },
@@ -162,12 +230,12 @@ export default function Dashboard() {
           />
           <StatCard
             label={t.monthlyTotal}
-            value={`₺${totalMonthly.toFixed(0)}`}
+            value={`₺${fmtStat(totalMonthly)}`}
             color="purple"
           />
           <StatCard
-            label={t.totalRemaining}
-            value={`₺${totalRemaining.toFixed(0)}`}
+            label={t.weeklyTotal}
+            value={`₺${fmtStat(totalWeekly)}`}
             color="orange"
             className="col-span-2 sm:col-span-1"
           />
@@ -215,6 +283,13 @@ export default function Dashboard() {
           </div>
 
           <button
+            onClick={() => setShowDateRange(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+          >
+            <CalendarRange className="w-4 h-4" />
+            <span className="hidden sm:block">{t.dateRangeReport}</span>
+          </button>
+          <button
             onClick={() => setShowPaymentForm(true)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition shadow-sm"
           >
@@ -225,7 +300,13 @@ export default function Dashboard() {
 
         {/* Content */}
         {activeView === "monthly" && (
-          <CalendarView payments={filteredPayments} onUpdated={fetchPayments} />
+          <CalendarView
+            payments={filteredPayments}
+            userMap={userMap}
+            onUpdated={fetchPayments}
+            onDaySelected={setSelectedCalendarDay}
+            onMonthChange={setCalendarDate}
+          />
         )}
 
         {activeView === "all" && (
@@ -242,6 +323,7 @@ export default function Dashboard() {
                   <PaymentCard
                     key={p.id}
                     payment={p}
+                    userMap={userMap}
                     onUpdated={fetchPayments}
                     onDeleted={fetchPayments}
                   />
@@ -257,6 +339,10 @@ export default function Dashboard() {
         <PaymentForm
           teams={teams}
           defaultTeamId={activeFilter !== "all" && activeFilter !== "personal" ? activeFilter : null}
+          defaultDate={selectedCalendarDay ? (() => {
+            const d = selectedCalendarDay;
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+          })() : null}
           onClose={() => setShowPaymentForm(false)}
           onCreated={fetchPayments}
         />
@@ -281,12 +367,24 @@ export default function Dashboard() {
             <div className="p-5">
               <TeamPanel
                 teams={teams}
+                currentUserId={(session?.user as any)?.id}
+                currentUserColor={myColor}
                 onCreated={() => { fetchTeams(); }}
+                onColorChanged={(color) => setMyColor(color)}
               />
             </div>
           </div>
           <div className="fixed inset-0 bg-black/30 -z-10" onClick={() => setShowTeamsPanel(false)} />
         </div>
+      )}
+
+      {/* Date range report modal */}
+      {showDateRange && (
+        <DateRangeReport
+          payments={filteredPayments}
+          userMap={userMap}
+          onClose={() => setShowDateRange(false)}
+        />
       )}
 
       {/* Backdrop for user menu */}

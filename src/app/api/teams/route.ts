@@ -19,7 +19,7 @@ export async function GET() {
 
   const { data, error } = await db
     .from("team_members")
-    .select("team:teams(*, members:team_members(user_id, role, joined_at))")
+    .select("team:teams(*, members:team_members(user_id, role, joined_at, user:users(id, name, email, avatar_url, color)))")
     .eq("user_id", userId);
 
   if (error) {

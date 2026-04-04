@@ -8,18 +8,28 @@ import { useLang } from "@/lib/i18n";
 interface Props {
   teams: Team[];
   defaultTeamId?: string | null;
+  defaultDate?: string | null;
   onClose: () => void;
   onCreated: () => void;
 }
 
-export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }: Props) {
+function localDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export default function PaymentForm({ teams, defaultTeamId, defaultDate, onClose, onCreated }: Props) {
   const { t } = useLang();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inputMode, setInputMode] = useState<"total" | "installment">("total");
   const [form, setForm] = useState({
     name: "",
-    amount: "",
-    start_date: new Date().toISOString().split("T")[0],
+    totalAmount: "",
+    installmentAmount: "",
+    start_date: defaultDate ?? localDateStr(new Date()),
     total_installments: "1",
     team_id: defaultTeamId ?? "",
   });
@@ -27,20 +37,39 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
   const set = (field: string, value: string) =>
     setForm((p) => ({ ...p, [field]: value }));
 
+  const installmentCount = parseInt(form.total_installments) || 1;
+
+  const computedTotal = inputMode === "installment"
+    ? (parseFloat(form.installmentAmount) || 0) * installmentCount
+    : parseFloat(form.totalAmount) || 0;
+
+  const computedInstallment = inputMode === "total"
+    ? (parseFloat(form.totalAmount) || 0) / installmentCount
+    : parseFloat(form.installmentAmount) || 0;
+
+  function fmt(n: number) {
+    if (!n || isNaN(n)) return "";
+    return n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
+      const totalAmt = inputMode === "total"
+        ? parseFloat(form.totalAmount)
+        : (parseFloat(form.installmentAmount) * installmentCount);
+
       const res = await fetch("/api/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
-          amount: parseFloat(form.amount),
+          amount: totalAmt,
           start_date: form.start_date,
-          total_installments: parseInt(form.total_installments),
+          total_installments: installmentCount,
           team_id: form.team_id || null,
         }),
       });
@@ -59,20 +88,12 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
     }
   }
 
-  const monthlyAmount =
-    form.amount && form.total_installments
-      ? (parseFloat(form.amount) / parseInt(form.total_installments)).toFixed(2)
-      : null;
-
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900">{t.addPaymentTitle}</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -80,9 +101,7 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t.paymentName}
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t.paymentName}</label>
             <input
               type="text"
               required
@@ -93,33 +112,71 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
             />
           </div>
 
-          {/* Amount */}
+          {/* Input mode toggle */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t.amountMode}</label>
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+              {(["total", "installment"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setInputMode(mode)}
+                  className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition ${
+                    inputMode === mode ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {mode === "total" ? t.totalMode : t.perInstallmentMode}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Amount field */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t.totalAmount}
+              {inputMode === "total" ? t.totalAmount : t.perInstallmentAmount}
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-                ₺
-              </span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₺</span>
               <input
                 type="number"
                 required
                 min="0.01"
                 step="0.01"
-                placeholder="0.00"
-                value={form.amount}
-                onChange={(e) => set("amount", e.target.value)}
-                className="w-full border border-gray-300 rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0,00"
+                value={inputMode === "total" ? form.totalAmount : form.installmentAmount}
+                onChange={(e) => set(inputMode === "total" ? "totalAmount" : "installmentAmount", e.target.value)}
+                className="w-full border border-gray-300 rounded-lg pl-7 pr-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
+          {/* Installments count */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t.numberOfInstallments}</label>
+            <input
+              type="number"
+              required
+              min="1"
+              max="120"
+              placeholder="12"
+              value={form.total_installments}
+              onChange={(e) => set("total_installments", e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {computedTotal > 0 && (
+              <p className="text-xs text-gray-400 mt-1">
+                {inputMode === "total"
+                  ? <>{t.monthlyPayment}: <span className="font-medium text-gray-600">₺{fmt(computedInstallment)}</span></>
+                  : <>{t.totalAmount}: <span className="font-medium text-gray-600">₺{fmt(computedTotal)}</span></>
+                }
+              </p>
+            )}
+          </div>
+
           {/* Payment Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t.firstPaymentDate}
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t.firstPaymentDate}</label>
             <input
               type="date"
               required
@@ -127,58 +184,28 @@ export default function PaymentForm({ teams, defaultTeamId, onClose, onCreated }
               onChange={(e) => set("start_date", e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <p className="text-xs text-gray-400 mt-1">
-              {t.firstPaymentDateHint}
-            </p>
-          </div>
-
-          {/* Installments */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t.numberOfInstallments}
-            </label>
-            <input
-              type="number"
-              required
-              min="1"
-              max="120"
-              placeholder="e.g. 12"
-              value={form.total_installments}
-              onChange={(e) => set("total_installments", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {monthlyAmount && (
-              <p className="text-xs text-gray-400 mt-1">
-                {t.monthlyPayment}: <span className="font-medium text-gray-600">₺{monthlyAmount}</span>
-              </p>
-            )}
+            <p className="text-xs text-gray-400 mt-1">{t.firstPaymentDateHint}</p>
           </div>
 
           {/* Team */}
           {teams.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t.addToTeam}
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t.addToTeam}</label>
               <select
                 value={form.team_id}
                 onChange={(e) => set("team_id", e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">{t.personalOption}</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
                 ))}
               </select>
             </div>
           )}
 
           {error && (
-            <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">
-              {error}
-            </p>
+            <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
 
           <div className="flex gap-3 pt-2">

@@ -6,14 +6,34 @@ import { getInstallments, getRemainingAmount, getTotalMonthly } from "@/lib/paym
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Trash2, CheckCircle2, Circle } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { UserMap } from "@/components/CalendarView";
+
+const PALETTE = [
+  "#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444",
+  "#10B981", "#EC4899", "#F97316", "#14B8A6",
+];
+function hashColor(userId: string): string {
+  let h = 0;
+  for (let i = 0; i < userId.length; i++) h = (Math.imul(31, h) + userId.charCodeAt(i)) | 0;
+  return PALETTE[Math.abs(h) % PALETTE.length];
+}
+
+function userColor(userId: string, userMap?: UserMap): string {
+  return userMap?.[userId]?.color ?? hashColor(userId);
+}
+
+function fmt(n: number) {
+  return n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 interface Props {
   payment: Payment;
+  userMap?: UserMap;
   onUpdated: () => void;
   onDeleted: () => void;
 }
 
-export default function PaymentCard({ payment, onUpdated, onDeleted }: Props) {
+export default function PaymentCard({ payment, userMap = {}, onUpdated, onDeleted }: Props) {
   const { t } = useLang();
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,6 +42,8 @@ export default function PaymentCard({ payment, onUpdated, onDeleted }: Props) {
   const monthly = getTotalMonthly(payment);
   const remaining = getRemainingAmount(payment);
   const progress = (payment.paid_installments / payment.total_installments) * 100;
+  const color = userColor(payment.user_id, userMap);
+  const addedBy = userMap[payment.user_id];
 
   async function markPaid(upTo: number) {
     setLoading(true);
@@ -43,23 +65,41 @@ export default function PaymentCard({ payment, onUpdated, onDeleted }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
+      style={{ borderLeftWidth: 3, borderLeftColor: color }}>
       {/* Header */}
       <div className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold text-gray-900 truncate">{payment.name}</h3>
-              {payment.user && (
-                <span className="text-xs text-gray-400">by {payment.user.name ?? payment.user.email}</span>
-              )}
             </div>
-            <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
-              <span>₺{monthly.toFixed(2)}{t.perMonth}</span>
+            <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 flex-wrap">
+              <span>₺{fmt(monthly)}{t.perMonth}</span>
               <span>·</span>
               <span>{payment.paid_installments}/{payment.total_installments} {t.paid}</span>
               <span>·</span>
-              <span className="text-orange-500 font-medium">₺{remaining.toFixed(2)} {t.left}</span>
+              <span className="text-orange-500 font-medium">₺{fmt(remaining)} {t.left}</span>
+              {addedBy && (
+                <>
+                  <span>·</span>
+                  <div className="flex items-center gap-1">
+                    {addedBy.avatar_url ? (
+                      <img src={addedBy.avatar_url} alt="" className="w-4 h-4 rounded-full" />
+                    ) : (
+                      <span
+                        className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                        style={{ backgroundColor: color }}
+                      >
+                        {(addedBy.name ?? addedBy.email)[0].toUpperCase()}
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-400 truncate max-w-[100px]">
+                      {addedBy.name ?? addedBy.email}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -119,7 +159,7 @@ export default function PaymentCard({ payment, onUpdated, onDeleted }: Props) {
                   {inst.index + 1}. {format(inst.dueDate, "dd MMM yyyy")}
                 </span>
               </div>
-              <span className="font-medium">₺{inst.amount.toFixed(2)}</span>
+              <span className="font-medium">₺{fmt(inst.amount)}</span>
             </div>
           ))}
         </div>

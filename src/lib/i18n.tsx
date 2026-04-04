@@ -24,7 +24,7 @@ const translations = {
     // Dashboard
     activePayments: "Active Payments",
     monthlyTotal: "Monthly Total",
-    totalRemaining: "Total Remaining",
+    weeklyTotal: "This Week",
     all: "All",
     personal: "Personal",
     monthly: "Monthly",
@@ -52,12 +52,26 @@ const translations = {
     personalOption: "Personal",
     cancel: "Cancel",
     adding: "Adding…",
+    // Payment Form - amount mode
+    amountMode: "Entry Mode",
+    totalMode: "Total Amount",
+    perInstallmentMode: "Per Installment",
+    perInstallmentAmount: "Installment Amount",
+    addedBy: "Added by",
     // Payment Card
     perMonth: "/mo",
     left: "left",
     delete: "Delete",
     deleteConfirm: 'Delete',
+    // Date Range Report
+    dateRangeReport: "Date Range",
+    startDate: "Start Date",
+    endDate: "End Date",
+    totalDue: "Total Due",
+    remaining: "Remaining",
+    noPaymentsRange: "No payments in this range",
     // Teams Panel
+    myColor: "My Color",
     manageTeams: "Manage Teams",
     newTeamName: "New team name…",
     create: "Create",
@@ -88,7 +102,7 @@ const translations = {
     // Dashboard
     activePayments: "Aktif Ödemeler",
     monthlyTotal: "Aylık Toplam",
-    totalRemaining: "Kalan Toplam",
+    weeklyTotal: "Bu Hafta",
     all: "Tümü",
     personal: "Kişisel",
     monthly: "Aylık",
@@ -116,12 +130,26 @@ const translations = {
     personalOption: "Kişisel",
     cancel: "İptal",
     adding: "Ekleniyor…",
+    // Payment Form - amount mode
+    amountMode: "Giriş Modu",
+    totalMode: "Toplam Tutar",
+    perInstallmentMode: "Taksit Başına",
+    perInstallmentAmount: "Taksit Tutarı",
+    addedBy: "Ekleyen",
     // Payment Card
     perMonth: "/ay",
     left: "kaldı",
     delete: "Sil",
     deleteConfirm: "Sil",
+    // Date Range Report
+    dateRangeReport: "Tarih Aralığı",
+    startDate: "Başlangıç",
+    endDate: "Bitiş",
+    totalDue: "Toplam",
+    remaining: "Kalan",
+    noPaymentsRange: "Bu aralıkta ödeme yok",
     // Teams Panel
+    myColor: "Rengim",
     manageTeams: "Takımları Yönet",
     newTeamName: "Yeni takım adı…",
     create: "Oluştur",

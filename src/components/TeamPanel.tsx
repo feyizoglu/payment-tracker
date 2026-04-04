@@ -5,12 +5,21 @@ import { Team } from "@/types";
 import { Users, Plus, Mail, Loader2 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
+const COLOR_OPTIONS = [
+  "#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444",
+  "#10B981", "#EC4899", "#F97316", "#14B8A6",
+  "#6366F1", "#84CC16", "#06B6D4", "#F43F5E",
+];
+
 interface Props {
   teams: Team[];
+  currentUserId?: string;
+  currentUserColor?: string | null;
   onCreated: () => void;
+  onColorChanged?: (color: string) => void;
 }
 
-export default function TeamPanel({ teams, onCreated }: Props) {
+export default function TeamPanel({ teams, currentUserId, currentUserColor, onCreated, onColorChanged }: Props) {
   const { t } = useLang();
   const [newTeamName, setNewTeamName] = useState("");
   const [creatingTeam, setCreatingTeam] = useState(false);
@@ -18,6 +27,18 @@ export default function TeamPanel({ teams, onCreated }: Props) {
   const [invitingTeamId, setInvitingTeamId] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [colorLoading, setColorLoading] = useState(false);
+
+  async function changeColor(color: string) {
+    setColorLoading(true);
+    await fetch("/api/users/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ color }),
+    });
+    setColorLoading(false);
+    onColorChanged?.(color);
+  }
 
   async function createTeam(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +79,26 @@ export default function TeamPanel({ teams, onCreated }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* My color */}
+      <div>
+        <p className="text-sm font-medium text-gray-700 mb-2">{t.myColor}</p>
+        <div className="flex flex-wrap gap-2">
+          {COLOR_OPTIONS.map((c) => (
+            <button
+              key={c}
+              disabled={colorLoading}
+              onClick={() => changeColor(c)}
+              className="w-7 h-7 rounded-full transition-transform hover:scale-110 disabled:opacity-50"
+              style={{
+                backgroundColor: c,
+                outline: currentUserColor === c ? `3px solid ${c}` : "none",
+                outlineOffset: "2px",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
       {/* Create team */}
       <form onSubmit={createTeam} className="flex gap-2">
         <input

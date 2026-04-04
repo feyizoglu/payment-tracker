@@ -5,8 +5,11 @@ export function getInstallments(payment: Payment): PaymentInstallment[] {
   const installments: PaymentInstallment[] = [];
   const installmentAmount = payment.amount / payment.total_installments;
 
+  // Parse date as local time (not UTC) to avoid timezone off-by-one
+  const [sy, sm, sd] = payment.start_date.split("-").map(Number);
+
   for (let i = 0; i < payment.total_installments; i++) {
-    const base = addMonths(new Date(payment.start_date), i);
+    const base = addMonths(new Date(sy, sm - 1, sd), i);
     // Clamp day to end of month if needed
     const maxDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
     const day = Math.min(payment.day_of_month, maxDay);
