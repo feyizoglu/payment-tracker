@@ -13,22 +13,41 @@ export async function GET(req: NextRequest) {
   const db = supabaseAdmin();
   const { searchParams } = new URL(req.url);
   const teamId = searchParams.get("team_id");
-  const filter = searchParams.get("filter"); // "all" | "personal" | undefined
+  const filter = searchParams.get("filter"); // "all" | "personal" | teamId
 
   const userId = (session.user as any).id;
 
+  // Get all teams this user is a member of
+  const { data: memberRows } = await db
+    .from("team_members")
+    .select("team_id")
+    .eq("user_id", userId);
+
+  const myTeamIds = (memberRows ?? []).map((r: any) => r.team_id);
+
   let query = db
     .from("payments")
-    .select("*")
+    .select("*, added_by_user:users!payments_user_id_fkey(name, email, avatar_url)")
     .order("start_date", { ascending: true });
 
   if (teamId) {
+    // Show all payments for a specific team
     query = query.eq("team_id", teamId);
-  } else if (filter === "all") {
-    query = query.eq("user_id", userId);
-  } else {
-    // default: personal only
+  } else if (filter === "personal") {
+    // Only personal (no team)
     query = query.eq("user_id", userId).is("team_id", null);
+  } else if (filter && filter !== "all") {
+    // Filter by a specific team id passed as filter
+    query = query.eq("team_id", filter);
+  } else {
+    // "all": personal + all team payments for teams user belongs to
+    if (myTeamIds.length > 0) {
+      query = query.or(
+        `user_id.eq.${userId},team_id.in.(${myTeamIds.join(",")})`
+      );
+    } else {
+      query = query.eq("user_id", userId);
+    }
   }
 
   const { data, error } = await query;
