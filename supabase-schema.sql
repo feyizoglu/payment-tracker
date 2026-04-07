@@ -40,11 +40,26 @@ create table if not exists payments (
   created_at timestamptz default now()
 );
 
+-- Assets table (economy page)
+create table if not exists assets (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references users(id) on delete cascade not null,
+  team_id uuid references teams(id) on delete cascade,
+  bank_name text not null,
+  currency text not null check (currency in ('USD', 'EUR', 'GBP', 'TRY', 'BILEZIK', 'GRAM_ALTIN', 'CEYREK_ALTIN', 'YARIM_ALTIN', 'TAM_ALTIN')),
+  amount numeric(20, 4) not null check (amount >= 0),
+  created_at timestamptz default now()
+);
+
+-- color column for users (added after initial schema)
+alter table users add column if not exists color text;
+
 -- Enable Row Level Security
 alter table users enable row level security;
 alter table teams enable row level security;
 alter table team_members enable row level security;
 alter table payments enable row level security;
+alter table assets enable row level security;
 
 -- RLS Policies: service role bypasses all (used by API)
 -- Users can read themselves
@@ -75,3 +90,13 @@ create policy "Users can update their own payments"
 
 create policy "Users can delete their own payments"
   on payments for delete using (true);
+
+-- Assets policies
+create policy "Users can view their own and team assets"
+  on assets for select using (true);
+
+create policy "Users can insert assets"
+  on assets for insert with check (true);
+
+create policy "Users can delete their own assets"
+  on assets for delete using (true);

@@ -4,22 +4,22 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-// Returns true if userId owns the payment OR is the team owner of the payment's team
-async function canManagePayment(db: ReturnType<typeof supabaseAdmin>, paymentId: string, userId: string) {
-  const { data: payment } = await db
-    .from("payments")
+// Returns true if userId owns the asset OR is the team owner of the asset's team
+async function canManageAsset(db: ReturnType<typeof supabaseAdmin>, assetId: string, userId: string) {
+  const { data: asset } = await db
+    .from("assets")
     .select("user_id, team_id")
-    .eq("id", paymentId)
+    .eq("id", assetId)
     .single();
 
-  if (!payment) return false;
-  if (payment.user_id === userId) return true;
+  if (!asset) return false;
+  if (asset.user_id === userId) return true;
 
-  if (payment.team_id) {
+  if (asset.team_id) {
     const { data: membership } = await db
       .from("team_members")
       .select("role")
-      .eq("team_id", payment.team_id)
+      .eq("team_id", asset.team_id)
       .eq("user_id", userId)
       .single();
     return membership?.role === "owner";
@@ -41,15 +41,16 @@ export async function PATCH(
   const db = supabaseAdmin();
   const userId = (session.user as any).id;
 
-  if (!(await canManagePayment(db, id, userId))) {
+  if (!(await canManageAsset(db, id, userId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json();
+  const { bank_name, amount } = body;
 
   const { data, error } = await db
-    .from("payments")
-    .update(body)
+    .from("assets")
+    .update({ bank_name, amount })
     .eq("id", id)
     .select("*")
     .single();
@@ -71,11 +72,11 @@ export async function DELETE(
   const db = supabaseAdmin();
   const userId = (session.user as any).id;
 
-  if (!(await canManagePayment(db, id, userId))) {
+  if (!(await canManageAsset(db, id, userId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { error } = await db.from("payments").delete().eq("id", id);
+  const { error } = await db.from("assets").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

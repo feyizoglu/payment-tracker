@@ -42,3 +42,34 @@ export interface PaymentInstallment {
   amount: number;
   isPaid: boolean;
 }
+
+export type GoldType = "BILEZIK" | "GRAM_ALTIN" | "CEYREK_ALTIN" | "YARIM_ALTIN" | "TAM_ALTIN";
+export type FiatCurrency = "USD" | "EUR" | "GBP" | "TRY";
+export type Currency = FiatCurrency | GoldType;
+
+export interface Asset {
+  id: string;
+  user_id: string;
+  team_id: string | null;
+  bank_name: string;
+  currency: Currency;
+  // For fiat: face value. For BILEZIK/GRAM_ALTIN: grams. For CEYREK/YARIM/TAM: adet (pieces).
+  amount: number;
+  created_at: string;
+  user?: User;
+}
+
+export interface ExchangeRates {
+  // USD per 1 unit of each currency/asset type
+  USD: number;          // 1
+  EUR: number;          // USD per 1 EUR
+  GBP: number;          // USD per 1 GBP
+  TRY: number;          // USD per 1 TRY
+  BILEZIK: number;      // USD per 1 gram (22 ayar bilezik)
+  GRAM_ALTIN: number;   // USD per 1 gram
+  CEYREK_ALTIN: number; // USD per 1 piece
+  YARIM_ALTIN: number;  // USD per 1 piece
+  TAM_ALTIN: number;    // USD per 1 piece
+  fetchedAt: string;
+  goldError?: string | null;
+}

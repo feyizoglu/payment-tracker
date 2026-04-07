@@ -7,6 +7,7 @@ import { useLang } from "@/lib/i18n";
 
 interface Props {
   teams: Team[];
+  currentUserId?: string;
   defaultTeamId?: string | null;
   defaultDate?: string | null;
   onClose: () => void;
@@ -20,11 +21,12 @@ function localDateStr(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-export default function PaymentForm({ teams, defaultTeamId, defaultDate, onClose, onCreated }: Props) {
+export default function PaymentForm({ teams, currentUserId, defaultTeamId, defaultDate, onClose, onCreated }: Props) {
   const { t } = useLang();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputMode, setInputMode] = useState<"total" | "installment">("total");
+  const [targetUserId, setTargetUserId] = useState<string>("");
   const [form, setForm] = useState({
     name: "",
     totalAmount: "",
@@ -34,8 +36,20 @@ export default function PaymentForm({ teams, defaultTeamId, defaultDate, onClose
     team_id: defaultTeamId ?? "",
   });
 
-  const set = (field: string, value: string) =>
+  const set = (field: string, value: string) => {
     setForm((p) => ({ ...p, [field]: value }));
+    // Reset target user when team changes
+    if (field === "team_id") setTargetUserId("");
+  };
+
+  // Determine if current user is owner of the selected team
+  const selectedTeam = teams.find((t) => t.id === form.team_id);
+  const isOwnerOfSelectedTeam =
+    !!selectedTeam &&
+    selectedTeam.members?.some(
+      (m) => m.user_id === currentUserId && m.role === "owner"
+    );
+  const otherMembers = selectedTeam?.members?.filter((m) => m.user_id !== currentUserId) ?? [];
 
   const installmentCount = parseInt(form.total_installments) || 1;
 
@@ -71,6 +85,7 @@ export default function PaymentForm({ teams, defaultTeamId, defaultDate, onClose
           start_date: form.start_date,
           total_installments: installmentCount,
           team_id: form.team_id || null,
+          target_user_id: targetUserId || undefined,
         }),
       });
 
@@ -199,6 +214,25 @@ export default function PaymentForm({ teams, defaultTeamId, defaultDate, onClose
                 <option value="">{t.personalOption}</option>
                 {teams.map((team) => (
                   <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Add for (admin only) */}
+          {isOwnerOfSelectedTeam && otherMembers.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t.addFor}</label>
+              <select
+                value={targetUserId}
+                onChange={(e) => setTargetUserId(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">{t.myself}</option>
+                {otherMembers.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.user?.name ?? m.user?.email ?? m.user_id}
+                  </option>
                 ))}
               </select>
             </div>

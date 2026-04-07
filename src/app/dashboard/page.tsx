@@ -9,6 +9,7 @@ import PaymentCard from "@/components/PaymentCard";
 import CalendarView, { UserMap } from "@/components/CalendarView";
 import TeamPanel from "@/components/TeamPanel";
 import DateRangeReport from "@/components/DateRangeReport";
+import Link from "next/link";
 import {
   CreditCard,
   Plus,
@@ -158,9 +159,22 @@ export default function Dashboard() {
       {/* Navbar */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-blue-600" />
-            <span className="font-bold text-gray-900">PayTrack</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-6 h-6 text-blue-600" />
+              <span className="font-bold text-gray-900">PayTrack</span>
+            </div>
+            <nav className="flex items-center gap-1">
+              <span className="px-3 py-1.5 rounded-lg text-sm text-blue-700 bg-blue-50 font-semibold">
+                {t.dashboard}
+              </span>
+              <Link
+                href="/economy"
+                className="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition font-medium"
+              >
+                {t.economy}
+              </Link>
+            </nav>
           </div>
 
           <div className="flex items-center gap-2">
@@ -319,15 +333,25 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {filteredPayments.map((p) => (
-                  <PaymentCard
-                    key={p.id}
-                    payment={p}
-                    userMap={userMap}
-                    onUpdated={fetchPayments}
-                    onDeleted={fetchPayments}
-                  />
-                ))}
+                {filteredPayments.map((p) => {
+                  const currentUserId = (session?.user as any)?.id;
+                  const isOwner = p.user_id === currentUserId;
+                  const isTeamAdmin = p.team_id
+                    ? teams.find((t) => t.id === p.team_id)?.members?.find(
+                        (m) => m.user_id === currentUserId
+                      )?.role === "owner"
+                    : false;
+                  return (
+                    <PaymentCard
+                      key={p.id}
+                      payment={p}
+                      userMap={userMap}
+                      canManage={isOwner || isTeamAdmin}
+                      onUpdated={fetchPayments}
+                      onDeleted={fetchPayments}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
@@ -338,6 +362,7 @@ export default function Dashboard() {
       {showPaymentForm && (
         <PaymentForm
           teams={teams}
+          currentUserId={(session?.user as any)?.id}
           defaultTeamId={activeFilter !== "all" && activeFilter !== "personal" ? activeFilter : null}
           defaultDate={selectedCalendarDay ? (() => {
             const d = selectedCalendarDay;
