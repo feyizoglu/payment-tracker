@@ -107,6 +107,7 @@ export default function Economy() {
   const [addToBankName, setAddToBankName] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showTeamsPanel, setShowTeamsPanel] = useState(false);
+  const [showManualGold, setShowManualGold] = useState(false);
   const [myColor, setMyColor] = useState<string | null>(null);
 
   // Persist preferred currency + restore cached rates
@@ -355,6 +356,13 @@ export default function Economy() {
                 <RefreshCw className={`w-4 h-4 ${ratesLoading ? "animate-spin" : ""}`} />
                 {t.refreshRates}
               </button>
+              <button
+                onClick={() => setShowManualGold(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-200 text-sm font-medium text-amber-700 hover:bg-amber-50 transition"
+              >
+                <Pencil className="w-4 h-4" />
+                {t.enterGoldManually}
+              </button>
             </div>
           </div>
         </div>
@@ -415,6 +423,20 @@ export default function Economy() {
           </div>
         )}
       </main>
+
+      {showManualGold && (
+        <ManualGoldModal
+          rates={rates}
+          onClose={() => setShowManualGold(false)}
+          onApply={(updatedRates) => {
+            setRates(updatedRates);
+            setRatesStatus("ok");
+            localStorage.setItem("economy_rates", JSON.stringify(updatedRates));
+            setShowManualGold(false);
+          }}
+          t={t}
+        />
+      )}
 
       {showAddForm && (
         <AddAssetForm
@@ -1015,6 +1037,122 @@ function AddAssetForm({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Manual Gold Prices Modal ───────────────────────────────────────────────────
+
+const GOLD_FIELDS: { key: GoldType; labelKey: string }[] = [
+  { key: "GRAM_ALTIN",   labelKey: "goldGram"    },
+  { key: "BILEZIK",      labelKey: "goldBilezik" },
+  { key: "CEYREK_ALTIN", labelKey: "goldCeyrek"  },
+  { key: "YARIM_ALTIN",  labelKey: "goldYarim"   },
+  { key: "TAM_ALTIN",    labelKey: "goldTam"     },
+];
+
+function ManualGoldModal({
+  rates,
+  onClose,
+  onApply,
+  t,
+}: {
+  rates: ExchangeRates | null;
+  onClose: () => void;
+  onApply: (updated: ExchangeRates) => void;
+  t: any;
+}) {
+  const tryRate = rates?.TRY ?? 0; // USD per 1 TRY
+
+  const [values, setValues] = useState<Partial<Record<GoldType, string>>>(() => {
+    if (!tryRate) return {};
+    return Object.fromEntries(
+      GOLD_FIELDS.map(({ key }) => [
+        key,
+        rates![key] ? String(Math.round(rates![key] / tryRate)) : "",
+      ])
+    ) as Partial<Record<GoldType, string>>;
+  });
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!tryRate) return;
+
+    const now = new Date().toISOString();
+    const updated: ExchangeRates = {
+      ...(rates!),
+      fetchedAt: now,
+      goldError: null,
+    };
+
+    for (const { key } of GOLD_FIELDS) {
+      const raw = values[key];
+      if (raw && raw.trim() !== "") {
+        const tryPrice = parseFloat(raw.replace(",", "."));
+        if (!isNaN(tryPrice) && tryPrice > 0) {
+          updated[key] = tryPrice * tryRate;
+        }
+      }
+    }
+
+    onApply(updated);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900 text-base">{t.manualGoldTitle}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {!tryRate ? (
+          <p className="text-sm text-red-500">{t.manualGoldNoTRY}</p>
+        ) : (
+          <>
+            <p className="text-xs text-gray-500">{t.manualGoldDesc}</p>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {GOLD_FIELDS.map(({ key, labelKey }) => (
+                <div key={key}>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    {t[labelKey]}
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₺</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder="0"
+                      value={values[key] ?? ""}
+                      onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+                      className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                  </div>
+                </div>
+              ))}
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition"
+                >
+                  {t.manualGoldApply}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
