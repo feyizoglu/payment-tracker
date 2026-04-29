@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
       team_id: body.team_id || null,
       name: body.name,
       amount: body.amount,
+      currency: body.currency || "TRY",
       start_date: body.start_date,
       day_of_month: new Date(body.start_date).getDate(),
       total_installments: body.total_installments,

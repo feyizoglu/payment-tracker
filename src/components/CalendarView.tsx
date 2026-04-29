@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Payment } from "@/types";
-import { getPaymentsForMonth } from "@/lib/payments";
+import { getPaymentsForMonth, getCurrencySymbol } from "@/lib/payments";
 import {
   format,
   addMonths,
@@ -70,6 +70,23 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
     .filter(({ installment }) => installment.isPaid)
     .reduce((s, { installment }) => s + installment.amount, 0);
 
+  // Per-currency totals for the header summary
+  const headerSummary = (() => {
+    const paid: Record<string, number> = {};
+    const due: Record<string, number> = {};
+    for (const { payment, installment } of monthPayments) {
+      const cur = payment.currency ?? "TRY";
+      due[cur] = (due[cur] ?? 0) + installment.amount;
+      if (installment.isPaid) paid[cur] = (paid[cur] ?? 0) + installment.amount;
+    }
+    return Object.keys(due)
+      .map((cur) => {
+        const sym = getCurrencySymbol(cur);
+        return `${sym}${fmt(paid[cur] ?? 0)} ${t.paid} / ${sym}${fmt(due[cur])} ${t.total}`;
+      })
+      .join(" · ");
+  })();
+
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -134,9 +151,7 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
           <h2 className="text-lg font-semibold text-gray-900">
             {format(currentDate, "MMMM yyyy", { locale })}
           </h2>
-          <p className="text-sm text-gray-400">
-            ₺{fmt(totalPaid)} {t.paid} / ₺{fmt(totalDue)} {t.total}
-          </p>
+          <p className="text-sm text-gray-400">{headerSummary}</p>
         </div>
         <button onClick={() => navigate(1)} className="p-2 rounded-lg hover:bg-gray-100 transition">
           <ChevronRight className="w-5 h-5 text-gray-600" />
@@ -208,11 +223,18 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
                   </div>
                 )}
 
-                {hasPayments && (
-                  <span className={`text-[10px] font-medium leading-none ${allPaid ? "text-green-500" : "text-blue-500"}`}>
-                    ₺{fmt(dayPayments.reduce((s, { installment }) => s + installment.amount, 0))}
-                  </span>
-                )}
+                {hasPayments && (() => {
+                  const by: Record<string, number> = {};
+                  for (const { payment, installment } of dayPayments) {
+                    const cur = payment.currency ?? "TRY";
+                    by[cur] = (by[cur] ?? 0) + installment.amount;
+                  }
+                  return Object.entries(by).map(([cur, amt]) => (
+                    <span key={cur} className={`text-[10px] font-medium leading-none ${allPaid ? "text-green-500" : "text-blue-500"}`}>
+                      {getCurrencySymbol(cur)}{fmt(amt)}
+                    </span>
+                  ));
+                })()}
               </button>
             );
           })}
@@ -286,7 +308,7 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
                     </div>
 
                     <span className={`text-sm font-semibold shrink-0 ${installment.isPaid ? "text-gray-400" : "text-gray-900"}`}>
-                      ₺{fmt(installment.amount, 2)}
+                      {getCurrencySymbol(payment.currency)}{fmt(installment.amount, 2)}
                     </span>
 
                     <button

@@ -54,6 +54,9 @@ create table if not exists assets (
 -- color column for users (added after initial schema)
 alter table users add column if not exists color text;
 
+-- currency column for payments (added after initial schema)
+alter table payments add column if not exists currency text not null default 'TRY';
+
 -- Enable Row Level Security
 alter table users enable row level security;
 alter table teams enable row level security;

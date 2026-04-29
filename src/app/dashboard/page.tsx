@@ -21,7 +21,7 @@ import {
   CalendarRange,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
-import { getPaymentsForMonth } from "@/lib/payments";
+import { getPaymentsForMonth, getCurrencySymbol } from "@/lib/payments";
 
 type View = "monthly" | "all";
 
@@ -124,10 +124,6 @@ export default function Dashboard() {
   const calYear = calendarDate.getFullYear();
   const calMonth = calendarDate.getMonth();
   const currentMonthEntries = getPaymentsForMonth(filteredPayments, calYear, calMonth);
-  const totalMonthly = currentMonthEntries
-    .filter(({ installment }) => !installment.isPaid)
-    .reduce((s, { installment }) => s + installment.amount, 0);
-
   // Weekly total: payments due in the current real week (Mon–Sun)
   const today = new Date();
   const dayOfWeek = (today.getDay() + 6) % 7; // Monday = 0
@@ -142,11 +138,27 @@ export default function Dashboard() {
     const d = installment.dueDate;
     return d >= weekStart && d <= weekEnd && !installment.isPaid;
   });
-  const totalWeekly = weekEntries.reduce((s, { installment }) => s + installment.amount, 0);
 
   function fmtStat(n: number) {
     return n.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
+
+  function toCurrencyLines(
+    entries: { payment: Payment; installment: { amount: number; isPaid: boolean } }[]
+  ): string[] {
+    const by: Record<string, number> = {};
+    for (const { payment, installment } of entries) {
+      if (installment.isPaid) continue;
+      const cur = payment.currency ?? "TRY";
+      by[cur] = (by[cur] ?? 0) + installment.amount;
+    }
+    const items = Object.entries(by);
+    if (items.length === 0) return [`${getCurrencySymbol("TRY")}0`];
+    return items.map(([cur, amt]) => `${getCurrencySymbol(cur)}${fmtStat(amt)}`);
+  }
+
+  const monthlyLines = toCurrencyLines(currentMonthEntries);
+  const weeklyLines = toCurrencyLines(weekEntries);
 
   const filters = [
     { id: "all", label: t.all },
@@ -239,17 +251,17 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
           <StatCard
             label={t.activePayments}
-            value={filteredPayments.filter((p) => p.paid_installments < p.total_installments).length.toString()}
+            lines={[filteredPayments.filter((p) => p.paid_installments < p.total_installments).length.toString()]}
             color="blue"
           />
           <StatCard
             label={t.monthlyTotal}
-            value={`₺${fmtStat(totalMonthly)}`}
+            lines={monthlyLines}
             color="purple"
           />
           <StatCard
             label={t.weeklyTotal}
-            value={`₺${fmtStat(totalWeekly)}`}
+            lines={weeklyLines}
             color="orange"
             className="col-span-2 sm:col-span-1"
           />
@@ -422,12 +434,12 @@ export default function Dashboard() {
 
 function StatCard({
   label,
-  value,
+  lines,
   color,
   className = "",
 }: {
   label: string;
-  value: string;
+  lines: string[];
   color: "blue" | "purple" | "orange";
   className?: string;
 }) {
@@ -439,7 +451,11 @@ function StatCard({
   return (
     <div className={`rounded-xl p-4 ${colors[color]} ${className}`}>
       <p className="text-xs font-medium opacity-70 mb-1">{label}</p>
-      <p className="text-2xl font-bold">{value}</p>
+      <div className={lines.length === 1 ? "text-2xl font-bold" : "font-bold space-y-0.5"}>
+        {lines.map((line, i) => (
+          <p key={i} className={lines.length === 1 ? "" : "text-xl"}>{line}</p>
+        ))}
+      </div>
     </div>
   );
 }

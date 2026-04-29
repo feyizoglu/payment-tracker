@@ -28,6 +28,7 @@ export interface Payment {
   user_id: string;
   name: string;
   amount: number;
+  currency: string;
   start_date: string;
   day_of_month: number;
   total_installments: number;

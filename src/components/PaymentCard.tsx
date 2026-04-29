@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Payment } from "@/types";
-import { getInstallments, getRemainingAmount, getTotalMonthly } from "@/lib/payments";
+import { getInstallments, getRemainingAmount, getTotalMonthly, getCurrencySymbol } from "@/lib/payments";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Trash2, CheckCircle2, Circle, Pencil, X } from "lucide-react";
 import { useLang } from "@/lib/i18n";
@@ -46,6 +46,7 @@ export default function PaymentCard({ payment, userMap = {}, canManage = false, 
   const progress = (payment.paid_installments / payment.total_installments) * 100;
   const color = userColor(payment.user_id, userMap);
   const addedBy = userMap[payment.user_id];
+  const sym = getCurrencySymbol(payment.currency);
 
   async function markPaid(upTo: number) {
     setLoading(true);
@@ -78,11 +79,11 @@ export default function PaymentCard({ payment, userMap = {}, canManage = false, 
                 <h3 className="font-semibold text-gray-900 truncate">{payment.name}</h3>
               </div>
               <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 flex-wrap">
-                <span>₺{fmt(monthly)}{t.perMonth}</span>
+                <span>{sym}{fmt(monthly)}{t.perMonth}</span>
                 <span>·</span>
                 <span>{payment.paid_installments}/{payment.total_installments} {t.paid}</span>
                 <span>·</span>
-                <span className="text-orange-500 font-medium">₺{fmt(remaining)} {t.left}</span>
+                <span className="text-orange-500 font-medium">{sym}{fmt(remaining)} {t.left}</span>
                 {addedBy && (
                   <>
                     <span>·</span>
@@ -173,7 +174,7 @@ export default function PaymentCard({ payment, userMap = {}, canManage = false, 
                     {inst.index + 1}. {format(inst.dueDate, "dd MMM yyyy")}
                   </span>
                 </div>
-                <span className="font-medium">₺{fmt(inst.amount)}</span>
+                <span className="font-medium">{sym}{fmt(inst.amount)}</span>
               </div>
             ))}
           </div>
@@ -207,6 +208,7 @@ function EditPaymentModal({
 }) {
   const [name, setName] = useState(payment.name);
   const [amount, setAmount] = useState(String(payment.amount));
+  const [currency, setCurrency] = useState(payment.currency ?? "TRY");
   const [totalInstallments, setTotalInstallments] = useState(String(payment.total_installments));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -228,6 +230,7 @@ function EditPaymentModal({
       body: JSON.stringify({
         name: name.trim(),
         amount: Number(amount),
+        currency,
         total_installments: total,
       }),
     });
@@ -265,8 +268,17 @@ function EditPaymentModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.totalAmount}</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₺</span>
+            <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500">
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="bg-gray-50 border-r border-gray-200 px-2 text-sm text-gray-700 focus:outline-none"
+              >
+                <option value="TRY">₺ TRY</option>
+                <option value="USD">$ USD</option>
+                <option value="EUR">€ EUR</option>
+                <option value="GBP">£ GBP</option>
+              </select>
               <input
                 type="number"
                 value={amount}
@@ -274,7 +286,7 @@ function EditPaymentModal({
                 min="0"
                 step="any"
                 required
-                className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 px-3 py-2.5 text-sm text-black focus:outline-none"
               />
             </div>
           </div>
@@ -298,7 +310,7 @@ function EditPaymentModal({
 
           {Number(amount) > 0 && Number(totalInstallments) > 0 && (
             <p className="text-sm text-gray-500">
-              {t.monthlyPayment}: ₺{(Number(amount) / Number(totalInstallments)).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {t.monthlyPayment}: {getCurrencySymbol(currency)}{(Number(amount) / Number(totalInstallments)).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           )}
 

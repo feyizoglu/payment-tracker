@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Payment } from "@/types";
-import { getPaymentsForMonth } from "@/lib/payments";
+import { getPaymentsForMonth, getCurrencySymbol } from "@/lib/payments";
 import { format, addMonths, subMonths } from "date-fns";
 import { ChevronLeft, ChevronRight, CheckCircle2, Circle } from "lucide-react";
 
@@ -23,6 +23,19 @@ export default function MonthlyView({ payments, onUpdated }: Props) {
   const totalPaid = monthPayments
     .filter(({ installment }) => installment.isPaid)
     .reduce((s, { installment }) => s + installment.amount, 0);
+
+  // Build per-currency summary for the header
+  const currencyTotals = monthPayments.reduce((acc, { payment, installment }) => {
+    const cur = payment.currency ?? "TRY";
+    if (!acc[cur]) acc[cur] = { due: 0, paid: 0 };
+    acc[cur].due += installment.amount;
+    if (installment.isPaid) acc[cur].paid += installment.amount;
+    return acc;
+  }, {} as Record<string, { due: number; paid: number }>);
+
+  const summaryText = Object.entries(currencyTotals)
+    .map(([cur, { due, paid }]) => `${getCurrencySymbol(cur)}${paid.toFixed(0)} / ${getCurrencySymbol(cur)}${due.toFixed(0)}`)
+    .join(" · ");
 
   async function togglePaid(paymentId: string, currentPaid: number, instIndex: number, isPaid: boolean) {
     setLoading(`${paymentId}-${instIndex}`);
@@ -50,9 +63,7 @@ export default function MonthlyView({ payments, onUpdated }: Props) {
           <h2 className="text-lg font-semibold text-gray-900">
             {format(currentDate, "MMMM yyyy")}
           </h2>
-          <p className="text-sm text-gray-400">
-            ₺{totalPaid.toFixed(2)} paid / ₺{totalDue.toFixed(2)} total
-          </p>
+          <p className="text-sm text-gray-400">{summaryText}</p>
         </div>
         <button
           onClick={() => setCurrentDate((d) => addMonths(d, 1))}
@@ -126,7 +137,7 @@ export default function MonthlyView({ payments, onUpdated }: Props) {
                 </div>
 
                 <span className={`text-sm font-semibold shrink-0 ${installment.isPaid ? "text-gray-400" : "text-gray-900"}`}>
-                  ₺{installment.amount.toFixed(2)}
+                  {getCurrencySymbol(payment.currency)}{installment.amount.toFixed(2)}
                 </span>
               </div>
             );

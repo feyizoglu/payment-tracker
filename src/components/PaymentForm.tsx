@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Team } from "@/types";
 import { useLang } from "@/lib/i18n";
+import { getCurrencySymbol } from "@/lib/payments";
 
 interface Props {
   teams: Team[];
@@ -31,6 +32,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
     name: "",
     totalAmount: "",
     installmentAmount: "",
+    currency: "TRY",
     start_date: defaultDate ?? localDateStr(new Date()),
     total_installments: "1",
     team_id: defaultTeamId ?? "",
@@ -82,6 +84,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
         body: JSON.stringify({
           name: form.name,
           amount: totalAmt,
+          currency: form.currency,
           start_date: form.start_date,
           total_installments: installmentCount,
           team_id: form.team_id || null,
@@ -151,8 +154,17 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {inputMode === "total" ? t.totalAmount : t.perInstallmentAmount}
             </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₺</span>
+            <div className="flex rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500">
+              <select
+                value={form.currency}
+                onChange={(e) => set("currency", e.target.value)}
+                className="bg-gray-50 border-r border-gray-200 px-2 text-sm text-gray-700 focus:outline-none"
+              >
+                <option value="TRY">₺ TRY</option>
+                <option value="USD">$ USD</option>
+                <option value="EUR">€ EUR</option>
+                <option value="GBP">£ GBP</option>
+              </select>
               <input
                 type="number"
                 required
@@ -161,7 +173,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
                 placeholder="0,00"
                 value={inputMode === "total" ? form.totalAmount : form.installmentAmount}
                 onChange={(e) => set(inputMode === "total" ? "totalAmount" : "installmentAmount", e.target.value)}
-                className="w-full border border-gray-300 rounded-lg pl-7 pr-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 text-sm text-black focus:outline-none"
               />
             </div>
           </div>
@@ -182,8 +194,8 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
             {computedTotal > 0 && (
               <p className="text-xs text-gray-400 mt-1">
                 {inputMode === "total"
-                  ? <>{t.monthlyPayment}: <span className="font-medium text-gray-600">₺{fmt(computedInstallment)}</span></>
-                  : <>{t.totalAmount}: <span className="font-medium text-gray-600">₺{fmt(computedTotal)}</span></>
+                  ? <>{t.monthlyPayment}: <span className="font-medium text-gray-600">{getCurrencySymbol(form.currency)}{fmt(computedInstallment)}</span></>
+                  : <>{t.totalAmount}: <span className="font-medium text-gray-600">{getCurrencySymbol(form.currency)}{fmt(computedTotal)}</span></>
                 }
               </p>
             )}

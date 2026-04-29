@@ -1,6 +1,14 @@
 import { Payment, PaymentInstallment } from "@/types";
 import { addMonths, setDate, isAfter, isBefore, startOfDay } from "date-fns";
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  TRY: "₺", USD: "$", EUR: "€", GBP: "£",
+};
+
+export function getCurrencySymbol(currency?: string): string {
+  return CURRENCY_SYMBOLS[currency ?? "TRY"] ?? currency ?? "₺";
+}
+
 export function getInstallments(payment: Payment): PaymentInstallment[] {
   const installments: PaymentInstallment[] = [];
   const installmentAmount = payment.amount / payment.total_installments;

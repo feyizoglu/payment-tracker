@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { X, CalendarRange, TrendingUp } from "lucide-react";
 import { Payment } from "@/types";
-import { getInstallments } from "@/lib/payments";
+import { getInstallments, getCurrencySymbol } from "@/lib/payments";
 import { UserMap } from "@/components/CalendarView";
 import { useLang } from "@/lib/i18n";
 
@@ -92,6 +92,22 @@ export default function DateRangeReport({ payments, userMap = {}, onClose }: Pro
   const totalPaid = results.filter(e => e.isPaid).reduce((s, e) => s + e.amount, 0);
   const totalUnpaid = totalDue - totalPaid;
 
+  // Format per-currency totals for summary cards
+  function fmtCurrencyGroup(filter: (e: typeof results[number]) => boolean) {
+    const by: Record<string, number> = {};
+    for (const e of results.filter(filter)) {
+      const cur = e.payment.currency ?? "TRY";
+      by[cur] = (by[cur] ?? 0) + e.amount;
+    }
+    const entries = Object.entries(by);
+    if (entries.length === 0) return `${getCurrencySymbol("TRY")}${fmt(0)}`;
+    return entries.map(([cur, amt]) => `${getCurrencySymbol(cur)}${fmt(amt)}`).join(" + ");
+  }
+
+  const fmtDue = fmtCurrencyGroup(() => true);
+  const fmtPaid = fmtCurrencyGroup((e) => e.isPaid);
+  const fmtUnpaid = fmtCurrencyGroup((e) => !e.isPaid);
+
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
@@ -135,15 +151,15 @@ export default function DateRangeReport({ payments, userMap = {}, onClose }: Pro
           <div className="px-5 py-4 border-b border-gray-100 shrink-0 grid grid-cols-3 gap-3">
             <div className="bg-blue-50 rounded-xl p-3 text-center">
               <p className="text-xs text-blue-500 font-medium mb-1">{t.totalDue}</p>
-              <p className="text-lg font-bold text-blue-700">₺{fmt(totalDue)}</p>
+              <p className="text-base font-bold text-blue-700 break-all">{fmtDue}</p>
             </div>
             <div className="bg-green-50 rounded-xl p-3 text-center">
               <p className="text-xs text-green-500 font-medium mb-1">{t.paid}</p>
-              <p className="text-lg font-bold text-green-700">₺{fmt(totalPaid)}</p>
+              <p className="text-base font-bold text-green-700 break-all">{fmtPaid}</p>
             </div>
             <div className="bg-orange-50 rounded-xl p-3 text-center">
               <p className="text-xs text-orange-500 font-medium mb-1">{t.remaining}</p>
-              <p className="text-lg font-bold text-orange-700">₺{fmt(totalUnpaid)}</p>
+              <p className="text-base font-bold text-orange-700 break-all">{fmtUnpaid}</p>
             </div>
           </div>
         )}
@@ -205,7 +221,7 @@ export default function DateRangeReport({ payments, userMap = {}, onClose }: Pro
                       </div>
                     </div>
                     <span className={`text-sm font-semibold shrink-0 ${entry.isPaid ? "text-gray-400" : "text-gray-900"}`}>
-                      ₺{fmt(entry.amount)}
+                      {getCurrencySymbol(entry.payment.currency)}{fmt(entry.amount)}
                     </span>
                   </div>
                 );
