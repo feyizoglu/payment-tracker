@@ -9,6 +9,7 @@ import PaymentCard from "@/components/PaymentCard";
 import CalendarView, { UserMap } from "@/components/CalendarView";
 import TeamPanel from "@/components/TeamPanel";
 import DateRangeReport from "@/components/DateRangeReport";
+import PayUntil from "@/components/PayUntil";
 import Link from "next/link";
 import {
   CreditCard,
@@ -326,13 +327,16 @@ export default function Dashboard() {
 
         {/* Content */}
         {activeView === "monthly" && (
-          <CalendarView
-            payments={filteredPayments}
-            userMap={userMap}
-            onUpdated={fetchPayments}
-            onDaySelected={setSelectedCalendarDay}
-            onMonthChange={setCalendarDate}
-          />
+          <>
+            <CalendarView
+              payments={filteredPayments}
+              userMap={userMap}
+              onUpdated={fetchPayments}
+              onDaySelected={setSelectedCalendarDay}
+              onMonthChange={setCalendarDate}
+            />
+            <PayUntil payments={filteredPayments} />
+          </>
         )}
 
         {activeView === "all" && (

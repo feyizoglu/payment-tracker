@@ -125,6 +125,9 @@ const translations = {
     goldCeyrek: "Quarter Coin",
     goldYarim: "Half Coin",
     goldTam: "Full Coin",
+    // Pay Until
+    payUntilTitle: "What I'll pay until",
+    payUntilEmpty: "No upcoming payments until this date",
   },
   tr: {
     // Landing
@@ -246,6 +249,9 @@ const translations = {
     goldCeyrek: "Çeyrek Altın",
     goldYarim: "Yarım Altın",
     goldTam: "Tam Altın",
+    // Pay Until
+    payUntilTitle: "Şu tarihe kadar ödeyeceğim",
+    payUntilEmpty: "Bu tarihe kadar ödeme yok",
   },
 };
 
