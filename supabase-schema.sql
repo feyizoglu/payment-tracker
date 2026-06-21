@@ -57,12 +57,39 @@ alter table users add column if not exists color text;
 -- currency column for payments (added after initial schema)
 alter table payments add column if not exists currency text not null default 'TRY';
 
+-- Recurring payments (monthly reminders, separate from installment payments)
+create table if not exists recurring_payments (
+  id uuid default gen_random_uuid() primary key,
+  team_id uuid references teams(id) on delete cascade,
+  user_id uuid references users(id) on delete cascade not null,
+  name text not null,
+  currency text not null default 'TRY',
+  day_of_month integer not null check (day_of_month between 1 and 31),
+  start_month date not null,
+  end_month date,
+  created_at timestamptz default now()
+);
+
+-- Per-month amount/paid state for a recurring payment
+create table if not exists recurring_entries (
+  id uuid default gen_random_uuid() primary key,
+  recurring_id uuid references recurring_payments(id) on delete cascade not null,
+  period date not null,
+  amount numeric(12,2),
+  is_paid boolean not null default false,
+  paid_at timestamptz,
+  created_at timestamptz default now(),
+  unique (recurring_id, period)
+);
+
 -- Enable Row Level Security
 alter table users enable row level security;
 alter table teams enable row level security;
 alter table team_members enable row level security;
 alter table payments enable row level security;
 alter table assets enable row level security;
+alter table recurring_payments enable row level security;
+alter table recurring_entries enable row level security;
 
 -- RLS Policies: service role bypasses all (used by API)
 -- Users can read themselves
@@ -103,3 +130,22 @@ create policy "Users can insert assets"
 
 create policy "Users can delete their own assets"
   on assets for delete using (true);
+
+-- Recurring payments policies (service role bypasses; mirror payments)
+create policy "Members can view recurring payments"
+  on recurring_payments for select using (true);
+create policy "Users can insert recurring payments"
+  on recurring_payments for insert with check (true);
+create policy "Users can update recurring payments"
+  on recurring_payments for update using (true);
+create policy "Users can delete recurring payments"
+  on recurring_payments for delete using (true);
+
+create policy "Members can view recurring entries"
+  on recurring_entries for select using (true);
+create policy "Users can insert recurring entries"
+  on recurring_entries for insert with check (true);
+create policy "Users can update recurring entries"
+  on recurring_entries for update using (true);
+create policy "Users can delete recurring entries"
+  on recurring_entries for delete using (true);
