@@ -3,9 +3,10 @@
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Payment, Team } from "@/types";
+import { Payment, RecurringPayment, Team } from "@/types";
 import PaymentForm from "@/components/PaymentForm";
 import PaymentCard from "@/components/PaymentCard";
+import RecurringCard from "@/components/RecurringCard";
 import CalendarView, { UserMap } from "@/components/CalendarView";
 import TeamPanel from "@/components/TeamPanel";
 import DateRangeReport from "@/components/DateRangeReport";
@@ -22,7 +23,7 @@ import {
   CalendarRange,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
-import { getPaymentsForMonth, getCurrencySymbol } from "@/lib/payments";
+import { getOccurrencesForMonth, recurringOccurrenceForMonth, getCurrencySymbol } from "@/lib/payments";
 
 type View = "monthly" | "all";
 
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const { lang, setLang, t } = useLang();
   const router = useRouter();
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [recurrings, setRecurrings] = useState<RecurringPayment[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [activeView, setActiveView] = useState<View>("monthly");
   const [activeFilter, setActiveFilter] = useState<string>("all");
@@ -57,12 +59,18 @@ export default function Dashboard() {
     if (res.ok) setTeams(await res.json());
   }, []);
 
+  const fetchRecurrings = useCallback(async () => {
+    const res = await fetch("/api/recurring?filter=all");
+    if (res.ok) setRecurrings(await res.json());
+  }, []);
+
   useEffect(() => {
     if (status === "authenticated") {
       fetchPayments();
       fetchTeams();
+      fetchRecurrings();
     }
-  }, [status, fetchPayments, fetchTeams]);
+  }, [status, fetchPayments, fetchTeams, fetchRecurrings]);
 
   // Load current user's saved color from teams data
   useEffect(() => {
@@ -121,10 +129,16 @@ export default function Dashboard() {
     return p.team_id === activeFilter;
   });
 
+  const filteredRecurrings = recurrings.filter((r) => {
+    if (activeFilter === "all") return true;
+    if (activeFilter === "personal") return !r.team_id;
+    return r.team_id === activeFilter;
+  });
+
   // Monthly total: only payments due in the currently viewed calendar month
   const calYear = calendarDate.getFullYear();
   const calMonth = calendarDate.getMonth();
-  const currentMonthEntries = getPaymentsForMonth(filteredPayments, calYear, calMonth);
+  const currentMonthEntries = getOccurrencesForMonth(filteredPayments, filteredRecurrings, calYear, calMonth);
   // Weekly total: payments due in the current real week (Mon–Sun)
   const today = new Date();
   const dayOfWeek = (today.getDay() + 6) % 7; // Monday = 0
@@ -135,23 +149,21 @@ export default function Dashboard() {
   weekEnd.setDate(weekStart.getDate() + 6);
   weekEnd.setHours(23, 59, 59, 999);
 
-  const weekEntries = currentMonthEntries.filter(({ installment }) => {
-    const d = installment.dueDate;
-    return d >= weekStart && d <= weekEnd && !installment.isPaid;
+  const weekEntries = currentMonthEntries.filter((o) => {
+    const d = o.dueDate;
+    return d >= weekStart && d <= weekEnd && !o.isPaid;
   });
 
   function fmtStat(n: number) {
     return n.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
-  function toCurrencyLines(
-    entries: { payment: Payment; installment: { amount: number; isPaid: boolean } }[]
-  ): string[] {
+  function toCurrencyLines(entries: { amount: number | null; isPaid: boolean; currency: string }[]): string[] {
     const by: Record<string, number> = {};
-    for (const { payment, installment } of entries) {
-      if (installment.isPaid) continue;
-      const cur = payment.currency ?? "TRY";
-      by[cur] = (by[cur] ?? 0) + installment.amount;
+    for (const o of entries) {
+      if (o.isPaid || o.amount == null) continue;
+      const cur = o.currency ?? "TRY";
+      by[cur] = (by[cur] ?? 0) + o.amount;
     }
     const items = Object.entries(by);
     if (items.length === 0) return [`${getCurrencySymbol("TRY")}0`];
@@ -252,7 +264,10 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
           <StatCard
             label={t.activePayments}
-            lines={[filteredPayments.filter((p) => p.paid_installments < p.total_installments).length.toString()]}
+            lines={[(
+              filteredPayments.filter((p) => p.paid_installments < p.total_installments).length +
+              filteredRecurrings.filter((r) => recurringOccurrenceForMonth(r, new Date().getFullYear(), new Date().getMonth()) !== null).length
+            ).toString()]}
             color="blue"
           />
           <StatCard
@@ -330,18 +345,19 @@ export default function Dashboard() {
           <>
             <CalendarView
               payments={filteredPayments}
+              recurrings={filteredRecurrings}
               userMap={userMap}
-              onUpdated={fetchPayments}
+              onUpdated={() => { fetchPayments(); fetchRecurrings(); }}
               onDaySelected={setSelectedCalendarDay}
               onMonthChange={setCalendarDate}
             />
-            <PayUntil payments={filteredPayments} />
+            <PayUntil payments={filteredPayments} recurrings={filteredRecurrings} />
           </>
         )}
 
         {activeView === "all" && (
           <div>
-            {filteredPayments.length === 0 ? (
+            {filteredPayments.length === 0 && filteredRecurrings.length === 0 ? (
               <div className="text-center py-16 text-gray-400">
                 <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="font-medium">{t.noPayments}</p>
@@ -349,13 +365,28 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-3">
+                {filteredRecurrings.map((r) => {
+                  const currentUserId = (session?.user as any)?.id;
+                  const isOwner = r.user_id === currentUserId;
+                  const isTeamAdmin = r.team_id
+                    ? teams.find((tm) => tm.id === r.team_id)?.members?.find((m) => m.user_id === currentUserId)?.role === "owner"
+                    : false;
+                  return (
+                    <RecurringCard
+                      key={r.id}
+                      recurring={r}
+                      userMap={userMap}
+                      canManage={isOwner || isTeamAdmin}
+                      onUpdated={fetchRecurrings}
+                      onDeleted={fetchRecurrings}
+                    />
+                  );
+                })}
                 {filteredPayments.map((p) => {
                   const currentUserId = (session?.user as any)?.id;
                   const isOwner = p.user_id === currentUserId;
                   const isTeamAdmin = p.team_id
-                    ? teams.find((t) => t.id === p.team_id)?.members?.find(
-                        (m) => m.user_id === currentUserId
-                      )?.role === "owner"
+                    ? teams.find((tm) => tm.id === p.team_id)?.members?.find((m) => m.user_id === currentUserId)?.role === "owner"
                     : false;
                   return (
                     <PaymentCard
@@ -385,7 +416,7 @@ export default function Dashboard() {
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
           })() : null}
           onClose={() => setShowPaymentForm(false)}
-          onCreated={fetchPayments}
+          onCreated={() => { fetchPayments(); fetchRecurrings(); }}
         />
       )}
 

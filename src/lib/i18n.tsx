@@ -128,6 +128,19 @@ const translations = {
     // Pay Until
     payUntilTitle: "What I'll pay until",
     payUntilEmpty: "No upcoming payments until this date",
+    // Recurring payments
+    paymentTypeLabel: "Payment Type",
+    installmentType: "Installment",
+    recurringType: "Monthly recurring",
+    recurringAmountHint: "You'll enter each month's amount from the calendar.",
+    endMonthOptional: "End month (optional)",
+    enterAmount: "Enter amount",
+    recurringBadge: "Monthly recurring",
+    recurringDeleteConfirm: "This reminder and all its monthly entries will be deleted. Continue?",
+    everyMonthDay: "Day {day} of every month",
+    dayOfMonthLabel: "Day of month",
+    noEndDate: "No end date",
+    untilMonth: "Until",
   },
   tr: {
     // Landing
@@ -252,6 +265,19 @@ const translations = {
     // Pay Until
     payUntilTitle: "Şu tarihe kadar ödeyeceğim",
     payUntilEmpty: "Bu tarihe kadar ödeme yok",
+    // Recurring payments
+    paymentTypeLabel: "Ödeme Türü",
+    installmentType: "Taksitli",
+    recurringType: "Aylık tekrar eden",
+    recurringAmountHint: "Tutarı her ay takvimden gireceksin.",
+    endMonthOptional: "Bitiş ayı (opsiyonel)",
+    enterAmount: "Tutar gir",
+    recurringBadge: "Aylık tekrar eden",
+    recurringDeleteConfirm: "Bu hatırlatıcı ve tüm aylarındaki kayıtlar silinecek. Devam edilsin mi?",
+    everyMonthDay: "Her ayın {day}'i",
+    dayOfMonthLabel: "Ayın günü",
+    noEndDate: "Bitiş yok",
+    untilMonth: "Bitiş",
   },
 };
 
