@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Payment } from "@/types";
-import { getPaymentsForMonth, getCurrencySymbol } from "@/lib/payments";
+import { Payment, RecurringPayment, Occurrence } from "@/types";
+import { getOccurrencesForMonth, getCurrencySymbol } from "@/lib/payments";
 import {
   format,
   addMonths,
@@ -24,6 +24,7 @@ export type UserMap = Record<string, { name: string | null; email: string; avata
 
 interface Props {
   payments: Payment[];
+  recurrings?: RecurringPayment[];
   userMap?: UserMap;
   onUpdated: () => void;
   onDaySelected?: (date: Date | null) => void;
@@ -54,7 +55,7 @@ function fmt(n: number, decimals = 0): string {
   });
 }
 
-export default function CalendarView({ payments, userMap = {}, onUpdated, onDaySelected, onMonthChange }: Props) {
+export default function CalendarView({ payments, recurrings = [], userMap = {}, onUpdated, onDaySelected, onMonthChange }: Props) {
   const { lang, t } = useLang();
   const locale = lang === "tr" ? dateFnsTr : undefined;
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -63,21 +64,22 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  const monthPayments = getPaymentsForMonth(payments, year, month);
+  const occurrences = getOccurrencesForMonth(payments, recurrings, year, month);
 
-  const totalDue = monthPayments.reduce((s, { installment }) => s + installment.amount, 0);
-  const totalPaid = monthPayments
-    .filter(({ installment }) => installment.isPaid)
-    .reduce((s, { installment }) => s + installment.amount, 0);
+  const totalDue = occurrences.reduce((s, o) => s + (o.amount ?? 0), 0);
+  const totalPaid = occurrences
+    .filter((o) => o.isPaid)
+    .reduce((s, o) => s + (o.amount ?? 0), 0);
 
   // Per-currency totals for the header summary
   const headerSummary = (() => {
     const paid: Record<string, number> = {};
     const due: Record<string, number> = {};
-    for (const { payment, installment } of monthPayments) {
-      const cur = payment.currency ?? "TRY";
-      due[cur] = (due[cur] ?? 0) + installment.amount;
-      if (installment.isPaid) paid[cur] = (paid[cur] ?? 0) + installment.amount;
+    for (const o of occurrences) {
+      if (o.amount == null) continue;
+      const cur = o.currency ?? "TRY";
+      due[cur] = (due[cur] ?? 0) + o.amount;
+      if (o.isPaid) paid[cur] = (paid[cur] ?? 0) + o.amount;
     }
     return Object.keys(due)
       .map((cur) => {
@@ -93,15 +95,15 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
-  const byDay = new Map<string, typeof monthPayments>();
-  for (const entry of monthPayments) {
-    const key = format(entry.installment.dueDate, "yyyy-MM-dd");
+  const byDay = new Map<string, Occurrence[]>();
+  for (const o of occurrences) {
+    const key = format(o.dueDate, "yyyy-MM-dd");
     if (!byDay.has(key)) byDay.set(key, []);
-    byDay.get(key)!.push(entry);
+    byDay.get(key)!.push(o);
   }
 
   const selectedKey = selectedDay ? format(selectedDay, "yyyy-MM-dd") : null;
-  const selectedPayments = selectedKey ? (byDay.get(selectedKey) ?? []) : [];
+  const selectedOccurrences = selectedKey ? (byDay.get(selectedKey) ?? []) : [];
 
   function navigate(dir: 1 | -1) {
     const next = dir === 1 ? addMonths(currentDate, 1) : subMonths(currentDate, 1);
@@ -116,22 +118,48 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
     onDaySelected?.(next);
   }
 
-  async function togglePaid(paymentId: string, instIndex: number, isPaid: boolean) {
-    setLoading(`${paymentId}-${instIndex}`);
-    const newPaid = isPaid ? instIndex : instIndex + 1;
-    await fetch(`/api/payments/${paymentId}`, {
-      method: "PATCH",
+  async function togglePaid(o: Occurrence) {
+    const key = `${o.kind}-${o.sourceId}-${o.installmentIndex ?? o.period}`;
+    setLoading(key);
+    if (o.kind === "installment") {
+      const newPaid = o.isPaid ? o.installmentIndex! : o.installmentIndex! + 1;
+      await fetch(`/api/payments/${o.sourceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid_installments: newPaid }),
+      });
+    } else {
+      await fetch(`/api/recurring/${o.sourceId}/entry`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ period: o.period, is_paid: !o.isPaid }),
+      });
+    }
+    onUpdated();
+    setLoading(null);
+  }
+
+  async function saveAmount(o: Occurrence, value: string) {
+    setLoading(`amount-${o.sourceId}-${o.period}`);
+    await fetch(`/api/recurring/${o.sourceId}/entry`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paid_installments: newPaid }),
+      body: JSON.stringify({ period: o.period, amount: value === "" ? null : Number(value) }),
     });
     onUpdated();
     setLoading(null);
   }
 
-  async function deletePayment(paymentId: string, paymentName: string) {
-    if (!confirm(`"${paymentName}" silinsin mi?`)) return;
-    setLoading(`delete-${paymentId}`);
-    await fetch(`/api/payments/${paymentId}`, { method: "DELETE" });
+  async function deleteOccurrence(o: Occurrence) {
+    if (o.kind === "installment") {
+      if (!confirm(`"${o.name}" silinsin mi?`)) return;
+      setLoading(`delete-${o.sourceId}`);
+      await fetch(`/api/payments/${o.sourceId}`, { method: "DELETE" });
+    } else {
+      if (!confirm(t.recurringDeleteConfirm)) return;
+      setLoading(`delete-${o.sourceId}`);
+      await fetch(`/api/recurring/${o.sourceId}`, { method: "DELETE" });
+    }
     onUpdated();
     setLoading(null);
   }
@@ -181,11 +209,11 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
         <div className="grid grid-cols-7">
           {days.map((day, i) => {
             const key = format(day, "yyyy-MM-dd");
-            const dayPayments = byDay.get(key) ?? [];
+            const dayItems = byDay.get(key) ?? [];
             const isCurrentMonth = isSameMonth(day, currentDate);
             const isSelected = selectedDay ? isSameDay(day, selectedDay) : false;
-            const hasPayments = dayPayments.length > 0;
-            const allPaid = hasPayments && dayPayments.every(({ installment }) => installment.isPaid);
+            const hasItems = dayItems.length > 0;
+            const allPaid = hasItems && dayItems.every((o) => o.isPaid);
             const hasBorder = i % 7 !== 6;
 
             return (
@@ -204,30 +232,29 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
                   {format(day, "d")}
                 </span>
 
-                {hasPayments && (
+                {hasItems && (
                   <div className="flex flex-wrap gap-0.5 justify-center">
-                    {dayPayments.slice(0, 4).map(({ payment, installment }) => (
+                    {dayItems.slice(0, 4).map((o) => (
                       <span
-                        key={`${payment.id}-${installment.index}`}
+                        key={`${o.kind}-${o.sourceId}-${o.installmentIndex ?? o.period}`}
                         className="w-1.5 h-1.5 rounded-full"
                         style={{
-                          backgroundColor: installment.isPaid
-                            ? "#86EFAC"
-                            : userColor(payment.user_id, userMap),
+                          backgroundColor: o.isPaid ? "#86EFAC" : userColor(o.user_id, userMap),
                         }}
                       />
                     ))}
-                    {dayPayments.length > 4 && (
-                      <span className="text-[10px] text-gray-400">+{dayPayments.length - 4}</span>
+                    {dayItems.length > 4 && (
+                      <span className="text-[10px] text-gray-400">+{dayItems.length - 4}</span>
                     )}
                   </div>
                 )}
 
-                {hasPayments && (() => {
+                {hasItems && (() => {
                   const by: Record<string, number> = {};
-                  for (const { payment, installment } of dayPayments) {
-                    const cur = payment.currency ?? "TRY";
-                    by[cur] = (by[cur] ?? 0) + installment.amount;
+                  for (const o of dayItems) {
+                    if (o.amount == null) continue;
+                    const cur = o.currency ?? "TRY";
+                    by[cur] = (by[cur] ?? 0) + o.amount;
                   }
                   return Object.entries(by).map(([cur, amt]) => (
                     <span key={cur} className={`text-[10px] font-medium leading-none ${allPaid ? "text-green-500" : "text-blue-500"}`}>
@@ -246,32 +273,32 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
         <div>
           <h3 className="text-sm font-semibold text-gray-700 mb-2">
             {format(selectedDay, "d MMMM yyyy", { locale })}
-            {selectedPayments.length === 0 && (
+            {selectedOccurrences.length === 0 && (
               <span className="font-normal text-gray-400 ml-2">{t.noPaymentsDay}</span>
             )}
           </h3>
 
-          {selectedPayments.length > 0 && (
+          {selectedOccurrences.length > 0 && (
             <div className="space-y-2">
-              {selectedPayments.map(({ payment, installment }) => {
-                const key = `${payment.id}-${installment.index}`;
-                const isLoadingItem = loading === key || loading === `delete-${payment.id}`;
-                const color = userColor(payment.user_id, userMap);
-                const addedBy = userMap[payment.user_id];
+              {selectedOccurrences.map((o) => {
+                const key = `${o.kind}-${o.sourceId}-${o.installmentIndex ?? o.period}`;
+                const isLoadingItem = loading === key || loading === `delete-${o.sourceId}` || loading === `amount-${o.sourceId}-${o.period}`;
+                const color = userColor(o.user_id, userMap);
+                const addedBy = userMap[o.user_id];
                 return (
                   <div
                     key={key}
                     className={`flex items-center gap-3 p-3 rounded-xl border transition ${
-                      installment.isPaid ? "bg-green-50 border-green-100" : "bg-white border-gray-100"
+                      o.isPaid ? "bg-green-50 border-green-100" : "bg-white border-gray-100"
                     }`}
                     style={{ borderLeftWidth: 3, borderLeftColor: color }}
                   >
                     <button
                       disabled={isLoadingItem}
-                      onClick={() => togglePaid(payment.id, installment.index, installment.isPaid)}
+                      onClick={() => togglePaid(o)}
                       className="shrink-0 transition hover:scale-110 disabled:opacity-50"
                     >
-                      {installment.isPaid ? (
+                      {o.isPaid ? (
                         <CheckCircle2 className="w-5 h-5 text-green-500" />
                       ) : (
                         <Circle className="w-5 h-5 text-gray-300" />
@@ -279,12 +306,14 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
                     </button>
 
                     <div className="flex-1 min-w-0">
-                      <span className={`font-medium text-sm ${installment.isPaid ? "line-through text-gray-400" : "text-gray-800"}`}>
-                        {payment.name}
+                      <span className={`font-medium text-sm ${o.isPaid ? "line-through text-gray-400" : "text-gray-800"}`}>
+                        {o.name}
                       </span>
                       <div className="flex items-center gap-2 mt-0.5">
                         <p className="text-xs text-gray-400">
-                          {t.installmentOf} {installment.index + 1} {t.of} {payment.total_installments}
+                          {o.kind === "installment"
+                            ? `${t.installmentOf} ${o.installmentIndex! + 1} ${t.of} ${o.totalInstallments}`
+                            : t.recurringBadge}
                         </p>
                         {addedBy && (
                           <div className="flex items-center gap-1">
@@ -307,13 +336,33 @@ export default function CalendarView({ payments, userMap = {}, onUpdated, onDayS
                       </div>
                     </div>
 
-                    <span className={`text-sm font-semibold shrink-0 ${installment.isPaid ? "text-gray-400" : "text-gray-900"}`}>
-                      {getCurrencySymbol(payment.currency)}{fmt(installment.amount, 2)}
-                    </span>
+                    {o.kind === "recurring" ? (
+                      <input
+                        key={`amt-${o.sourceId}-${o.period}-${o.amount ?? "x"}`}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        disabled={isLoadingItem}
+                        defaultValue={o.amount ?? ""}
+                        placeholder={t.enterAmount}
+                        onBlur={(e) => {
+                          const v = e.target.value;
+                          if (v !== String(o.amount ?? "")) saveAmount(o, v);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                        }}
+                        className="w-28 text-right text-sm font-semibold text-gray-900 border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                      />
+                    ) : (
+                      <span className={`text-sm font-semibold shrink-0 ${o.isPaid ? "text-gray-400" : "text-gray-900"}`}>
+                        {getCurrencySymbol(o.currency)}{fmt(o.amount ?? 0, 2)}
+                      </span>
+                    )}
 
                     <button
                       disabled={isLoadingItem}
-                      onClick={() => deletePayment(payment.id, payment.name)}
+                      onClick={() => deleteOccurrence(o)}
                       className="shrink-0 p-1 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition disabled:opacity-50"
                     >
                       <Trash2 className="w-4 h-4" />
