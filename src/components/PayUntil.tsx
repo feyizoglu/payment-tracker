@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Payment } from "@/types";
-import { getInstallments, getCurrencySymbol } from "@/lib/payments";
+import { Payment, RecurringPayment } from "@/types";
+import { getOccurrencesInRange, getCurrencySymbol } from "@/lib/payments";
 import { useLang } from "@/lib/i18n";
 import { TrendingUp } from "lucide-react";
 
 interface Props {
   payments: Payment[];
+  recurrings?: RecurringPayment[];
 }
 
 function localDateStr(date: Date): string {
@@ -21,7 +22,7 @@ function fmt(n: number) {
   return n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export default function PayUntil({ payments }: Props) {
+export default function PayUntil({ payments, recurrings = [] }: Props) {
   const { t } = useLang();
 
   const today = new Date();
@@ -39,26 +40,15 @@ export default function PayUntil({ payments }: Props) {
     now.setHours(0, 0, 0, 0);
     if (end < now) return [];
 
-    const entries: { payment: Payment; amount: number; dueDate: Date }[] = [];
-    for (const payment of payments) {
-      for (const inst of getInstallments(payment)) {
-        if (inst.isPaid) continue;
-        if (inst.dueDate >= now && inst.dueDate <= end) {
-          entries.push({ payment, amount: inst.amount, dueDate: inst.dueDate });
-        }
-      }
-    }
-    entries.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-    return entries;
-  }, [payments, endDate]);
+    return getOccurrencesInRange(payments, recurrings, now, end).filter((o) => !o.isPaid);
+  }, [payments, recurrings, endDate]);
 
-  const byCurrency = results.reduce((acc, { payment, amount }) => {
-    const cur = payment.currency ?? "TRY";
-    acc[cur] = (acc[cur] ?? 0) + amount;
+  const byCurrency = results.reduce((acc, o) => {
+    if (o.amount == null) return acc;
+    const cur = o.currency ?? "TRY";
+    acc[cur] = (acc[cur] ?? 0) + o.amount;
     return acc;
   }, {} as Record<string, number>);
-
-  const hasTotals = Object.keys(byCurrency).length > 0;
 
   return (
     <div className="mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
@@ -77,7 +67,7 @@ export default function PayUntil({ payments }: Props) {
         />
       </div>
 
-      {hasTotals ? (
+      {results.length > 0 ? (
         <div className="mt-4">
           {/* Totals per currency */}
           <div className="flex flex-wrap gap-3 mb-4">
@@ -93,19 +83,19 @@ export default function PayUntil({ payments }: Props) {
 
           {/* Payment breakdown */}
           <div className="divide-y divide-gray-50">
-            {results.map(({ payment, amount, dueDate }, i) => (
+            {results.map((o, i) => (
               <div
-                key={`${payment.id}-${i}`}
+                key={`${o.sourceId}-${i}`}
                 className="flex items-center justify-between py-2 text-sm"
               >
                 <div className="flex-1 min-w-0 flex items-center gap-2">
-                  <span className="text-gray-800 font-medium truncate">{payment.name}</span>
+                  <span className="text-gray-800 font-medium truncate">{o.name}</span>
                   <span className="text-gray-400 text-xs shrink-0">
-                    {dueDate.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
+                    {o.dueDate.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
                   </span>
                 </div>
                 <span className="font-semibold text-gray-700 shrink-0 ml-3">
-                  {getCurrencySymbol(payment.currency)}{fmt(amount)}
+                  {o.amount == null ? "—" : `${getCurrencySymbol(o.currency)}${fmt(o.amount)}`}
                 </span>
               </div>
             ))}
