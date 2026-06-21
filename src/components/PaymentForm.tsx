@@ -27,6 +27,8 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputMode, setInputMode] = useState<"total" | "installment">("total");
+  const [entryKind, setEntryKind] = useState<"installment" | "recurring">("installment");
+  const [endMonth, setEndMonth] = useState("");
   const [targetUserId, setTargetUserId] = useState<string>("");
   const [form, setForm] = useState({
     name: "",
@@ -74,6 +76,28 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
     setError(null);
 
     try {
+      if (entryKind === "recurring") {
+        const res = await fetch("/api/recurring", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.name,
+            currency: form.currency,
+            start_date: form.start_date,
+            end_month: endMonth || undefined,
+            team_id: form.team_id || null,
+            target_user_id: targetUserId || undefined,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Failed to add reminder");
+        }
+        onCreated();
+        onClose();
+        return;
+      }
+
       const totalAmt = inputMode === "total"
         ? parseFloat(form.totalAmount)
         : (parseFloat(form.installmentAmount) * installmentCount);
@@ -117,6 +141,25 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Entry kind toggle */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t.paymentTypeLabel}</label>
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+              {(["installment", "recurring"] as const).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => setEntryKind(kind)}
+                  className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition ${
+                    entryKind === kind ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {kind === "installment" ? t.installmentType : t.recurringType}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t.paymentName}</label>
@@ -130,6 +173,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
             />
           </div>
 
+          {entryKind === "installment" && (<>
           {/* Input mode toggle */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">{t.amountMode}</label>
@@ -200,6 +244,38 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
               </p>
             )}
           </div>
+          </>)}
+
+          {entryKind === "recurring" && (
+            <>
+              {/* Currency (recurring) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t.currency}</label>
+                <select
+                  value={form.currency}
+                  onChange={(e) => set("currency", e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="TRY">₺ TRY</option>
+                  <option value="USD">$ USD</option>
+                  <option value="EUR">€ EUR</option>
+                  <option value="GBP">£ GBP</option>
+                </select>
+                <p className="text-xs text-gray-400 mt-1">{t.recurringAmountHint}</p>
+              </div>
+
+              {/* End month (optional) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t.endMonthOptional}</label>
+                <input
+                  type="month"
+                  value={endMonth}
+                  onChange={(e) => setEndMonth(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </>
+          )}
 
           {/* Payment Date */}
           <div>
