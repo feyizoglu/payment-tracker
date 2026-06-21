@@ -44,6 +44,46 @@ export interface PaymentInstallment {
   isPaid: boolean;
 }
 
+export interface RecurringPayment {
+  id: string;
+  team_id: string | null;
+  user_id: string;
+  name: string;
+  currency: string;
+  day_of_month: number;
+  start_month: string;       // 'yyyy-MM-01'
+  end_month: string | null;  // 'yyyy-MM-01' | null
+  created_at: string;
+  entries?: RecurringEntry[];
+  user?: User;
+}
+
+export interface RecurringEntry {
+  id: string;
+  recurring_id: string;
+  period: string;            // 'yyyy-MM-01'
+  amount: number | null;
+  is_paid: boolean;
+  paid_at: string | null;
+  created_at: string;
+}
+
+export interface Occurrence {
+  kind: "installment" | "recurring";
+  sourceId: string;
+  name: string;
+  currency: string;
+  user_id: string;
+  team_id: string | null;
+  dueDate: Date;
+  amount: number | null;
+  isPaid: boolean;
+  installmentIndex?: number;
+  totalInstallments?: number;
+  period?: string;
+  entryId?: string | null;
+}
+
 export type GoldType = "BILEZIK" | "GRAM_ALTIN" | "CEYREK_ALTIN" | "YARIM_ALTIN" | "TAM_ALTIN";
 export type FiatCurrency = "USD" | "EUR" | "GBP" | "TRY";
 export type Currency = FiatCurrency | GoldType;
