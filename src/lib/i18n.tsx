@@ -141,6 +141,11 @@ const translations = {
     dayOfMonthLabel: "Day of month",
     noEndDate: "No end date",
     untilMonth: "Until",
+    // Installment overrides
+    editInstallment: "Edit Installment",
+    installmentDate: "Date",
+    resetToDefault: "Reset to default",
+    editedBadge: "edited",
   },
   tr: {
     // Landing
@@ -278,6 +283,11 @@ const translations = {
     dayOfMonthLabel: "Ayın günü",
     noEndDate: "Bitiş yok",
     untilMonth: "Bitiş",
+    // Installment overrides
+    editInstallment: "Taksiti Düzenle",
+    installmentDate: "Tarih",
+    resetToDefault: "Varsayılana sıfırla",
+    editedBadge: "düzenlendi",
   },
 };
 
