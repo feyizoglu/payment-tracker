@@ -21,13 +21,29 @@ export function getInstallments(payment: Payment): PaymentInstallment[] {
     // Clamp day to end of month if needed
     const maxDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
     const day = Math.min(payment.day_of_month, maxDay);
-    const dueDate = setDate(base, day);
+    let dueDate = setDate(base, day);
+    let amount = installmentAmount;
+    let overridden = false;
+
+    const override = payment.overrides?.find((o) => o.installment_index === i);
+    if (override) {
+      if (override.due_date) {
+        const [oy, om, od] = override.due_date.split("-").map(Number);
+        dueDate = new Date(oy, om - 1, od);
+        overridden = true;
+      }
+      if (override.amount != null) {
+        amount = override.amount;
+        overridden = true;
+      }
+    }
 
     installments.push({
       index: i,
       dueDate,
-      amount: installmentAmount,
+      amount,
       isPaid: i < payment.paid_installments,
+      overridden,
     });
   }
 
@@ -62,8 +78,9 @@ export function getTotalMonthly(payment: Payment): number {
 }
 
 export function getRemainingAmount(payment: Payment): number {
-  const remaining = payment.total_installments - payment.paid_installments;
-  return (payment.amount / payment.total_installments) * remaining;
+  return getInstallments(payment)
+    .filter((inst) => !inst.isPaid)
+    .reduce((sum, inst) => sum + inst.amount, 0);
 }
 
 // ── Recurring / unified occurrence layer ────────────────────────────────────
@@ -91,6 +108,7 @@ export function installmentOccurrences(payment: Payment): Occurrence[] {
     isPaid: inst.isPaid,
     installmentIndex: inst.index,
     totalInstallments: payment.total_installments,
+    overridden: inst.overridden ?? false,
   }));
 }
 

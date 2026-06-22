@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
   let query = db
     .from("payments")
-    .select("*, added_by_user:users!payments_user_id_fkey(name, email, avatar_url)")
+    .select("*, overrides:payment_overrides(*), added_by_user:users!payments_user_id_fkey(name, email, avatar_url)")
     .order("start_date", { ascending: true });
 
   if (teamId) {

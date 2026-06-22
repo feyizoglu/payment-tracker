@@ -3,6 +3,8 @@ import {
   recurringOccurrenceForMonth,
   getOccurrencesForMonth,
   getOccurrencesInRange,
+  getInstallments,
+  getRemainingAmount,
 } from "@/lib/payments";
 import { Payment, RecurringPayment } from "@/types";
 
@@ -111,5 +113,41 @@ describe("getOccurrencesInRange", () => {
     const end = new Date(2026, 6, 31);   // 31 Jul
     const occ = getOccurrencesInRange([], [r], start, end);
     expect(occ.length).toBe(0);
+  });
+});
+
+describe("getInstallments with overrides", () => {
+  it("overrides only the targeted installment's amount", () => {
+    const p = makePayment({ amount: 1200, total_installments: 12, start_date: "2026-06-10", day_of_month: 10,
+      overrides: [{ id: "o1", payment_id: "p1", installment_index: 2, due_date: null, amount: 250, created_at: "" }] });
+    const inst = getInstallments(p);
+    expect(inst[2].amount).toBe(250);
+    expect(inst[2].overridden).toBe(true);
+    expect(inst[0].amount).toBe(100);
+    expect(inst[0].overridden).toBe(false);
+  });
+
+  it("overrides an installment's due date (used as-is, no clamp)", () => {
+    const p = makePayment({ amount: 300, total_installments: 3, start_date: "2026-06-10", day_of_month: 10,
+      overrides: [{ id: "o1", payment_id: "p1", installment_index: 1, due_date: "2026-09-05", amount: null, created_at: "" }] });
+    const inst = getInstallments(p);
+    expect(inst[1].dueDate.getFullYear()).toBe(2026);
+    expect(inst[1].dueDate.getMonth()).toBe(8); // September
+    expect(inst[1].dueDate.getDate()).toBe(5);
+    expect(inst[1].overridden).toBe(true);
+  });
+
+  it("a date-overridden installment moves to the new month in getOccurrencesForMonth", () => {
+    const p = makePayment({ amount: 300, total_installments: 3, start_date: "2026-06-10", day_of_month: 10,
+      overrides: [{ id: "o1", payment_id: "p1", installment_index: 1, due_date: "2026-09-05", amount: null, created_at: "" }] });
+    expect(getOccurrencesForMonth([p], [], 2026, 6).some((o) => o.installmentIndex === 1)).toBe(false);
+    const sep = getOccurrencesForMonth([p], [], 2026, 8);
+    expect(sep.some((o) => o.installmentIndex === 1 && o.overridden)).toBe(true);
+  });
+
+  it("getRemainingAmount sums effective amounts of unpaid installments", () => {
+    const p = makePayment({ amount: 1200, total_installments: 12, paid_installments: 0,
+      overrides: [{ id: "o1", payment_id: "p1", installment_index: 0, due_date: null, amount: 300, created_at: "" }] });
+    expect(getRemainingAmount(p)).toBe(300 + 100 * 11); // 1400
   });
 });

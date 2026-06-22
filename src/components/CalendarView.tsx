@@ -17,7 +17,7 @@ import {
   isToday,
 } from "date-fns";
 import { tr as dateFnsTr } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Trash2, Pencil } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
 export type UserMap = Record<string, { name: string | null; email: string; avatar_url: string | null; color?: string | null }>;
@@ -61,6 +61,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
   const [loading, setLoading] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Occurrence | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -315,6 +316,11 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
                             ? `${t.installmentOf} ${o.installmentIndex! + 1} ${t.of} ${o.totalInstallments}`
                             : t.recurringBadge}
                         </p>
+                        {o.overridden && (
+                          <span className="text-[10px] font-medium text-amber-600 bg-amber-50 rounded px-1.5 py-0.5">
+                            {t.editedBadge}
+                          </span>
+                        )}
                         {addedBy && (
                           <div className="flex items-center gap-1">
                             <span className="text-gray-200">·</span>
@@ -360,6 +366,15 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
                       </span>
                     )}
 
+                    {o.kind === "installment" && (
+                      <button
+                        disabled={isLoadingItem}
+                        onClick={() => setEditing(o)}
+                        className="shrink-0 p-1 rounded-lg text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition disabled:opacity-50"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       disabled={isLoadingItem}
                       onClick={() => deleteOccurrence(o)}
@@ -374,6 +389,105 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
           )}
         </div>
       )}
+      {editing && (
+        <EditInstallmentModal
+          occurrence={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); onUpdated(); }}
+          t={t}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditInstallmentModal({
+  occurrence,
+  onClose,
+  onSaved,
+  t,
+}: {
+  occurrence: Occurrence;
+  onClose: () => void;
+  onSaved: () => void;
+  t: any;
+}) {
+  const [date, setDate] = useState(format(occurrence.dueDate, "yyyy-MM-dd"));
+  const [amount, setAmount] = useState(
+    occurrence.amount != null ? occurrence.amount.toFixed(2) : ""
+  );
+  const [saving, setSaving] = useState(false);
+
+  async function submit(reset: boolean) {
+    setSaving(true);
+    await fetch(`/api/payments/${occurrence.sourceId}/override`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        reset
+          ? { installment_index: occurrence.installmentIndex, due_date: null, amount: null }
+          : {
+              installment_index: occurrence.installmentIndex,
+              due_date: date || null,
+              amount: amount === "" ? null : Number(amount),
+            }
+      ),
+    });
+    onSaved();
+    setSaving(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-semibold text-gray-900">{t.editInstallment}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition text-xl leading-none">×</button>
+        </div>
+        <form
+          onSubmit={(e) => { e.preventDefault(); submit(false); }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.installmentDate}</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.perInstallmentAmount}</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => submit(true)}
+              className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition disabled:opacity-60"
+            >
+              {t.resetToDefault}
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition disabled:opacity-60"
+            >
+              {saving ? "…" : t.save}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
