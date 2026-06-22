@@ -34,7 +34,17 @@ export interface Payment {
   total_installments: number;
   paid_installments: number;
   created_at: string;
+  overrides?: PaymentOverride[];
   user?: User;
+}
+
+export interface PaymentOverride {
+  id: string;
+  payment_id: string;
+  installment_index: number;
+  due_date: string | null;   // 'yyyy-MM-dd'
+  amount: number | null;
+  created_at: string;
 }
 
 export interface PaymentInstallment {
@@ -42,6 +52,7 @@ export interface PaymentInstallment {
   dueDate: Date;
   amount: number;
   isPaid: boolean;
+  overridden?: boolean;
 }
 
 export interface RecurringPayment {
@@ -82,6 +93,7 @@ export interface Occurrence {
   totalInstallments?: number;
   period?: string;
   entryId?: string | null;
+  overridden?: boolean;
 }
 
 export type GoldType = "BILEZIK" | "GRAM_ALTIN" | "CEYREK_ALTIN" | "YARIM_ALTIN" | "TAM_ALTIN";
