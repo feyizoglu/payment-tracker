@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   const { data: payments, error } = await db
     .from("payments")
-    .select("*, user:users!payments_user_id_fkey(id, name, email)");
+    .select("*, overrides:payment_overrides(*), user:users!payments_user_id_fkey(id, name, email)");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
