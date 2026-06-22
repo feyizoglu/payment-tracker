@@ -82,12 +82,24 @@ create table if not exists recurring_entries (
   unique (recurring_id, period)
 );
 
+-- Per-installment overrides for installment payments (specific date/amount)
+create table if not exists payment_overrides (
+  id uuid default gen_random_uuid() primary key,
+  payment_id uuid references payments(id) on delete cascade not null,
+  installment_index integer not null check (installment_index >= 0),
+  due_date date,
+  amount numeric(12,2),
+  created_at timestamptz default now(),
+  unique (payment_id, installment_index)
+);
+
 -- Enable Row Level Security
 alter table users enable row level security;
 alter table teams enable row level security;
 alter table team_members enable row level security;
 alter table payments enable row level security;
 alter table assets enable row level security;
+alter table payment_overrides enable row level security;
 alter table recurring_payments enable row level security;
 alter table recurring_entries enable row level security;
 
@@ -149,3 +161,13 @@ create policy "Users can update recurring entries"
   on recurring_entries for update using (true);
 create policy "Users can delete recurring entries"
   on recurring_entries for delete using (true);
+
+-- Payment overrides policies (service role bypasses; mirror payments)
+drop policy if exists "Members can view payment overrides" on payment_overrides;
+drop policy if exists "Users can insert payment overrides" on payment_overrides;
+drop policy if exists "Users can update payment overrides" on payment_overrides;
+drop policy if exists "Users can delete payment overrides" on payment_overrides;
+create policy "Members can view payment overrides" on payment_overrides for select using (true);
+create policy "Users can insert payment overrides" on payment_overrides for insert with check (true);
+create policy "Users can update payment overrides" on payment_overrides for update using (true);
+create policy "Users can delete payment overrides" on payment_overrides for delete using (true);
