@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <clipPath id="rounded">
+      <rect x="0" y="0" width="32" height="32" rx="7"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#rounded)">
+    <!-- Brand-blue badge background -->
+    <rect x="0" y="0" width="32" height="32" fill="#2563EB"/>
+
+    <!-- Calendar binding rings -->
+    <rect x="9" y="3" width="2.4" height="5" rx="1.2" fill="#FFFFFF"/>
+    <rect x="16.5" y="3" width="2.4" height="5" rx="1.2" fill="#FFFFFF"/>
+
+    <!-- Calendar body -->
+    <rect x="5" y="6" width="19" height="19" rx="3" fill="#FFFFFF"/>
+    <!-- Header divider -->
+    <rect x="7" y="11" width="15" height="1.4" rx="0.7" fill="#2563EB" opacity="0.18"/>
+    <!-- Date cells -->
+    <g fill="#2563EB" opacity="0.28">
+      <rect x="8" y="14.5" width="2.4" height="2.4" rx="0.6"/>
+      <rect x="12.5" y="14.5" width="2.4" height="2.4" rx="0.6"/>
+      <rect x="17" y="14.5" width="2.4" height="2.4" rx="0.6"/>
+      <rect x="8" y="18.5" width="2.4" height="2.4" rx="0.6"/>
+      <rect x="12.5" y="18.5" width="2.4" height="2.4" rx="0.6"/>
+    </g>
+
+    <!-- Coin: blue separation gap, amber coin, inner ring, $ -->
+    <circle cx="23" cy="23" r="7.4" fill="#2563EB"/>
+    <circle cx="23" cy="23" r="6" fill="#F59E0B"/>
+    <circle cx="23" cy="23" r="4.2" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.85"/>
+    <text x="23" y="26.1" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="8" font-weight="700" fill="#FFFFFF">$</text>
+  </g>
+</svg>
