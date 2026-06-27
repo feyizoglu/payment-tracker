@@ -146,6 +146,8 @@ const translations = {
     installmentDate: "Date",
     resetToDefault: "Reset to default",
     editedBadge: "edited",
+    editReminder: "Edit Reminder",
+    resetDay: "Reset day",
   },
   tr: {
     // Landing
@@ -288,6 +290,8 @@ const translations = {
     installmentDate: "Tarih",
     resetToDefault: "Varsayılana sıfırla",
     editedBadge: "düzenlendi",
+    editReminder: "Hatırlatıcıyı Düzenle",
+    resetDay: "Günü sıfırla",
   },
 };
 
