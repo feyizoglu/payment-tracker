@@ -76,6 +76,7 @@ export interface RecurringEntry {
   amount: number | null;
   is_paid: boolean;
   paid_at: string | null;
+  due_date: string | null;   // 'yyyy-MM-dd' | null
   created_at: string;
 }
 

@@ -74,7 +74,7 @@ describe("recurringOccurrenceForMonth", () => {
   it("reads amount and isPaid from the matching entry", () => {
     const r = makeRecurring({
       entries: [
-        { id: "e1", recurring_id: "r1", period: "2026-07-01", amount: 5000, is_paid: true, paid_at: null, created_at: "" },
+        { id: "e1", recurring_id: "r1", period: "2026-07-01", amount: 5000, is_paid: true, paid_at: null, due_date: null, created_at: "" },
       ],
     });
     const occ = recurringOccurrenceForMonth(r, 2026, 6); // July
