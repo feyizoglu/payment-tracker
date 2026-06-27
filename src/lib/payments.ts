@@ -1,4 +1,4 @@
-import { Payment, PaymentInstallment, RecurringPayment, Occurrence } from "@/types";
+import { Payment, PaymentInstallment, RecurringPayment, Occurrence, CurrencyAmount } from "@/types";
 import { addMonths, setDate, isAfter, isBefore, startOfDay } from "date-fns";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -7,6 +7,35 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 
 export function getCurrencySymbol(currency?: string): string {
   return CURRENCY_SYMBOLS[currency ?? "TRY"] ?? currency ?? "₺";
+}
+
+export const ALLOWED_CURRENCIES = ["TRY", "USD", "EUR", "GBP"];
+
+// Validates and normalizes a raw `amounts` payload (multi-currency override lines).
+// Blank-amount rows and non-object entries are skipped. Returns an error string for
+// an invalid currency or a non-positive amount. A non-array input (field absent) or
+// an array that cleans down to nothing yields `{ amounts: null }` so callers can fall
+// back to the legacy single `amount`.
+export function cleanCurrencyAmounts(
+  input: unknown
+): { amounts: CurrencyAmount[] | null } | { error: string } {
+  if (!Array.isArray(input)) return { amounts: null };
+  const cleaned: CurrencyAmount[] = [];
+  for (const line of input) {
+    if (!line || typeof line !== "object") continue;
+    const l = line as Record<string, unknown>;
+    if (l.amount === null || l.amount === "" || l.amount === undefined) continue;
+    const currency = String(l.currency ?? "");
+    const amt = Number(l.amount);
+    if (!ALLOWED_CURRENCIES.includes(currency)) {
+      return { error: `Invalid currency: ${currency}` };
+    }
+    if (!Number.isFinite(amt) || amt <= 0) {
+      return { error: "Amounts must be positive numbers" };
+    }
+    cleaned.push({ currency, amount: amt });
+  }
+  return { amounts: cleaned.length > 0 ? cleaned : null };
 }
 
 export function getInstallments(payment: Payment): PaymentInstallment[] {
@@ -23,6 +52,7 @@ export function getInstallments(payment: Payment): PaymentInstallment[] {
     const day = Math.min(payment.day_of_month, maxDay);
     let dueDate = setDate(base, day);
     let amount = installmentAmount;
+    let amounts: CurrencyAmount[] | undefined;
     let overridden = false;
 
     const override = payment.overrides?.find((o) => o.installment_index === i);
@@ -32,7 +62,11 @@ export function getInstallments(payment: Payment): PaymentInstallment[] {
         dueDate = new Date(oy, om - 1, od);
         overridden = true;
       }
-      if (override.amount != null) {
+      if (override.amounts && override.amounts.length > 0) {
+        amounts = override.amounts;
+        amount = override.amounts[0].amount; // representative value for single-currency consumers
+        overridden = true;
+      } else if (override.amount != null) {
         amount = override.amount;
         overridden = true;
       }
@@ -42,6 +76,7 @@ export function getInstallments(payment: Payment): PaymentInstallment[] {
       index: i,
       dueDate,
       amount,
+      amounts,
       isPaid: i < payment.paid_installments,
       overridden,
     });
@@ -96,20 +131,30 @@ function clampDay(year: number, month: number, day: number): number {
 }
 
 export function installmentOccurrences(payment: Payment): Occurrence[] {
-  return getInstallments(payment).map((inst) => ({
-    kind: "installment" as const,
-    sourceId: payment.id,
-    name: payment.name,
-    currency: payment.currency ?? "TRY",
-    user_id: payment.user_id,
-    team_id: payment.team_id,
-    dueDate: inst.dueDate,
-    amount: inst.amount,
-    isPaid: inst.isPaid,
-    installmentIndex: inst.index,
-    totalInstallments: payment.total_installments,
-    overridden: inst.overridden ?? false,
-  }));
+  const out: Occurrence[] = [];
+  for (const inst of getInstallments(payment)) {
+    const base = {
+      kind: "installment" as const,
+      sourceId: payment.id,
+      name: payment.name,
+      user_id: payment.user_id,
+      team_id: payment.team_id,
+      dueDate: inst.dueDate,
+      isPaid: inst.isPaid,
+      installmentIndex: inst.index,
+      totalInstallments: payment.total_installments,
+      overridden: inst.overridden ?? false,
+    };
+    if (inst.amounts && inst.amounts.length > 0) {
+      // One occurrence per currency line so downstream per-currency aggregation works unchanged.
+      for (const line of inst.amounts) {
+        out.push({ ...base, currency: line.currency ?? "TRY", amount: line.amount });
+      }
+    } else {
+      out.push({ ...base, currency: payment.currency ?? "TRY", amount: inst.amount });
+    }
+  }
+  return out;
 }
 
 // Returns the occurrence for a recurring payment in the given month, or null if
@@ -142,20 +187,38 @@ export function recurringOccurrenceForMonth(
     overridden = true;
   }
 
+  // Representative amount/currency for single-currency consumers; the calendar
+  // range path expands multi-currency entries into one occurrence per line.
+  const lines = entry?.amounts && entry.amounts.length > 0 ? entry.amounts : null;
+
   return {
     kind: "recurring",
     sourceId: r.id,
     name: r.name,
-    currency: r.currency ?? "TRY",
+    currency: lines ? (lines[0].currency ?? "TRY") : (r.currency ?? "TRY"),
     user_id: r.user_id,
     team_id: r.team_id,
     dueDate,
-    amount: entry?.amount ?? null,
+    amount: lines ? lines[0].amount : (entry?.amount ?? null),
     isPaid: entry?.is_paid ?? false,
     overridden,
     period,
     entryId: entry?.id ?? null,
   };
+}
+
+// Expand a recurring occurrence into one occurrence per currency line when its
+// entry has multi-currency amounts; otherwise return it unchanged.
+function expandRecurringByCurrency(occ: Occurrence, r: RecurringPayment): Occurrence[] {
+  const entry = r.entries?.find((e) => e.period === occ.period);
+  if (entry?.amounts && entry.amounts.length > 0) {
+    return entry.amounts.map((line) => ({
+      ...occ,
+      currency: line.currency ?? "TRY",
+      amount: line.amount,
+    }));
+  }
+  return [occ];
 }
 
 // All occurrences of a recurring payment whose effective dueDate falls within
@@ -174,7 +237,7 @@ export function recurringOccurrencesInRange(
     seenPeriods.add(e.period);
     const [ey, em] = e.period.split("-").map(Number);
     const occ = recurringOccurrenceForMonth(r, ey, em - 1);
-    if (occ && occ.dueDate >= start && occ.dueDate <= end) out.push(occ);
+    if (occ && occ.dueDate >= start && occ.dueDate <= end) out.push(...expandRecurringByCurrency(occ, r));
   }
 
   // 2. Default-day occurrences for each month in range without a due_date override
@@ -186,7 +249,7 @@ export function recurringOccurrencesInRange(
     const period = `${y}-${String(m + 1).padStart(2, "0")}-01`;
     if (!seenPeriods.has(period)) {
       const occ = recurringOccurrenceForMonth(r, y, m);
-      if (occ && occ.dueDate >= start && occ.dueDate <= end) out.push(occ);
+      if (occ && occ.dueDate >= start && occ.dueDate <= end) out.push(...expandRecurringByCurrency(occ, r));
     }
     m++;
     if (m > 11) { m = 0; y++; }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { cleanCurrencyAmounts } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,15 @@ export async function PUT(
     recurring_id: id,
     period: normalizePeriod(String(body.period)),
   };
-  if (body.amount !== undefined) {
+  if (Array.isArray(body.amounts)) {
+    // Multi-currency lines take precedence over the legacy single `amount`.
+    const cleaned = cleanCurrencyAmounts(body.amounts);
+    if ("error" in cleaned) {
+      return NextResponse.json({ error: cleaned.error }, { status: 400 });
+    }
+    payload.amounts = cleaned.amounts;
+    payload.amount = null;
+  } else if (body.amount !== undefined) {
     payload.amount = body.amount === null || body.amount === "" ? null : Number(body.amount);
   }
   if (body.is_paid !== undefined) {

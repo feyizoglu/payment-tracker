@@ -38,12 +38,19 @@ export interface Payment {
   user?: User;
 }
 
+// One amount in a specific currency. Used for multi-currency installment overrides.
+export interface CurrencyAmount {
+  currency: string;
+  amount: number;
+}
+
 export interface PaymentOverride {
   id: string;
   payment_id: string;
   installment_index: number;
   due_date: string | null;   // 'yyyy-MM-dd'
-  amount: number | null;
+  amount: number | null;     // legacy single-currency amount (still honored)
+  amounts?: CurrencyAmount[] | null; // multi-currency lines; takes precedence over `amount`
   created_at: string;
 }
 
@@ -51,6 +58,7 @@ export interface PaymentInstallment {
   index: number;
   dueDate: Date;
   amount: number;
+  amounts?: CurrencyAmount[]; // present when the installment has multi-currency override lines
   isPaid: boolean;
   overridden?: boolean;
 }
@@ -73,7 +81,8 @@ export interface RecurringEntry {
   id: string;
   recurring_id: string;
   period: string;            // 'yyyy-MM-01'
-  amount: number | null;
+  amount: number | null;     // legacy single-currency amount (still honored)
+  amounts?: CurrencyAmount[] | null; // multi-currency lines; takes precedence over `amount`
   is_paid: boolean;
   paid_at: string | null;
   due_date: string | null;   // 'yyyy-MM-dd' | null

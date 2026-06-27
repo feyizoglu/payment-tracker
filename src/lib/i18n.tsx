@@ -148,6 +148,8 @@ const translations = {
     editedBadge: "edited",
     editReminder: "Edit Reminder",
     resetDay: "Reset day",
+    addCurrency: "Add currency",
+    amounts: "Amounts",
   },
   tr: {
     // Landing
@@ -292,6 +294,8 @@ const translations = {
     editedBadge: "düzenlendi",
     editReminder: "Hatırlatıcıyı Düzenle",
     resetDay: "Günü sıfırla",
+    addCurrency: "Para birimi ekle",
+    amounts: "Tutarlar",
   },
 };
 

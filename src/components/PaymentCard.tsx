@@ -174,7 +174,11 @@ export default function PaymentCard({ payment, userMap = {}, canManage = false, 
                     {inst.index + 1}. {format(inst.dueDate, "dd MMM yyyy")}
                   </span>
                 </div>
-                <span className="font-medium">{sym}{fmt(inst.amount)}</span>
+                <span className="font-medium">
+                  {inst.amounts && inst.amounts.length > 0
+                    ? inst.amounts.map((a) => `${getCurrencySymbol(a.currency)}${fmt(a.amount)}`).join(" · ")
+                    : `${sym}${fmt(inst.amount)}`}
+                </span>
               </div>
             ))}
           </div>
