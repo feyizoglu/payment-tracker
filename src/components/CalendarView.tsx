@@ -366,15 +366,13 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
                       </span>
                     )}
 
-                    {o.kind === "installment" && (
-                      <button
-                        disabled={isLoadingItem}
-                        onClick={() => setEditing(o)}
-                        className="shrink-0 p-1 rounded-lg text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition disabled:opacity-50"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button
+                      disabled={isLoadingItem}
+                      onClick={() => setEditing(o)}
+                      className="shrink-0 p-1 rounded-lg text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition disabled:opacity-50"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
                     <button
                       disabled={isLoadingItem}
                       onClick={() => deleteOccurrence(o)}
@@ -390,7 +388,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
         </div>
       )}
       {editing && (
-        <EditInstallmentModal
+        <EditOccurrenceModal
           occurrence={editing}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); onUpdated(); }}
@@ -401,7 +399,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
   );
 }
 
-function EditInstallmentModal({
+function EditOccurrenceModal({
   occurrence,
   onClose,
   onSaved,
@@ -412,6 +410,7 @@ function EditInstallmentModal({
   onSaved: () => void;
   t: any;
 }) {
+  const isRecurring = occurrence.kind === "recurring";
   const [date, setDate] = useState(format(occurrence.dueDate, "yyyy-MM-dd"));
   const [amount, setAmount] = useState(
     occurrence.amount != null ? occurrence.amount.toFixed(2) : ""
@@ -420,19 +419,35 @@ function EditInstallmentModal({
 
   async function submit(reset: boolean) {
     setSaving(true);
-    await fetch(`/api/payments/${occurrence.sourceId}/override`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        reset
-          ? { installment_index: occurrence.installmentIndex, due_date: null, amount: null }
-          : {
-              installment_index: occurrence.installmentIndex,
-              due_date: date || null,
-              amount: amount === "" ? null : Number(amount),
-            }
-      ),
-    });
+    if (isRecurring) {
+      await fetch(`/api/recurring/${occurrence.sourceId}/entry`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          reset
+            ? { period: occurrence.period, due_date: null }
+            : {
+                period: occurrence.period,
+                due_date: date || null,
+                amount: amount === "" ? null : Number(amount),
+              }
+        ),
+      });
+    } else {
+      await fetch(`/api/payments/${occurrence.sourceId}/override`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          reset
+            ? { installment_index: occurrence.installmentIndex, due_date: null, amount: null }
+            : {
+                installment_index: occurrence.installmentIndex,
+                due_date: date || null,
+                amount: amount === "" ? null : Number(amount),
+              }
+        ),
+      });
+    }
     onSaved();
     setSaving(false);
   }
@@ -442,7 +457,7 @@ function EditInstallmentModal({
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-gray-900">{t.editInstallment}</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{isRecurring ? t.editReminder : t.editInstallment}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition text-xl leading-none">×</button>
         </div>
         <form
@@ -459,7 +474,7 @@ function EditInstallmentModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.perInstallmentAmount}</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{isRecurring ? t.amount : t.perInstallmentAmount}</label>
             <input
               type="number"
               step="0.01"
@@ -476,7 +491,7 @@ function EditInstallmentModal({
               onClick={() => submit(true)}
               className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition disabled:opacity-60"
             >
-              {t.resetToDefault}
+              {isRecurring ? t.resetDay : t.resetToDefault}
             </button>
             <button
               type="submit"
