@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getInstallments, recurringOccurrenceForMonth, getCurrencySymbol } from "@/lib/payments";
+import { getInstallments, recurringOccurrencesInRange, getCurrencySymbol } from "@/lib/payments";
 import { Payment, RecurringPayment, User } from "@/types";
 import { Resend } from "resend";
 import { addDays, format } from "date-fns";
@@ -70,24 +70,25 @@ export async function GET(req: NextRequest) {
     .from("recurring_payments")
     .select("*, entries:recurring_entries(*), user:users!recurring_payments_user_id_fkey(id, name, email)");
 
+  const dayStart = new Date(tYear, tMonth, tDay, 0, 0, 0, 0);
+  const dayEnd = new Date(tYear, tMonth, tDay, 23, 59, 59, 999);
+
   for (const r of (recurrings ?? []) as (RecurringPayment & { user: User })[]) {
     if (!r.user?.email) continue;
-    const occ = recurringOccurrenceForMonth(r, tYear, tMonth);
-    if (!occ) continue;
-    if (occ.dueDate.getDate() !== tDay) continue;
-    if (occ.isPaid) continue;
-
-    if (!dueByUser.has(r.user_id)) {
-      dueByUser.set(r.user_id, { user: r.user, items: [] });
+    for (const occ of recurringOccurrencesInRange(r, dayStart, dayEnd)) {
+      if (occ.isPaid) continue;
+      if (!dueByUser.has(r.user_id)) {
+        dueByUser.set(r.user_id, { user: r.user, items: [] });
+      }
+      dueByUser.get(r.user_id)!.items.push({
+        paymentName: r.name,
+        installmentNumber: 0,
+        totalInstallments: 0,
+        amount: occ.amount,
+        currency: r.currency ?? "TRY",
+        isRecurring: true,
+      });
     }
-    dueByUser.get(r.user_id)!.items.push({
-      paymentName: r.name,
-      installmentNumber: 0,
-      totalInstallments: 0,
-      amount: occ.amount,
-      currency: r.currency ?? "TRY",
-      isRecurring: true,
-    });
   }
 
   const results: { email: string; status: string }[] = [];
