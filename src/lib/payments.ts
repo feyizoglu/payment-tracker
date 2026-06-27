@@ -131,10 +131,16 @@ export function recurringOccurrenceForMonth(
     if (year > endY || (year === endY && month > endM)) return null;
   }
 
-  const day = clampDay(year, month, r.day_of_month);
-  const dueDate = new Date(year, month, day);
   const period = `${year}-${String(month + 1).padStart(2, "0")}-01`;
   const entry = r.entries?.find((e) => e.period === period);
+
+  let dueDate = new Date(year, month, clampDay(year, month, r.day_of_month));
+  let overridden = false;
+  if (entry?.due_date) {
+    const [oy, om, od] = entry.due_date.split("-").map(Number);
+    dueDate = new Date(oy, om - 1, od);
+    overridden = true;
+  }
 
   return {
     kind: "recurring",
@@ -146,9 +152,47 @@ export function recurringOccurrenceForMonth(
     dueDate,
     amount: entry?.amount ?? null,
     isPaid: entry?.is_paid ?? false,
+    overridden,
     period,
     entryId: entry?.id ?? null,
   };
+}
+
+// All occurrences of a recurring payment whose effective dueDate falls within
+// [start, end] (inclusive). Handles overrides that move a date to another month.
+export function recurringOccurrencesInRange(
+  r: RecurringPayment,
+  start: Date,
+  end: Date
+): Occurrence[] {
+  const out: Occurrence[] = [];
+  const seenPeriods = new Set<string>();
+
+  // 1. Entries with an explicit due_date override — wherever the date lands
+  for (const e of r.entries ?? []) {
+    if (!e.due_date) continue;
+    seenPeriods.add(e.period);
+    const [ey, em] = e.period.split("-").map(Number);
+    const occ = recurringOccurrenceForMonth(r, ey, em - 1);
+    if (occ && occ.dueDate >= start && occ.dueDate <= end) out.push(occ);
+  }
+
+  // 2. Default-day occurrences for each month in range without a due_date override
+  let y = start.getFullYear();
+  let m = start.getMonth();
+  const endY = end.getFullYear();
+  const endM = end.getMonth();
+  while (y < endY || (y === endY && m <= endM)) {
+    const period = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    if (!seenPeriods.has(period)) {
+      const occ = recurringOccurrenceForMonth(r, y, m);
+      if (occ && occ.dueDate >= start && occ.dueDate <= end) out.push(occ);
+    }
+    m++;
+    if (m > 11) { m = 0; y++; }
+  }
+
+  return out;
 }
 
 export function getOccurrencesForMonth(
@@ -166,9 +210,11 @@ export function getOccurrencesForMonth(
       }
     }
   }
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
+  monthEnd.setHours(23, 59, 59, 999);
   for (const r of recurrings) {
-    const occ = recurringOccurrenceForMonth(r, year, month);
-    if (occ) result.push(occ);
+    result.push(...recurringOccurrencesInRange(r, monthStart, monthEnd));
   }
 
   result.sort((a, b) => a.dueDate.getDate() - b.dueDate.getDate());
@@ -189,17 +235,8 @@ export function getOccurrencesInRange(
     }
   }
 
-  let y = start.getFullYear();
-  let m = start.getMonth();
-  const endY = end.getFullYear();
-  const endM = end.getMonth();
-  while (y < endY || (y === endY && m <= endM)) {
-    for (const r of recurrings) {
-      const occ = recurringOccurrenceForMonth(r, y, m);
-      if (occ && occ.dueDate >= start && occ.dueDate <= end) result.push(occ);
-    }
-    m++;
-    if (m > 11) { m = 0; y++; }
+  for (const r of recurrings) {
+    result.push(...recurringOccurrencesInRange(r, start, end));
   }
 
   result.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());

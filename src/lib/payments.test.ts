@@ -5,6 +5,7 @@ import {
   getOccurrencesInRange,
   getInstallments,
   getRemainingAmount,
+  recurringOccurrencesInRange,
 } from "@/lib/payments";
 import { Payment, RecurringPayment } from "@/types";
 
@@ -149,5 +150,48 @@ describe("getInstallments with overrides", () => {
     const p = makePayment({ amount: 1200, total_installments: 12, paid_installments: 0,
       overrides: [{ id: "o1", payment_id: "p1", installment_index: 0, due_date: null, amount: 300, created_at: "" }] });
     expect(getRemainingAmount(p)).toBe(300 + 100 * 11); // 1400
+  });
+});
+
+describe("recurring date override", () => {
+  it("uses entry.due_date as the occurrence date and flags overridden", () => {
+    const r = makeRecurring({ day_of_month: 15, start_month: "2026-06-01",
+      entries: [{ id: "e1", recurring_id: "r1", period: "2026-07-01", amount: null, is_paid: false, paid_at: null, due_date: "2026-07-22", created_at: "" }] });
+    const occ = recurringOccurrenceForMonth(r, 2026, 6); // July
+    expect(occ!.dueDate.getDate()).toBe(22);
+    expect(occ!.overridden).toBe(true);
+  });
+
+  it("falls back to the default clamped day when no due_date", () => {
+    const r = makeRecurring({ day_of_month: 15, start_month: "2026-06-01" });
+    const occ = recurringOccurrenceForMonth(r, 2026, 6);
+    expect(occ!.dueDate.getDate()).toBe(15);
+    expect(!!occ!.overridden).toBe(false);
+  });
+
+  it("moves an occurrence to another month (period stays fixed)", () => {
+    const r = makeRecurring({ day_of_month: 15, start_month: "2026-06-01",
+      entries: [{ id: "e1", recurring_id: "r1", period: "2026-07-01", amount: 500, is_paid: false, paid_at: null, due_date: "2026-08-03", created_at: "" }] });
+    // July no longer shows it (moved out)
+    const july = getOccurrencesForMonth([], [r], 2026, 6);
+    expect(july.some((o) => o.period === "2026-07-01")).toBe(false);
+    // August shows it, but its period stays July
+    const aug = getOccurrencesForMonth([], [r], 2026, 7);
+    const moved = aug.find((o) => o.period === "2026-07-01");
+    expect(moved).toBeTruthy();
+    expect(moved!.dueDate.getDate()).toBe(3);
+    expect(moved!.overridden).toBe(true);
+    // And August's own default occurrence is also present (period Aug)
+    expect(aug.some((o) => o.period === "2026-08-01")).toBe(true);
+  });
+
+  it("recurringOccurrencesInRange includes override + default occurrences in range", () => {
+    const r = makeRecurring({ day_of_month: 10, start_month: "2026-06-01",
+      entries: [{ id: "e1", recurring_id: "r1", period: "2026-07-01", amount: null, is_paid: false, paid_at: null, due_date: "2026-07-25", created_at: "" }] });
+    const start = new Date(2026, 6, 1);   // 1 Jul
+    const end = new Date(2026, 6, 31, 23, 59, 59, 999); // 31 Jul
+    const occ = recurringOccurrencesInRange(r, start, end);
+    expect(occ.length).toBe(1);
+    expect(occ[0].dueDate.getDate()).toBe(25); // overridden, not default 10
   });
 });
