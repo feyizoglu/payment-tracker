@@ -93,6 +93,9 @@ create table if not exists payment_overrides (
   unique (payment_id, installment_index)
 );
 
+-- due_date column for recurring entries (per-month date override; added after initial schema)
+alter table recurring_entries add column if not exists due_date date;
+
 -- Enable Row Level Security
 alter table users enable row level security;
 alter table teams enable row level security;
