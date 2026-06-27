@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Payment, RecurringPayment, Occurrence } from "@/types";
+import { Payment, RecurringPayment, Occurrence, CurrencyAmount } from "@/types";
 import { getOccurrencesForMonth, getCurrencySymbol } from "@/lib/payments";
 import {
   format,
@@ -140,17 +140,6 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
     setLoading(null);
   }
 
-  async function saveAmount(o: Occurrence, value: string) {
-    setLoading(`amount-${o.sourceId}-${o.period}`);
-    await fetch(`/api/recurring/${o.sourceId}/entry`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ period: o.period, amount: value === "" ? null : Number(value) }),
-    });
-    onUpdated();
-    setLoading(null);
-  }
-
   async function deleteOccurrence(o: Occurrence) {
     if (o.kind === "installment") {
       if (!confirm(`"${o.name}" silinsin mi?`)) return;
@@ -163,6 +152,27 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
     }
     onUpdated();
     setLoading(null);
+  }
+
+  // Resolve the current per-currency amount lines for an installment occurrence,
+  // so the edit modal can show/edit every line regardless of which one was clicked.
+  function installmentInitialAmounts(o: Occurrence): CurrencyAmount[] {
+    const p = payments.find((pp) => pp.id === o.sourceId);
+    if (!p) return [{ currency: o.currency ?? "TRY", amount: o.amount ?? 0 }];
+    const override = p.overrides?.find((ov) => ov.installment_index === o.installmentIndex);
+    if (override?.amounts && override.amounts.length > 0) return override.amounts;
+    if (override?.amount != null) return [{ currency: p.currency ?? "TRY", amount: override.amount }];
+    const def = p.amount / p.total_installments;
+    return [{ currency: p.currency ?? "TRY", amount: Number(def.toFixed(2)) }];
+  }
+
+  // Resolve the current per-currency amount lines for a recurring occurrence's month.
+  function recurringInitialAmounts(o: Occurrence): CurrencyAmount[] {
+    const r = recurrings.find((rr) => rr.id === o.sourceId);
+    const entry = r?.entries?.find((e) => e.period === o.period);
+    if (entry?.amounts && entry.amounts.length > 0) return entry.amounts;
+    if (entry?.amount != null) return [{ currency: r?.currency ?? o.currency ?? "TRY", amount: entry.amount }];
+    return [{ currency: r?.currency ?? o.currency ?? "TRY", amount: 0 }]; // blank line for amount-less reminders
   }
 
   const weekDays = lang === "tr"
@@ -235,9 +245,9 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
 
                 {hasItems && (
                   <div className="flex flex-wrap gap-0.5 justify-center">
-                    {dayItems.slice(0, 4).map((o) => (
+                    {dayItems.slice(0, 4).map((o, di) => (
                       <span
-                        key={`${o.kind}-${o.sourceId}-${o.installmentIndex ?? o.period}`}
+                        key={`${o.kind}-${o.sourceId}-${o.installmentIndex ?? o.period}-${o.currency}-${di}`}
                         className="w-1.5 h-1.5 rounded-full"
                         style={{
                           backgroundColor: o.isPaid ? "#86EFAC" : userColor(o.user_id, userMap),
@@ -281,14 +291,15 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
 
           {selectedOccurrences.length > 0 && (
             <div className="space-y-2">
-              {selectedOccurrences.map((o) => {
+              {selectedOccurrences.map((o, oi) => {
                 const key = `${o.kind}-${o.sourceId}-${o.installmentIndex ?? o.period}`;
-                const isLoadingItem = loading === key || loading === `delete-${o.sourceId}` || loading === `amount-${o.sourceId}-${o.period}`;
+                const rowKey = `${key}-${o.currency}-${oi}`;
+                const isLoadingItem = loading === key || loading === `delete-${o.sourceId}`;
                 const color = userColor(o.user_id, userMap);
                 const addedBy = userMap[o.user_id];
                 return (
                   <div
-                    key={key}
+                    key={rowKey}
                     className={`flex items-center gap-3 p-3 rounded-xl border transition ${
                       o.isPaid ? "bg-green-50 border-green-100" : "bg-white border-gray-100"
                     }`}
@@ -342,27 +353,11 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
                       </div>
                     </div>
 
-                    {o.kind === "recurring" ? (
-                      <input
-                        key={`amt-${o.sourceId}-${o.period}-${o.amount ?? "x"}`}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        disabled={isLoadingItem}
-                        defaultValue={o.amount ?? ""}
-                        placeholder={t.enterAmount}
-                        onBlur={(e) => {
-                          const v = e.target.value;
-                          if (v !== String(o.amount ?? "")) saveAmount(o, v);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                        }}
-                        className="w-28 text-right text-sm font-semibold text-gray-900 border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                      />
+                    {o.amount == null ? (
+                      <span className="text-sm font-semibold shrink-0 text-gray-300">—</span>
                     ) : (
                       <span className={`text-sm font-semibold shrink-0 ${o.isPaid ? "text-gray-400" : "text-gray-900"}`}>
-                        {getCurrencySymbol(o.currency)}{fmt(o.amount ?? 0, 2)}
+                        {getCurrencySymbol(o.currency)}{fmt(o.amount, 2)}
                       </span>
                     )}
 
@@ -390,6 +385,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
       {editing && (
         <EditOccurrenceModal
           occurrence={editing}
+          initialAmounts={editing.kind === "installment" ? installmentInitialAmounts(editing) : recurringInitialAmounts(editing)}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); onUpdated(); }}
           t={t}
@@ -399,54 +395,85 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
   );
 }
 
+const CURRENCY_OPTIONS = ["TRY", "USD", "EUR", "GBP"];
+
+type AmountLine = { currency: string; amount: string };
+
 function EditOccurrenceModal({
   occurrence,
+  initialAmounts,
   onClose,
   onSaved,
   t,
 }: {
   occurrence: Occurrence;
+  initialAmounts?: CurrencyAmount[];
   onClose: () => void;
   onSaved: () => void;
   t: any;
 }) {
   const isRecurring = occurrence.kind === "recurring";
   const [date, setDate] = useState(format(occurrence.dueDate, "yyyy-MM-dd"));
-  const [amount, setAmount] = useState(
-    occurrence.amount != null ? occurrence.amount.toFixed(2) : ""
+  // Both recurring reminders and installments support multiple currency lines.
+  const [lines, setLines] = useState<AmountLine[]>(
+    (initialAmounts && initialAmounts.length > 0
+      ? initialAmounts
+      : [{ currency: occurrence.currency ?? "TRY", amount: occurrence.amount ?? 0 }]
+    ).map((l) => ({ currency: l.currency, amount: l.amount ? String(l.amount) : "" }))
   );
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function updateLine(i: number, patch: Partial<AmountLine>) {
+    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  }
+  function addLine() {
+    setLines((prev) => [...prev, { currency: "TRY", amount: "" }]);
+  }
+  function removeLine(i: number) {
+    setLines((prev) => prev.filter((_, idx) => idx !== i));
+  }
 
   async function submit(reset: boolean) {
-    setSaving(true);
-    if (isRecurring) {
-      await fetch(`/api/recurring/${occurrence.sourceId}/entry`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          reset
-            ? { period: occurrence.period, due_date: null }
-            : {
-                period: occurrence.period,
-                due_date: date || null,
-                amount: amount === "" ? null : Number(amount),
-              }
-        ),
-      });
+    setError(null);
+
+    let body: Record<string, unknown>;
+    if (reset) {
+      // Recurring "Reset day" only clears the date override; installment reset removes the whole override.
+      body = isRecurring
+        ? { period: occurrence.period, due_date: null }
+        : { installment_index: occurrence.installmentIndex, due_date: null, amount: null };
     } else {
-      await fetch(`/api/payments/${occurrence.sourceId}/override`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          reset
-            ? { installment_index: occurrence.installmentIndex, due_date: null, amount: null }
-            : {
-                installment_index: occurrence.installmentIndex,
-                due_date: date || null,
-                amount: amount === "" ? null : Number(amount),
-              }
-        ),
-      });
+      const amounts: CurrencyAmount[] = [];
+      for (const l of lines) {
+        if (l.amount.trim() === "") continue; // skip blank rows
+        const n = Number(l.amount);
+        if (!Number.isFinite(n) || n <= 0) {
+          setError(t.amounts + " > 0");
+          return;
+        }
+        amounts.push({ currency: l.currency, amount: n });
+      }
+      body = isRecurring
+        ? { period: occurrence.period, due_date: date || null, amounts }
+        : { installment_index: occurrence.installmentIndex, due_date: date || null, amounts };
+    }
+
+    const url = isRecurring
+      ? `/api/recurring/${occurrence.sourceId}/entry`
+      : `/api/payments/${occurrence.sourceId}/override`;
+
+    setSaving(true);
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setError(d.error ?? "Error");
+      setSaving(false);
+      return;
     }
     onSaved();
     setSaving(false);
@@ -473,17 +500,55 @@ function EditOccurrenceModal({
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">{isRecurring ? t.amount : t.perInstallmentAmount}</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.amounts}</label>
+            <div className="space-y-2">
+              {lines.map((line, i) => (
+                  <div key={i} className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500">
+                    <select
+                      value={line.currency}
+                      onChange={(e) => updateLine(i, { currency: e.target.value })}
+                      className="bg-gray-50 border-r border-gray-200 px-2 text-sm text-gray-700 focus:outline-none"
+                    >
+                      {CURRENCY_OPTIONS.map((c) => (
+                        <option key={c} value={c}>{getCurrencySymbol(c)} {c}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={line.amount}
+                      onChange={(e) => updateLine(i, { amount: e.target.value })}
+                      className="flex-1 min-w-0 px-3 py-2.5 text-sm text-black focus:outline-none"
+                    />
+                    {lines.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeLine(i)}
+                        className="px-3 text-gray-400 hover:text-red-500 transition text-lg leading-none"
+                        aria-label="remove"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={addLine}
+                className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition"
+              >
+                + {t.addCurrency}
+              </button>
           </div>
+
+          {error && (
+            <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+          )}
+
           <div className="flex gap-2 pt-1">
             <button
               type="button"

@@ -81,6 +81,8 @@ create table if not exists recurring_entries (
   created_at timestamptz default now(),
   unique (recurring_id, period)
 );
+-- multi-currency amount lines: [{"currency":"USD","amount":100}, ...] (takes precedence over `amount`)
+alter table recurring_entries add column if not exists amounts jsonb;
 
 -- Per-installment overrides for installment payments (specific date/amount)
 create table if not exists payment_overrides (
@@ -92,6 +94,8 @@ create table if not exists payment_overrides (
   created_at timestamptz default now(),
   unique (payment_id, installment_index)
 );
+-- multi-currency override lines: [{"currency":"USD","amount":100}, ...] (takes precedence over `amount`)
+alter table payment_overrides add column if not exists amounts jsonb;
 
 -- due_date column for recurring entries (per-month date override; added after initial schema)
 alter table recurring_entries add column if not exists due_date date;

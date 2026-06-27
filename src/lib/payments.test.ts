@@ -6,6 +6,8 @@ import {
   getInstallments,
   getRemainingAmount,
   recurringOccurrencesInRange,
+  installmentOccurrences,
+  cleanCurrencyAmounts,
 } from "@/lib/payments";
 import { Payment, RecurringPayment } from "@/types";
 
@@ -153,6 +155,97 @@ describe("getInstallments with overrides", () => {
   });
 });
 
+describe("cleanCurrencyAmounts", () => {
+  it("returns amounts: null for non-array input (field absent)", () => {
+    expect(cleanCurrencyAmounts(undefined)).toEqual({ amounts: null });
+    expect(cleanCurrencyAmounts(null)).toEqual({ amounts: null });
+    expect(cleanCurrencyAmounts("nope")).toEqual({ amounts: null });
+  });
+
+  it("cleans valid lines and preserves order", () => {
+    expect(
+      cleanCurrencyAmounts([{ currency: "USD", amount: 100 }, { currency: "TRY", amount: 2000 }])
+    ).toEqual({ amounts: [{ currency: "USD", amount: 100 }, { currency: "TRY", amount: 2000 }] });
+  });
+
+  it("coerces string amounts to numbers", () => {
+    expect(cleanCurrencyAmounts([{ currency: "EUR", amount: "50.5" }])).toEqual({
+      amounts: [{ currency: "EUR", amount: 50.5 }],
+    });
+  });
+
+  it("skips blank-amount rows and non-object entries", () => {
+    expect(
+      cleanCurrencyAmounts([
+        { currency: "USD", amount: "" },
+        null,
+        "garbage",
+        { currency: "TRY", amount: 10 },
+      ])
+    ).toEqual({ amounts: [{ currency: "TRY", amount: 10 }] });
+  });
+
+  it("yields amounts: null when an array cleans down to nothing", () => {
+    expect(cleanCurrencyAmounts([])).toEqual({ amounts: null });
+    expect(cleanCurrencyAmounts([{ currency: "USD", amount: "" }])).toEqual({ amounts: null });
+  });
+
+  it("rejects a currency outside the allowlist", () => {
+    expect(cleanCurrencyAmounts([{ currency: "JPY", amount: 100 }])).toEqual({
+      error: "Invalid currency: JPY",
+    });
+    expect(cleanCurrencyAmounts([{ amount: 100 }])).toEqual({ error: "Invalid currency: " });
+  });
+
+  it("rejects non-positive or non-finite amounts", () => {
+    expect(cleanCurrencyAmounts([{ currency: "USD", amount: 0 }])).toHaveProperty("error");
+    expect(cleanCurrencyAmounts([{ currency: "USD", amount: -5 }])).toHaveProperty("error");
+    expect(cleanCurrencyAmounts([{ currency: "USD", amount: "abc" }])).toHaveProperty("error");
+  });
+});
+
+describe("multi-currency installment overrides", () => {
+  it("getInstallments exposes override amounts lines and flags overridden", () => {
+    const p = makePayment({ amount: 1200, total_installments: 12, currency: "TRY",
+      overrides: [{ id: "o1", payment_id: "p1", installment_index: 1, due_date: null, amount: null,
+        amounts: [{ currency: "USD", amount: 100 }, { currency: "TRY", amount: 2000 }], created_at: "" }] });
+    const inst = getInstallments(p);
+    expect(inst[1].amounts).toEqual([{ currency: "USD", amount: 100 }, { currency: "TRY", amount: 2000 }]);
+    expect(inst[1].overridden).toBe(true);
+    // unaffected installment keeps default single amount, no amounts
+    expect(inst[0].amount).toBe(100);
+    expect(inst[0].amounts).toBeUndefined();
+  });
+
+  it("installmentOccurrences emits one occurrence per currency line", () => {
+    const p = makePayment({ amount: 1200, total_installments: 12, currency: "TRY", start_date: "2026-06-10", day_of_month: 10,
+      overrides: [{ id: "o1", payment_id: "p1", installment_index: 1, due_date: null, amount: null,
+        amounts: [{ currency: "USD", amount: 100 }, { currency: "TRY", amount: 2000 }], created_at: "" }] });
+    const occ = installmentOccurrences(p).filter((o) => o.installmentIndex === 1);
+    expect(occ.length).toBe(2);
+    expect(occ.map((o) => o.currency).sort()).toEqual(["TRY", "USD"]);
+    const usd = occ.find((o) => o.currency === "USD")!;
+    expect(usd.amount).toBe(100);
+    expect(usd.overridden).toBe(true);
+    // both lines fall on the same (default) due date
+    expect(occ[0].dueDate.getTime()).toBe(occ[1].dueDate.getTime());
+  });
+
+  it("a single-currency (non-multi) installment still emits exactly one occurrence", () => {
+    const p = makePayment({ total_installments: 3 });
+    expect(installmentOccurrences(p).length).toBe(3);
+  });
+
+  it("multi-currency lines surface per-currency in getOccurrencesForMonth on the same day", () => {
+    const p = makePayment({ amount: 1200, total_installments: 12, currency: "TRY", start_date: "2026-06-10", day_of_month: 10,
+      overrides: [{ id: "o1", payment_id: "p1", installment_index: 0, due_date: null, amount: null,
+        amounts: [{ currency: "USD", amount: 100 }, { currency: "TRY", amount: 2000 }], created_at: "" }] });
+    const june = getOccurrencesForMonth([p], [], 2026, 5).filter((o) => o.installmentIndex === 0);
+    expect(june.length).toBe(2);
+    expect(june.every((o) => o.dueDate.getDate() === 10)).toBe(true);
+  });
+});
+
 describe("recurring date override", () => {
   it("uses entry.due_date as the occurrence date and flags overridden", () => {
     const r = makeRecurring({ day_of_month: 15, start_month: "2026-06-01",
@@ -183,6 +276,30 @@ describe("recurring date override", () => {
     expect(moved!.overridden).toBe(true);
     // And August's own default occurrence is also present (period Aug)
     expect(aug.some((o) => o.period === "2026-08-01")).toBe(true);
+  });
+
+  it("emits one occurrence per currency line for a multi-currency entry", () => {
+    const r = makeRecurring({ day_of_month: 15, start_month: "2026-06-01",
+      entries: [{ id: "e1", recurring_id: "r1", period: "2026-07-01", amount: null,
+        amounts: [{ currency: "USD", amount: 50 }, { currency: "TRY", amount: 900 }],
+        is_paid: false, paid_at: null, due_date: null, created_at: "" }] });
+    const july = getOccurrencesForMonth([], [r], 2026, 6).filter((o) => o.period === "2026-07-01");
+    expect(july.length).toBe(2);
+    expect(july.map((o) => o.currency).sort()).toEqual(["TRY", "USD"]);
+    const usd = july.find((o) => o.currency === "USD")!;
+    expect(usd.amount).toBe(50);
+    expect(july.every((o) => o.dueDate.getDate() === 15)).toBe(true);
+  });
+
+  it("multi-currency lines still respect a due_date override (moved month, both lines)", () => {
+    const r = makeRecurring({ day_of_month: 15, start_month: "2026-06-01",
+      entries: [{ id: "e1", recurring_id: "r1", period: "2026-07-01", amount: null,
+        amounts: [{ currency: "USD", amount: 50 }, { currency: "TRY", amount: 900 }],
+        is_paid: false, paid_at: null, due_date: "2026-08-03", created_at: "" }] });
+    expect(getOccurrencesForMonth([], [r], 2026, 6).some((o) => o.period === "2026-07-01")).toBe(false);
+    const aug = getOccurrencesForMonth([], [r], 2026, 7).filter((o) => o.period === "2026-07-01");
+    expect(aug.length).toBe(2);
+    expect(aug.every((o) => o.dueDate.getDate() === 3 && o.overridden)).toBe(true);
   });
 
   it("recurringOccurrencesInRange includes override + default occurrences in range", () => {

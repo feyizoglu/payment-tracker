@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { cleanCurrencyAmounts } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -40,19 +41,27 @@ export async function PUT(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json(); // { installment_index, due_date, amount }
+  const body = await req.json(); // { installment_index, due_date, amount?, amounts? }
   if (body.installment_index == null) {
     return NextResponse.json({ error: "installment_index is required" }, { status: 400 });
   }
 
   const due_date = body.due_date ? String(body.due_date) : null;
+
+  // Multi-currency lines take precedence over the legacy single `amount`.
+  const cleaned = cleanCurrencyAmounts(body.amounts);
+  if ("error" in cleaned) {
+    return NextResponse.json({ error: cleaned.error }, { status: 400 });
+  }
+  const amounts = cleaned.amounts;
+
   const amount =
-    body.amount === null || body.amount === "" || body.amount === undefined
+    amounts != null || body.amount === null || body.amount === "" || body.amount === undefined
       ? null
       : Number(body.amount);
 
-  // Both null => reset to default (delete the override row)
-  if (due_date == null && amount == null) {
+  // Nothing set => reset to default (delete the override row)
+  if (due_date == null && amount == null && amounts == null) {
     const { error } = await db
       .from("payment_overrides")
       .delete()
@@ -65,7 +74,7 @@ export async function PUT(
   const { data, error } = await db
     .from("payment_overrides")
     .upsert(
-      { payment_id: id, installment_index: body.installment_index, due_date, amount },
+      { payment_id: id, installment_index: body.installment_index, due_date, amount, amounts },
       { onConflict: "payment_id,installment_index" }
     )
     .select("*")
