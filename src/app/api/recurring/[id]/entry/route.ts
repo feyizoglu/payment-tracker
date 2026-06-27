@@ -61,6 +61,9 @@ export async function PUT(
     payload.is_paid = !!body.is_paid;
     payload.paid_at = body.is_paid ? new Date().toISOString() : null;
   }
+  if (body.due_date !== undefined) {
+    payload.due_date = body.due_date ? String(body.due_date) : null;
+  }
 
   const { data, error } = await db
     .from("recurring_entries")
