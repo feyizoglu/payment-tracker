@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getSessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.email) {
+export async function GET(req: NextRequest) {
+  const user = await getSessionUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const db = supabaseAdmin();
-  const userId = (session.user as any).id;
+  const userId = user.id;
 
   // Get all teams this user is a member of
   const { data: memberRows } = await db
@@ -41,20 +41,13 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.email) {
+  const user = await getSessionUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const db = supabaseAdmin();
-  const userId = (session.user as any).id;
-
-  if (!userId) {
-    return NextResponse.json(
-      { error: "User not found in database. Please sign out and sign in again." },
-      { status: 500 }
-    );
-  }
+  const userId = user.id;
 
   const body = await req.json();
 

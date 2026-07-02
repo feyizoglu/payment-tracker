@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getSessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.email) {
+export async function GET(req: NextRequest) {
+  const user = await getSessionUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const db = supabaseAdmin();
-  const userId = (session.user as any).id;
-
-  if (!userId) {
-    return NextResponse.json({ error: "User not found in database" }, { status: 500 });
-  }
+  const userId = user.id;
 
   const { data, error } = await db
     .from("team_members")
@@ -32,17 +28,13 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.email) {
+  const user = await getSessionUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const db = supabaseAdmin();
-  const userId = (session.user as any).id;
-
-  if (!userId) {
-    return NextResponse.json({ error: "User not found in database" }, { status: 500 });
-  }
+  const userId = user.id;
 
   const { name } = await req.json();
 
