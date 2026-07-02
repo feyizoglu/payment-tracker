@@ -178,3 +178,25 @@ create policy "Members can view payment overrides" on payment_overrides for sele
 create policy "Users can insert payment overrides" on payment_overrides for insert with check (true);
 create policy "Users can update payment overrides" on payment_overrides for update using (true);
 create policy "Users can delete payment overrides" on payment_overrides for delete using (true);
+
+-- Mobile push notification device tokens
+create table if not exists devices (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  expo_push_token text unique not null,
+  platform text not null default 'android',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table devices enable row level security;
+
+-- Devices policies (service role bypasses; mirror other tables)
+drop policy if exists "Users can view devices" on devices;
+drop policy if exists "Users can insert devices" on devices;
+drop policy if exists "Users can update devices" on devices;
+drop policy if exists "Users can delete devices" on devices;
+create policy "Users can view devices" on devices for select using (true);
+create policy "Users can insert devices" on devices for insert with check (true);
+create policy "Users can update devices" on devices for update using (true);
+create policy "Users can delete devices" on devices for delete using (true);
