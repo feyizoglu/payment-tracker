@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getSessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -32,14 +32,14 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.email) {
+  const user = await getSessionUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
   const db = supabaseAdmin();
-  const userId = (session.user as any).id;
+  const userId = user.id;
 
   if (!(await canManagePayment(db, id, userId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -59,17 +59,17 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.email) {
+  const user = await getSessionUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
   const db = supabaseAdmin();
-  const userId = (session.user as any).id;
+  const userId = user.id;
 
   if (!(await canManagePayment(db, id, userId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -34,3 +34,22 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Mobile API environment variables
+
+The mobile app (Android, Expo) talks to the same Next.js API. These server-side env
+vars support it:
+
+- `GOOGLE_MOBILE_CLIENT_IDS` — comma-separated Google OAuth client IDs accepted by
+  `POST /api/auth/mobile` in addition to `AUTH_GOOGLE_ID`. Add the Android OAuth client
+  ID here once the mobile app's OAuth client is created. Optional until the mobile app
+  ships; the endpoint falls back to just `AUTH_GOOGLE_ID`.
+
+The app JWT issued to mobile clients is signed with the existing `AUTH_SECRET` (must be
+at least 32 characters). Expo push notifications require no server credentials — they go
+through Expo's public push service.
+
+### One-time Supabase setup for mobile
+
+Run the `devices` table DDL at the end of `supabase-schema.sql` in the Supabase SQL editor
+before the mobile app registers push tokens.

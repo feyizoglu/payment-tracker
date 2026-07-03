@@ -4,6 +4,7 @@ import { getInstallments, recurringOccurrencesInRange, getCurrencySymbol } from 
 import { Payment, RecurringPayment, User } from "@/types";
 import { Resend } from "resend";
 import { addDays, format } from "date-fns";
+import { sendExpoPush, type PushMessage } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
   const tYear = tomorrow.getFullYear();
   const tMonth = tomorrow.getMonth();
   const tDay = tomorrow.getDate();
+  const tomorrowStr = format(tomorrow, "dd MMMM yyyy");
 
   const { data: payments, error } = await db
     .from("payments")
@@ -91,11 +93,64 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Push notifications to registered devices (in addition to email)
+  let pushSummary = { sent: 0, invalidTokens: [] as string[], errors: [] as string[] };
+  const dueUserIds = [...dueByUser.keys()];
+  if (dueUserIds.length > 0) {
+    const { data: devices, error: devicesError } = await db
+      .from("devices")
+      .select("user_id, expo_push_token")
+      .in("user_id", dueUserIds);
+
+    if (devicesError) {
+      // Surface a query failure so a broken push pipeline is distinguishable
+      // from a quiet day (no devices) in the response/logs.
+      pushSummary.errors.push(`devices query failed: ${devicesError.message}`);
+    }
+
+    const messages: PushMessage[] = [];
+    for (const device of devices ?? []) {
+      const due = dueByUser.get(device.user_id);
+      if (!due) continue;
+      const lines = due.items.map((item) => {
+        const tutar =
+          item.amount == null
+            ? ""
+            : ` — ${getCurrencySymbol(item.currency)}${new Intl.NumberFormat("tr-TR", {
+                minimumFractionDigits: 2,
+              }).format(item.amount)}`;
+        return `${item.paymentName}${tutar}`;
+      });
+      messages.push({
+        to: device.expo_push_token,
+        title: "Ödeme Hatırlatıcısı",
+        body: `Yarın (${tomorrowStr}) vadesi dolan: ${lines.join(", ")}`,
+        data: { month: format(tomorrow, "yyyy-MM") },
+      });
+    }
+
+    const expoResult = await sendExpoPush(messages);
+    // Merge (don't overwrite): keep any devices-query error recorded above.
+    pushSummary = {
+      sent: expoResult.sent,
+      invalidTokens: expoResult.invalidTokens,
+      errors: [...pushSummary.errors, ...expoResult.errors],
+    };
+    if (pushSummary.invalidTokens.length > 0) {
+      const { error: pruneError } = await db
+        .from("devices")
+        .delete()
+        .in("expo_push_token", pushSummary.invalidTokens);
+      if (pruneError) {
+        // Surface a failed prune so dead tokens aren't silently re-sent every run.
+        pushSummary.errors.push(`dead-token prune failed: ${pruneError.message}`);
+      }
+    }
+  }
+
   const results: { email: string; status: string }[] = [];
 
   for (const [, { user, items }] of dueByUser) {
-    const tomorrowStr = format(tomorrow, "dd MMMM yyyy");
-
     const rows = items
       .map((item) => {
         const taksit = item.isRecurring ? "—" : `${item.installmentNumber}/${item.totalInstallments}`;
@@ -145,5 +200,6 @@ export async function GET(req: NextRequest) {
     date: format(tomorrow, "yyyy-MM-dd"),
     sent: results.length,
     results,
+    push: pushSummary,
   });
 }
