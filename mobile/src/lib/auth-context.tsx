@@ -3,9 +3,10 @@ import { createApiClient, type ApiClient } from "./api";
 import { exchangeGoogleIdToken, type MobileAuthResponse } from "./auth";
 import { getApiUrl } from "./config";
 import { clearToken, getToken, setToken } from "./storage";
-import type { User } from "@shared/types";
 
-type AuthUser = Pick<User, "id" | "email" | "name" | "avatar_url">;
+// Single source of truth: mirror the exact profile shape the auth endpoint
+// returns (defined in ./auth) rather than restating the Pick<User, ...> list.
+type AuthUser = MobileAuthResponse["user"];
 
 interface AuthState {
   ready: boolean; // finished restoring token from storage
