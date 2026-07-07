@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 
 import { useAuth } from '@/lib/auth-context';
-import type { Payment } from '@shared/types';
+import type { Payment } from '@ptracker/shared/types';
+import { getCurrencySymbol } from '@ptracker/shared/payments';
 
 export default function Payments() {
   const { api, signOut } = useAuth();
@@ -60,7 +61,7 @@ export default function Payments() {
           <View className="rounded-lg border border-gray-200 p-4">
             <Text className="font-semibold text-black">{item.name}</Text>
             <Text className="text-gray-600">
-              {item.amount} {item.currency}
+              {getCurrencySymbol(item.currency)}{item.amount}
             </Text>
           </View>
         )}

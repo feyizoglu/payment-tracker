@@ -1,4 +1,4 @@
-import type { User } from "@shared/types";
+import type { User } from "@ptracker/shared/types";
 
 export interface MobileAuthResponse {
   token: string;
