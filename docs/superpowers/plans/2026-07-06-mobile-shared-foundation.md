@@ -98,9 +98,25 @@ git commit -m "refactor(shared): move occurrence logic to shared/payments.ts wit
 
 ---
 
-## Task 2: Add `date-fns` to mobile and prove `@shared/payments` bundles
+## Task 2: Expose the shared logic to mobile as a local package `@ptracker/shared`
 
-The moved logic uses `date-fns`; mobile must be able to resolve and bundle it. A wiring unit test is the cheapest proof.
+> **Implementation note (supersedes the original date-fns-only plan):** Metro will
+> NOT bundle runtime (value) imports of source files that live outside the mobile
+> project root — a bare `@shared/*` source import of `shared/payments.ts` fails with
+> "Failed to get the SHA-1". (Type-only imports were erased at compile time and hid
+> this.) The fix is to make `shared/` a real local package (`@ptracker/shared`) and
+> consume it from `mobile` as a `file:../shared` dependency; Metro reliably bundles
+> node_modules packages (even symlinked to a sibling dir). Mobile imports switch
+> from `@shared/*` to `@ptracker/shared/*`. Web keeps its relative re-export shims
+> (unchanged). This also delivers the date-fns dependency (declared by the shared
+> package + installed in mobile). Steps below reflect this approach.
+
+Concretely: create `shared/package.json`, add `@ptracker/shared` + `date-fns` to
+mobile, rename mobile's `@shared/*` imports to `@ptracker/shared/*`, use
+`getCurrencySymbol` in the Payments screen (a real value import that forces Metro
+to bundle the shared module + date-fns), and prove it with `expo export`.
+
+The original wiring unit test is retained as a toolchain proof.
 
 **Files:**
 - Modify: `mobile/package.json`, `mobile/package-lock.json`

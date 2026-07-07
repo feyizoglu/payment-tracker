@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.3",
+    "@ptracker/shared": "file:../shared",
+    "date-fns": "^4.4.0",
     "expo": "~57.0.2",
     "expo-auth-session": "~57.0.1",
     "expo-constants": "~57.0.3",

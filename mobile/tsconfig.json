@@ -9,7 +9,7 @@
       "@/assets/*": [
         "./assets/*"
       ],
-      "@shared/*": [
+      "@ptracker/shared/*": [
         "../shared/*"
       ]
     }
