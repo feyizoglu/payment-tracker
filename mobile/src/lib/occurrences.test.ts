@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { markPaidRequest, occurrenceKey, groupOccurrencesByDay } from "./occurrences";
+import { markPaidRequest, occurrenceKey, groupOccurrencesByDay, occurrenceTypeBadge } from "./occurrences";
 import type { Occurrence } from "@ptracker/shared/types";
 
 function occ(over: Partial<Occurrence>): Occurrence {
@@ -31,6 +31,16 @@ describe("occurrenceKey", () => {
     const b = occurrenceKey(occ({ installmentIndex: 0, currency: "USD" }));
     const c = occurrenceKey(occ({ installmentIndex: 1, currency: "TRY" }));
     expect(new Set([a, b, c]).size).toBe(3);
+  });
+});
+
+describe("occurrenceTypeBadge", () => {
+  it("shows Aylık for recurring", () => {
+    expect(occurrenceTypeBadge(occ({ kind: "recurring", installmentIndex: undefined }))).toBe("Aylık");
+  });
+  it("shows 1-indexed N/M for installments", () => {
+    expect(occurrenceTypeBadge(occ({ kind: "installment", installmentIndex: 2, totalInstallments: 12 }))).toBe("3/12");
+    expect(occurrenceTypeBadge(occ({ kind: "installment", installmentIndex: 0, totalInstallments: 6 }))).toBe("1/6");
   });
 });
 
