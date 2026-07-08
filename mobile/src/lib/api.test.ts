@@ -108,6 +108,20 @@ describe("createApiClient", () => {
     expect(init.body).toBe(JSON.stringify({ paid: true }));
   });
 
+  it("serializes the body and sets method PUT on put", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
+    const client = createApiClient({
+      baseUrl: "https://api.example.com",
+      getToken: async () => null,
+      fetchImpl,
+    });
+    await client.put("/api/recurring/r1/entry", { period: "2026-07-01", is_paid: true });
+    const init = fetchImpl.mock.calls[0][1];
+    expect(init.method).toBe("PUT");
+    expect(init.body).toBe(JSON.stringify({ period: "2026-07-01", is_paid: true }));
+    expect(new Headers(init.headers).get("content-type")).toBe("application/json");
+  });
+
   it("returns undefined for a 204 No Content", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     const client = createApiClient({
