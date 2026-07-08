@@ -35,6 +35,12 @@ export function occurrenceTypeBadge(o: Occurrence): string {
   return `${(o.installmentIndex ?? 0) + 1}/${o.totalInstallments ?? "?"}`;
 }
 
+// Canonical per-day bucket key (local time). Single source of truth so the
+// calendar view and groupOccurrencesByDay can't drift apart.
+export function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
 export interface DayGroup {
   key: string;
   date: Date;
@@ -47,7 +53,7 @@ export function groupOccurrencesByDay(occurrences: Occurrence[]): DayGroup[] {
   const map = new Map<string, DayGroup>();
   for (const o of occurrences) {
     const d = o.dueDate;
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const key = dayKey(d);
     let group = map.get(key);
     if (!group) {
       group = { key, date: new Date(d.getFullYear(), d.getMonth(), d.getDate()), items: [] };

@@ -2,9 +2,8 @@ import { Fragment } from "react";
 import { Text, View } from "react-native";
 import type { Occurrence } from "@ptracker/shared/types";
 import { groupOccurrencesByDay, occurrenceKey } from "@/lib/occurrences";
+import { formatDayShort } from "@/lib/calendar";
 import { OccurrenceRow } from "@/components/occurrence-row";
-
-const TR_MONTHS_SHORT = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
 export function MonthList({
   occurrences,
@@ -24,7 +23,7 @@ export function MonthList({
       {groups.map((g) => (
         <Fragment key={g.key}>
           <Text className="text-xs font-semibold text-gray-400">
-            {g.date.getDate()} {TR_MONTHS_SHORT[g.date.getMonth()]}
+            {formatDayShort(g.date)}
           </Text>
           <View className="gap-2">
             {g.items.map((o) => (

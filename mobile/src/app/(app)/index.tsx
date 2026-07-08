@@ -122,10 +122,10 @@ export default function Payments() {
             onTogglePaid={onTogglePaid}
           />
         )}
-        <Pressable onPress={signOut} className="p-4">
-          <Text className="text-center text-gray-500">Çıkış yap</Text>
-        </Pressable>
       </ScrollView>
+      <Pressable onPress={signOut} className="border-t border-gray-100 p-4">
+        <Text className="text-center text-gray-500">Çıkış yap</Text>
+      </Pressable>
     </View>
   );
 }

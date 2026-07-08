@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildCalendarWeeks } from "./calendar";
+import { buildCalendarWeeks, formatMonthYear, formatDayShort } from "./calendar";
 
 describe("buildCalendarWeeks", () => {
   it("returns Monday-first weeks of 7 days covering the whole month", () => {
@@ -13,5 +13,16 @@ describe("buildCalendarWeeks", () => {
     const julyDays = flat.filter((d) => d.getMonth() === 6).map((d) => d.getDate());
     expect(julyDays[0]).toBe(1);
     expect(julyDays[julyDays.length - 1]).toBe(31);
+  });
+});
+
+describe("Turkish date formatters (date-fns tr locale)", () => {
+  it("formatMonthYear renders the standalone Turkish month + year", () => {
+    expect(formatMonthYear(2026, 6)).toBe("Temmuz 2026");
+    expect(formatMonthYear(2026, 0)).toBe("Ocak 2026");
+  });
+  it("formatDayShort renders day + abbreviated Turkish month", () => {
+    expect(formatDayShort(new Date(2026, 6, 5))).toBe("5 Tem");
+    expect(formatDayShort(new Date(2026, 11, 20))).toBe("20 Ara");
   });
 });

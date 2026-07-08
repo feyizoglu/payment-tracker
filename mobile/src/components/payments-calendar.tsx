@@ -2,14 +2,10 @@ import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { Occurrence } from "@ptracker/shared/types";
 import { buildCalendarWeeks } from "@/lib/calendar";
-import { groupOccurrencesByDay, occurrenceKey } from "@/lib/occurrences";
+import { dayKey, groupOccurrencesByDay, occurrenceKey } from "@/lib/occurrences";
 import { OccurrenceRow } from "@/components/occurrence-row";
 
 const WEEKDAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
-
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
 
 export function PaymentsCalendar({
   year,
@@ -54,6 +50,7 @@ export function PaymentsCalendar({
             return (
               <Pressable
                 key={dayKey(day)}
+                disabled={!inMonth}
                 onPress={() => onSelectDay(day)}
                 className={`h-12 flex-1 items-center justify-center ${selected ? "rounded-lg bg-blue-50" : ""}`}>
                 <Text className={`text-sm ${inMonth ? "text-gray-800" : "text-gray-300"} ${selected ? "font-semibold text-blue-600" : ""}`}>

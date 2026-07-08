@@ -1,9 +1,5 @@
 import { Pressable, Text, View } from "react-native";
-
-const TR_MONTHS = [
-  "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
-];
+import { formatMonthYear } from "@/lib/calendar";
 
 export type PaymentsView = "list" | "calendar";
 
@@ -29,7 +25,7 @@ export function MonthHeader({
           <Text className="text-xl text-gray-600">‹</Text>
         </Pressable>
         <Text className="text-base font-semibold text-gray-900">
-          {TR_MONTHS[month]} {year}
+          {formatMonthYear(year, month)}
         </Text>
         <Pressable onPress={onNext} className="px-3 py-1">
           <Text className="text-xl text-gray-600">›</Text>
