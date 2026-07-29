@@ -63,6 +63,14 @@ export interface PaymentInstallment {
   overridden?: boolean;
 }
 
+// A forward-effective day-of-month change for a recurring series: from `from`
+// (a 'yyyy-MM-01' period) onward, the series falls on `day` instead of the base
+// day_of_month. Latest applicable change wins; see effectiveDayForMonth.
+export interface DayChange {
+  from: string; // 'yyyy-MM-01'
+  day: number;
+}
+
 export interface RecurringPayment {
   id: string;
   team_id: string | null;
@@ -74,6 +82,7 @@ export interface RecurringPayment {
   end_month: string | null;  // 'yyyy-MM-01' | null
   created_at: string;
   entries?: RecurringEntry[];
+  day_changes?: DayChange[] | null; // forward day-of-month changes, sorted by `from`
   user?: User;
 }
 

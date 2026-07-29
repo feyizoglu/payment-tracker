@@ -8,6 +8,9 @@ import {
   recurringOccurrencesInRange,
   installmentOccurrences,
   cleanCurrencyAmounts,
+  effectiveDayForMonth,
+  upsertDayChange,
+  forwardInstallmentDueDates,
 } from "@/lib/payments";
 import { Payment, RecurringPayment } from "@/types";
 
@@ -310,5 +313,89 @@ describe("recurring date override", () => {
     const occ = recurringOccurrencesInRange(r, start, end);
     expect(occ.length).toBe(1);
     expect(occ[0].dueDate.getDate()).toBe(25); // overridden, not default 10
+  });
+});
+
+describe("effectiveDayForMonth", () => {
+  it("returns the base day_of_month when there are no changes", () => {
+    const r = makeRecurring({ day_of_month: 15, day_changes: null });
+    expect(effectiveDayForMonth(r, 2026, 6)).toBe(15);
+    expect(effectiveDayForMonth(makeRecurring({ day_of_month: 15 }), 2026, 6)).toBe(15);
+  });
+
+  it("applies a change from its `from` month onward, base day before it", () => {
+    const r = makeRecurring({ day_of_month: 15, day_changes: [{ from: "2026-08-01", day: 3 }] });
+    expect(effectiveDayForMonth(r, 2026, 6)).toBe(15); // July — before change
+    expect(effectiveDayForMonth(r, 2026, 7)).toBe(3);  // August — change month
+    expect(effectiveDayForMonth(r, 2026, 9)).toBe(3);  // October — after change
+  });
+
+  it("picks the latest applicable change when several exist (unsorted input)", () => {
+    const r = makeRecurring({ day_of_month: 15, day_changes: [
+      { from: "2026-10-01", day: 20 },
+      { from: "2026-08-01", day: 3 },
+    ] });
+    expect(effectiveDayForMonth(r, 2026, 6)).toBe(15); // Jul — base
+    expect(effectiveDayForMonth(r, 2026, 8)).toBe(3);  // Sep — first change
+    expect(effectiveDayForMonth(r, 2026, 11)).toBe(20); // Dec — second change
+  });
+
+  it("drives recurringOccurrenceForMonth's dueDate day (clamped) going forward", () => {
+    const r = makeRecurring({ day_of_month: 15, start_month: "2026-06-01",
+      day_changes: [{ from: "2026-08-01", day: 31 }] });
+    expect(recurringOccurrenceForMonth(r, 2026, 6)!.dueDate.getDate()).toBe(15); // Jul, base
+    expect(recurringOccurrenceForMonth(r, 2026, 8)!.dueDate.getDate()).toBe(30); // Sep, day 31 clamped to 30
+  });
+
+  it("a per-month due_date override still wins over the effective day", () => {
+    const r = makeRecurring({ day_of_month: 15, start_month: "2026-06-01",
+      day_changes: [{ from: "2026-07-01", day: 5 }],
+      entries: [{ id: "e1", recurring_id: "r1", period: "2026-07-01", amount: null, is_paid: false, paid_at: null, due_date: "2026-07-22", created_at: "" }] });
+    const occ = recurringOccurrenceForMonth(r, 2026, 6); // July
+    expect(occ!.dueDate.getDate()).toBe(22); // override, not the change's day 5
+    expect(occ!.overridden).toBe(true);
+  });
+});
+
+describe("upsertDayChange", () => {
+  it("appends a new change and keeps the list sorted by `from`", () => {
+    const next = upsertDayChange([{ from: "2026-10-01", day: 20 }], "2026-08-01", 3);
+    expect(next).toEqual([{ from: "2026-08-01", day: 3 }, { from: "2026-10-01", day: 20 }]);
+  });
+
+  it("replaces the day when the same `from` already exists", () => {
+    const next = upsertDayChange([{ from: "2026-08-01", day: 3 }], "2026-08-01", 9);
+    expect(next).toEqual([{ from: "2026-08-01", day: 9 }]);
+  });
+
+  it("treats null/undefined existing as an empty list", () => {
+    expect(upsertDayChange(null, "2026-08-01", 3)).toEqual([{ from: "2026-08-01", day: 3 }]);
+    expect(upsertDayChange(undefined, "2026-08-01", 3)).toEqual([{ from: "2026-08-01", day: 3 }]);
+  });
+});
+
+describe("forwardInstallmentDueDates", () => {
+  it("emits due dates for the given index through the last installment", () => {
+    const p = makePayment({ start_date: "2026-06-10", day_of_month: 10, total_installments: 4 });
+    const rows = forwardInstallmentDueDates(p, 1, 20);
+    // indices 1..3 -> Jul/Aug/Sep on day 20
+    expect(rows).toEqual([
+      { index: 1, due_date: "2026-07-20" },
+      { index: 2, due_date: "2026-08-20" },
+      { index: 3, due_date: "2026-09-20" },
+    ]);
+  });
+
+  it("clamps the day to each month's length", () => {
+    const p = makePayment({ start_date: "2026-01-10", day_of_month: 10, total_installments: 3 });
+    // index 1 -> Feb 2026; day 31 clamps to 28
+    const rows = forwardInstallmentDueDates(p, 1, 31);
+    expect(rows[0]).toEqual({ index: 1, due_date: "2026-02-28" });
+    expect(rows[1]).toEqual({ index: 2, due_date: "2026-03-31" });
+  });
+
+  it("returns an empty list when fromIndex is past the last installment", () => {
+    const p = makePayment({ total_installments: 3 });
+    expect(forwardInstallmentDueDates(p, 3, 10)).toEqual([]);
   });
 });

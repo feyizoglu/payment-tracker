@@ -100,6 +100,12 @@ alter table payment_overrides add column if not exists amounts jsonb;
 -- due_date column for recurring entries (per-month date override; added after initial schema)
 alter table recurring_entries add column if not exists due_date date;
 
+-- Forward-effective day-of-month changes for a recurring series (applied from a given
+-- month onward). Array of {"from":"yyyy-MM-01","day":N}; the latest change with from<=period
+-- wins, else the base day_of_month. Lets "change the day for this and following months"
+-- keep a single series row without rewriting history.
+alter table recurring_payments add column if not exists day_changes jsonb;
+
 -- Enable Row Level Security
 alter table users enable row level security;
 alter table teams enable row level security;

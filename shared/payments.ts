@@ -1,4 +1,4 @@
-import { Payment, PaymentInstallment, RecurringPayment, Occurrence, CurrencyAmount } from "./types";
+import { Payment, PaymentInstallment, RecurringPayment, Occurrence, CurrencyAmount, DayChange } from "./types";
 import { addMonths, setDate } from "date-fns";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -130,6 +130,63 @@ function clampDay(year: number, month: number, day: number): number {
   return Math.min(day, maxDay);
 }
 
+// Effective (unclamped) day-of-month for a recurring payment in a given month
+// (0-indexed). Applies forward day-changes: the latest change whose `from` period is
+// on or before this month wins; otherwise the series' base day_of_month. Callers still
+// clamp to the month length.
+export function effectiveDayForMonth(
+  r: RecurringPayment,
+  year: number,
+  month: number
+): number {
+  const period = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  let day = r.day_of_month;
+  const changes = (r.day_changes ?? []).slice().sort((a, b) => a.from.localeCompare(b.from));
+  for (const c of changes) {
+    if (c.from <= period) day = c.day;
+    else break; // sorted ascending: no later change can apply to this month
+  }
+  return day;
+}
+
+// Merge a forward day-change into an existing list: replace the entry with the same
+// `from` period, else append. Returns a new list sorted by `from`.
+export function upsertDayChange(
+  existing: DayChange[] | null | undefined,
+  from: string,
+  day: number
+): DayChange[] {
+  const map = new Map<string, number>();
+  for (const c of existing ?? []) map.set(c.from, c.day);
+  map.set(from, day);
+  return [...map.entries()]
+    .map(([f, d]) => ({ from: f, day: d }))
+    .sort((a, b) => a.from.localeCompare(b.from));
+}
+
+// Forward installment due-date overrides: for indices [fromIndex, total-1], each
+// installment's natural month (start_date + i months) with `day` clamped to that
+// month's length. Returns 'yyyy-MM-dd' strings for payment_overrides.due_date.
+export function forwardInstallmentDueDates(
+  payment: Payment,
+  fromIndex: number,
+  day: number
+): { index: number; due_date: string }[] {
+  const [sy, sm, sd] = payment.start_date.split("-").map(Number);
+  const out: { index: number; due_date: string }[] = [];
+  for (let i = Math.max(0, fromIndex); i < payment.total_installments; i++) {
+    const base = addMonths(new Date(sy, sm - 1, sd), i);
+    const y = base.getFullYear();
+    const m = base.getMonth();
+    const d = clampDay(y, m, day);
+    out.push({
+      index: i,
+      due_date: `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+    });
+  }
+  return out;
+}
+
 export function installmentOccurrences(payment: Payment): Occurrence[] {
   const out: Occurrence[] = [];
   for (const inst of getInstallments(payment)) {
@@ -179,7 +236,7 @@ export function recurringOccurrenceForMonth(
   const period = `${year}-${String(month + 1).padStart(2, "0")}-01`;
   const entry = r.entries?.find((e) => e.period === period);
 
-  let dueDate = new Date(year, month, clampDay(year, month, r.day_of_month));
+  let dueDate = new Date(year, month, clampDay(year, month, effectiveDayForMonth(r, year, month)));
   let overridden = false;
   if (entry?.due_date) {
     const [oy, om, od] = entry.due_date.split("-").map(Number);
