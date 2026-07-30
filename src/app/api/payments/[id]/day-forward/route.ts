@@ -27,10 +27,10 @@ async function canManagePayment(db: ReturnType<typeof supabaseAdmin>, paymentId:
 }
 
 // Set the day-of-month for installment `from_installment_index` and every later
-// installment (a forward day-change), leaving earlier/paid installments untouched.
-// Writes a due_date override per remaining index, preserving any existing amount
-// overrides on those indices; edited amounts apply only to the starting index.
-// Body: { from_installment_index, day, amounts? }.
+// installment (a forward day-change), leaving earlier installments (index <
+// from_installment_index) untouched. Writes a due_date override per remaining index,
+// preserving any existing amount overrides on those indices; edited amounts apply
+// only to the starting index. Body: { from_installment_index, day, amounts? }.
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -55,6 +55,13 @@ export async function PUT(
   const day = Number(body.day);
   if (!Number.isInteger(day) || day < 1 || day > 31) {
     return NextResponse.json({ error: "day must be an integer between 1 and 31" }, { status: 400 });
+  }
+
+  // Validate amounts BEFORE any write so a bad payload cannot leave the schedule
+  // partially rewritten (the due_date upsert below would otherwise already be committed).
+  const cleaned = cleanCurrencyAmounts(body.amounts);
+  if ("error" in cleaned) {
+    return NextResponse.json({ error: cleaned.error }, { status: 400 });
   }
 
   const { data: payment, error: readErr } = await db
@@ -83,10 +90,6 @@ export async function PUT(
   if (dueErr) return NextResponse.json({ error: dueErr.message }, { status: 500 });
 
   // Edited amounts apply only to the starting index.
-  const cleaned = cleanCurrencyAmounts(body.amounts);
-  if ("error" in cleaned) {
-    return NextResponse.json({ error: cleaned.error }, { status: 400 });
-  }
   if (cleaned.amounts != null) {
     const { error: amtErr } = await db
       .from("payment_overrides")

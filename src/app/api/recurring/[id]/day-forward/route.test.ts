@@ -254,8 +254,9 @@ describe("PUT /api/recurring/[id]/day-forward", () => {
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "bad amounts" });
-    // The day-change update already ran; no recurring_entries row is written.
-    expect(db._updates).toHaveLength(1);
+    // Amounts are validated before any write, so nothing is persisted (atomic).
+    expect(upsertDayChange).not.toHaveBeenCalled();
+    expect(db._updates).toHaveLength(0);
     expect(db._upserts).toHaveLength(0);
   });
 

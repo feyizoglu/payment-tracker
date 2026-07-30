@@ -216,8 +216,9 @@ describe("PUT /api/payments/[id]/day-forward", () => {
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "bad amounts" });
-    // The due-date upsert already ran; the amount override upsert never does.
-    expect(db._upserts).toHaveLength(1);
+    // Amounts are validated before any write, so nothing is persisted (atomic).
+    expect(forwardInstallmentDueDates).not.toHaveBeenCalled();
+    expect(db._upserts).toHaveLength(0);
   });
 
   it("500s when the amount override upsert fails", async () => {

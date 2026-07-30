@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Payment, RecurringPayment, Occurrence, CurrencyAmount } from "@/types";
-import { getOccurrencesForMonth, getCurrencySymbol, isPureDayChange, decideEditSubmit } from "@/lib/payments";
+import { getOccurrencesForMonth, getCurrencySymbol, isPureDayChange } from "@/lib/payments";
+import { decideEditSubmit } from "@/lib/edit-occurrence";
 import {
   format,
   addMonths,

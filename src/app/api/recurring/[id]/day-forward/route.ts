@@ -61,6 +61,13 @@ export async function PUT(
   }
   const period = normalizePeriod(String(body.period));
 
+  // Validate amounts BEFORE any write so a bad payload cannot leave the day-change
+  // persisted while the caller receives a 400 (non-atomic partial write).
+  const cleaned = cleanCurrencyAmounts(body.amounts);
+  if ("error" in cleaned) {
+    return NextResponse.json({ error: cleaned.error }, { status: 400 });
+  }
+
   // Append/replace the forward day-change on the series.
   const { data: row, error: readErr } = await db
     .from("recurring_payments")
@@ -80,10 +87,6 @@ export async function PUT(
   // This month must follow the new effective day, so drop any per-month date
   // override it had; persist edited amounts if provided. Only write an entry when
   // there is something to change, to avoid creating empty rows.
-  const cleaned = cleanCurrencyAmounts(body.amounts);
-  if ("error" in cleaned) {
-    return NextResponse.json({ error: cleaned.error }, { status: 400 });
-  }
   const { data: entry } = await db
     .from("recurring_entries")
     .select("id, due_date")
