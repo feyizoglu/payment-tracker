@@ -150,6 +150,11 @@ const translations = {
     resetDay: "Reset day",
     addCurrency: "Add currency",
     amounts: "Amounts",
+    // Day-change scope (asked when the day changes)
+    editScopeLabel: "Apply the day change to",
+    scopeThisOnly: "Only this payment",
+    scopeForwardRecurring: "This and following months",
+    scopeForwardInstallment: "This and following installments",
   },
   tr: {
     // Landing
@@ -296,6 +301,11 @@ const translations = {
     resetDay: "Günü sıfırla",
     addCurrency: "Para birimi ekle",
     amounts: "Tutarlar",
+    // Gün değişikliği kapsamı (gün değiştiğinde sorulur)
+    editScopeLabel: "Gün değişikliğini uygula",
+    scopeThisOnly: "Sadece bu ödeme",
+    scopeForwardRecurring: "Bu ay ve sonraki aylar",
+    scopeForwardInstallment: "Bu ve sonraki taksitler",
   },
 };
 

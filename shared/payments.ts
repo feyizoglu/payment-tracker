@@ -214,6 +214,53 @@ export function installmentOccurrences(payment: Payment): Occurrence[] {
   return out;
 }
 
+// True when the picked date is a pure day-of-month change (a different day within
+// the same month as the original). Only then does "this and following" apply.
+export function isPureDayChange(date: string, initialDate: string): boolean {
+  return date !== initialDate && date.slice(0, 7) === initialDate.slice(0, 7);
+}
+
+// Decide the endpoint + request body for saving an occurrence edit from the calendar
+// modal. `scope: "forward"` targets this and every following occurrence, but only for
+// a pure day-of-month change and never on reset; otherwise the edit stays scoped to
+// this one occurrence. Amounts must already be validated by the caller.
+export function decideEditSubmit(params: {
+  occurrence: Occurrence;
+  reset: boolean;
+  scope: "one" | "forward";
+  date: string; // 'yyyy-MM-dd' | ''
+  initialDate: string; // original 'yyyy-MM-dd'
+  amounts: CurrencyAmount[];
+}): { url: string; body: Record<string, unknown> } {
+  const { occurrence, reset, scope, date, initialDate, amounts } = params;
+  const isRecurring = occurrence.kind === "recurring";
+  const forward = !reset && scope === "forward" && isPureDayChange(date, initialDate);
+
+  let body: Record<string, unknown>;
+  if (reset) {
+    // Recurring "Reset day" clears only the date override; installment reset removes
+    // the whole override.
+    body = isRecurring
+      ? { period: occurrence.period, due_date: null }
+      : { installment_index: occurrence.installmentIndex, due_date: null, amount: null };
+  } else if (forward) {
+    const day = Number(date.slice(8, 10)); // day-of-month from the picked date
+    body = isRecurring
+      ? { period: occurrence.period, day, amounts }
+      : { from_installment_index: occurrence.installmentIndex, day, amounts };
+  } else {
+    body = isRecurring
+      ? { period: occurrence.period, due_date: date || null, amounts }
+      : { installment_index: occurrence.installmentIndex, due_date: date || null, amounts };
+  }
+
+  const url = isRecurring
+    ? `/api/recurring/${occurrence.sourceId}/${forward ? "day-forward" : "entry"}`
+    : `/api/payments/${occurrence.sourceId}/${forward ? "day-forward" : "override"}`;
+
+  return { url, body };
+}
+
 // Returns the occurrence for a recurring payment in the given month, or null if
 // the payment is not active that month. month is 0-indexed.
 export function recurringOccurrenceForMonth(

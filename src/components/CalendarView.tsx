@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Payment, RecurringPayment, Occurrence, CurrencyAmount } from "@/types";
-import { getOccurrencesForMonth, getCurrencySymbol } from "@/lib/payments";
+import { getOccurrencesForMonth, getCurrencySymbol, isPureDayChange, decideEditSubmit } from "@/lib/payments";
 import {
   format,
   addMonths,
@@ -413,7 +413,12 @@ function EditOccurrenceModal({
   t: any;
 }) {
   const isRecurring = occurrence.kind === "recurring";
-  const [date, setDate] = useState(format(occurrence.dueDate, "yyyy-MM-dd"));
+  const initialDate = format(occurrence.dueDate, "yyyy-MM-dd");
+  const [date, setDate] = useState(initialDate);
+  // Scope of a day change: just this occurrence, or this and every following one.
+  // The choice is only meaningful for a pure day-of-month change (same month).
+  const [scope, setScope] = useState<"one" | "forward">("one");
+  const showScope = isPureDayChange(date, initialDate);
   // Both recurring reminders and installments support multiple currency lines.
   const [lines, setLines] = useState<AmountLine[]>(
     (initialAmounts && initialAmounts.length > 0
@@ -437,14 +442,9 @@ function EditOccurrenceModal({
   async function submit(reset: boolean) {
     setError(null);
 
-    let body: Record<string, unknown>;
-    if (reset) {
-      // Recurring "Reset day" only clears the date override; installment reset removes the whole override.
-      body = isRecurring
-        ? { period: occurrence.period, due_date: null }
-        : { installment_index: occurrence.installmentIndex, due_date: null, amount: null };
-    } else {
-      const amounts: CurrencyAmount[] = [];
+    // Validate the amount lines (blank rows skipped) before building the request.
+    const amounts: CurrencyAmount[] = [];
+    if (!reset) {
       for (const l of lines) {
         if (l.amount.trim() === "") continue; // skip blank rows
         const n = Number(l.amount);
@@ -454,14 +454,9 @@ function EditOccurrenceModal({
         }
         amounts.push({ currency: l.currency, amount: n });
       }
-      body = isRecurring
-        ? { period: occurrence.period, due_date: date || null, amounts }
-        : { installment_index: occurrence.installmentIndex, due_date: date || null, amounts };
     }
 
-    const url = isRecurring
-      ? `/api/recurring/${occurrence.sourceId}/entry`
-      : `/api/payments/${occurrence.sourceId}/override`;
+    const { url, body } = decideEditSubmit({ occurrence, reset, scope, date, initialDate, amounts });
 
     setSaving(true);
     const res = await fetch(url, {
@@ -500,6 +495,30 @@ function EditOccurrenceModal({
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+
+          {showScope && (
+            <div className="rounded-xl bg-gray-50 p-3 space-y-2">
+              <span className="block text-sm font-medium text-gray-700">{t.editScopeLabel}</span>
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="radio"
+                  name="dayScope"
+                  checked={scope === "one"}
+                  onChange={() => setScope("one")}
+                />
+                {t.scopeThisOnly}
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="radio"
+                  name="dayScope"
+                  checked={scope === "forward"}
+                  onChange={() => setScope("forward")}
+                />
+                {isRecurring ? t.scopeForwardRecurring : t.scopeForwardInstallment}
+              </label>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.amounts}</label>
