@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 
-type Lang = "en" | "tr";
+export type Lang = "en" | "tr";
 
 const translations = {
   en: {
@@ -155,6 +155,16 @@ const translations = {
     scopeThisOnly: "Only this payment",
     scopeForwardRecurring: "This and following months",
     scopeForwardInstallment: "This and following installments",
+    // Mobile forms (native screens have no HTML validation, so the messages live here)
+    saving: "Saving…",
+    loadFailed: "Could not load",
+    tryAgain: "Try again",
+    fillRequired: "Fill in the required fields",
+    amountPositive: "Amount must be greater than 0",
+    installmentsRange: "Number of installments must be between 1 and 120",
+    installmentsBelowPaid: "Number of installments cannot be lower than the paid ones",
+    dayRange: "Day of month must be between 1 and 31",
+    paymentDeleteConfirm: "This payment and all its installments will be deleted. Continue?",
   },
   tr: {
     // Landing
@@ -306,6 +316,16 @@ const translations = {
     scopeThisOnly: "Sadece bu ödeme",
     scopeForwardRecurring: "Bu ay ve sonraki aylar",
     scopeForwardInstallment: "Bu ve sonraki taksitler",
+    // Mobil formlar (native ekranlarda HTML doğrulaması yok, mesajlar burada)
+    saving: "Kaydediliyor…",
+    loadFailed: "Yüklenemedi",
+    tryAgain: "Tekrar dene",
+    fillRequired: "Zorunlu alanları doldur",
+    amountPositive: "Tutar 0'dan büyük olmalı",
+    installmentsRange: "Taksit sayısı 1 ile 120 arasında olmalı",
+    installmentsBelowPaid: "Taksit sayısı ödenmiş taksit sayısından az olamaz",
+    dayRange: "Ayın günü 1 ile 31 arasında olmalı",
+    paymentDeleteConfirm: "Bu ödeme ve tüm taksitleri silinecek. Devam edilsin mi?",
   },
 };
 
@@ -321,8 +341,17 @@ const LangContext = createContext<{
   t: translations.en,
 });
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>("en");
+// `initialLang` lets a platform pick its own starting language — the web app keeps the
+// English default, the mobile app (whose existing screens are Turkish) passes "tr"
+// until the language switcher lands in Plan 3f.
+export function LanguageProvider({
+  children,
+  initialLang = "en",
+}: {
+  children: ReactNode;
+  initialLang?: Lang;
+}) {
+  const [lang, setLang] = useState<Lang>(initialLang);
   return (
     <LangContext.Provider value={{ lang, setLang, t: translations[lang] }}>
       {children}
