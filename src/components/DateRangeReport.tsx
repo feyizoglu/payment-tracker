@@ -2,13 +2,15 @@
 
 import { useState, useMemo } from "react";
 import { X, CalendarRange, TrendingUp } from "lucide-react";
-import { Payment } from "@/types";
-import { getInstallments, getCurrencySymbol } from "@/lib/payments";
+import { Payment, RecurringPayment } from "@/types";
+import { getCurrencySymbol } from "@/lib/payments";
+import { rangeReport, formatCurrencyTotals, endOfDay } from "@/lib/reports";
 import { UserMap } from "@/components/CalendarView";
 import { useLang } from "@/lib/i18n";
 
 interface Props {
   payments: Payment[];
+  recurrings?: RecurringPayment[];
   userMap?: UserMap;
   onClose: () => void;
 }
@@ -22,13 +24,6 @@ function localDateStr(date: Date): string {
 
 function fmt(n: number): string {
   return n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function fmtDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("tr-TR", {
-    day: "numeric", month: "short", year: "numeric",
-  });
 }
 
 const PALETTE = [
@@ -45,7 +40,7 @@ function userColor(userId: string, userMap?: UserMap): string {
   return userMap?.[userId]?.color ?? hashColor(userId);
 }
 
-export default function DateRangeReport({ payments, userMap = {}, onClose }: Props) {
+export default function DateRangeReport({ payments, recurrings = [], userMap = {}, onClose }: Props) {
   const { t } = useLang();
 
   const today = new Date();
@@ -53,60 +48,20 @@ export default function DateRangeReport({ payments, userMap = {}, onClose }: Pro
   const endDefault = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
   const [endDate, setEndDate] = useState(localDateStr(endDefault));
 
-  const results = useMemo(() => {
-    if (!startDate || !endDate) return [];
+  // Works on occurrences, so recurring reminders are included and a multi-currency
+  // override is counted under each of its currencies rather than only the first.
+  const report = useMemo(() => {
+    if (!startDate || !endDate) return { occurrences: [], due: {}, paid: {}, remaining: {} };
     const [sy, sm, sd] = startDate.split("-").map(Number);
     const [ey, em, ed] = endDate.split("-").map(Number);
-    const start = new Date(sy, sm - 1, sd);
-    const end = new Date(ey, em - 1, ed);
-    if (start > end) return [];
+    return rangeReport(payments, recurrings, new Date(sy, sm - 1, sd), endOfDay(new Date(ey, em - 1, ed)));
+  }, [payments, recurrings, startDate, endDate]);
 
-    const entries: {
-      payment: Payment;
-      instIndex: number;
-      dueDate: Date;
-      amount: number;
-      isPaid: boolean;
-    }[] = [];
-
-    for (const payment of payments) {
-      const installments = getInstallments(payment);
-      for (const inst of installments) {
-        if (inst.dueDate >= start && inst.dueDate <= end) {
-          entries.push({
-            payment,
-            instIndex: inst.index,
-            dueDate: inst.dueDate,
-            amount: inst.amount,
-            isPaid: inst.isPaid,
-          });
-        }
-      }
-    }
-
-    entries.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-    return entries;
-  }, [payments, startDate, endDate]);
-
-  const totalDue = results.reduce((s, e) => s + e.amount, 0);
-  const totalPaid = results.filter(e => e.isPaid).reduce((s, e) => s + e.amount, 0);
-  const totalUnpaid = totalDue - totalPaid;
-
-  // Format per-currency totals for summary cards
-  function fmtCurrencyGroup(filter: (e: typeof results[number]) => boolean) {
-    const by: Record<string, number> = {};
-    for (const e of results.filter(filter)) {
-      const cur = e.payment.currency ?? "TRY";
-      by[cur] = (by[cur] ?? 0) + e.amount;
-    }
-    const entries = Object.entries(by);
-    if (entries.length === 0) return `${getCurrencySymbol("TRY")}${fmt(0)}`;
-    return entries.map(([cur, amt]) => `${getCurrencySymbol(cur)}${fmt(amt)}`).join(" + ");
-  }
-
-  const fmtDue = fmtCurrencyGroup(() => true);
-  const fmtPaid = fmtCurrencyGroup((e) => e.isPaid);
-  const fmtUnpaid = fmtCurrencyGroup((e) => !e.isPaid);
+  const results = report.occurrences;
+  const zero = `${getCurrencySymbol("TRY")}${fmt(0)}`;
+  const fmtDue = formatCurrencyTotals(report.due) || zero;
+  const fmtPaid = formatCurrencyTotals(report.paid) || zero;
+  const fmtUnpaid = formatCurrencyTotals(report.remaining) || zero;
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -174,11 +129,11 @@ export default function DateRangeReport({ payments, userMap = {}, onClose }: Pro
           ) : (
             <div className="space-y-2">
               {results.map((entry, i) => {
-                const color = userColor(entry.payment.user_id, userMap);
-                const addedBy = userMap[entry.payment.user_id];
+                const color = userColor(entry.user_id, userMap);
+                const addedBy = userMap[entry.user_id];
                 return (
                   <div
-                    key={`${entry.payment.id}-${entry.instIndex}-${i}`}
+                    key={`${entry.sourceId}-${entry.installmentIndex ?? entry.period}-${entry.currency}-${i}`}
                     className={`flex items-center gap-3 p-3 rounded-xl border ${
                       entry.isPaid ? "bg-green-50 border-green-100 opacity-60" : "bg-white border-gray-100"
                     }`}
@@ -187,7 +142,7 @@ export default function DateRangeReport({ payments, userMap = {}, onClose }: Pro
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className={`font-medium text-sm ${entry.isPaid ? "line-through text-gray-400" : "text-gray-800"}`}>
-                          {entry.payment.name}
+                          {entry.name}
                         </span>
                         {entry.isPaid && (
                           <span className="text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full font-medium">
@@ -198,7 +153,9 @@ export default function DateRangeReport({ payments, userMap = {}, onClose }: Pro
                       <div className="flex items-center gap-2 mt-0.5">
                         <p className="text-xs text-gray-400">
                           {entry.dueDate.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
-                          {" · "}{t.installmentOf} {entry.instIndex + 1}/{entry.payment.total_installments}
+                          {entry.kind === "installment"
+                            ? ` · ${t.installmentOf} ${(entry.installmentIndex ?? 0) + 1}/${entry.totalInstallments}`
+                            : ` · ${t.recurringBadge}`}
                         </p>
                         {addedBy && (
                           <>
@@ -221,7 +178,7 @@ export default function DateRangeReport({ payments, userMap = {}, onClose }: Pro
                       </div>
                     </div>
                     <span className={`text-sm font-semibold shrink-0 ${entry.isPaid ? "text-gray-400" : "text-gray-900"}`}>
-                      {getCurrencySymbol(entry.payment.currency)}{fmt(entry.amount)}
+                      {entry.amount == null ? "—" : `${getCurrencySymbol(entry.currency)}${fmt(entry.amount)}`}
                     </span>
                   </div>
                 );

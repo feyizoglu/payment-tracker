@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Payment, RecurringPayment } from "@/types";
-import { getOccurrencesInRange, getCurrencySymbol } from "@/lib/payments";
+import { getCurrencySymbol } from "@/lib/payments";
+import { payUntilReport, startOfDay, endOfDay } from "@/lib/reports";
 import { useLang } from "@/lib/i18n";
 import { TrendingUp } from "lucide-react";
 
@@ -30,25 +31,11 @@ export default function PayUntil({ payments, recurrings = [] }: Props) {
   const defaultEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   const [endDate, setEndDate] = useState(localDateStr(defaultEnd));
 
-  const results = useMemo(() => {
-    if (!endDate) return [];
+  const { occurrences: results, byCurrency } = useMemo(() => {
+    if (!endDate) return { occurrences: [], byCurrency: {} };
     const [ey, em, ed] = endDate.split("-").map(Number);
-    const end = new Date(ey, em - 1, ed);
-    end.setHours(23, 59, 59, 999);
-
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    if (end < now) return [];
-
-    return getOccurrencesInRange(payments, recurrings, now, end).filter((o) => !o.isPaid);
+    return payUntilReport(payments, recurrings, startOfDay(new Date()), endOfDay(new Date(ey, em - 1, ed)));
   }, [payments, recurrings, endDate]);
-
-  const byCurrency = results.reduce((acc, o) => {
-    if (o.amount == null) return acc;
-    const cur = o.currency ?? "TRY";
-    acc[cur] = (acc[cur] ?? 0) + o.amount;
-    return acc;
-  }, {} as Record<string, number>);
 
   return (
     <div className="mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-4">

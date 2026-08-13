@@ -3,7 +3,8 @@
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Payment, RecurringPayment, Team } from "@/types";
+import { Occurrence, Payment, RecurringPayment, Team } from "@/types";
+import { sumByCurrency } from "@/lib/reports";
 import PaymentForm from "@/components/PaymentForm";
 import PaymentCard from "@/components/PaymentCard";
 import RecurringCard from "@/components/RecurringCard";
@@ -158,13 +159,10 @@ export default function Dashboard() {
     return n.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
-  function toCurrencyLines(entries: { amount: number | null; isPaid: boolean; currency: string }[]): string[] {
-    const by: Record<string, number> = {};
-    for (const o of entries) {
-      if (o.isPaid || o.amount == null) continue;
-      const cur = o.currency ?? "TRY";
-      by[cur] = (by[cur] ?? 0) + o.amount;
-    }
+  // The stat cards count what is still owed, so paid occurrences are dropped before
+  // the shared per-currency sum. Whole numbers here, unlike the reports' 2 decimals.
+  function toCurrencyLines(entries: Occurrence[]): string[] {
+    const by = sumByCurrency(entries.filter((entry) => !entry.isPaid));
     const items = Object.entries(by);
     if (items.length === 0) return [`${getCurrencySymbol("TRY")}0`];
     return items.map(([cur, amt]) => `${getCurrencySymbol(cur)}${fmtStat(amt)}`);
@@ -454,6 +452,7 @@ export default function Dashboard() {
       {showDateRange && (
         <DateRangeReport
           payments={filteredPayments}
+          recurrings={filteredRecurrings}
           userMap={userMap}
           onClose={() => setShowDateRange(false)}
         />
