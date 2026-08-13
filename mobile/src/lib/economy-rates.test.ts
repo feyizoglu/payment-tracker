@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import type { ExchangeRates } from "@ptracker/shared/types";
-import { formatFetchedAt, ratesBanner, canEnterGoldManually } from "@/lib/economy-rates";
+import {
+  formatFetchedAt,
+  ratesBanner,
+  canEnterGoldManually,
+  restoredRatesStatus,
+} from "@/lib/economy-rates";
 
 function makeRates(over: Partial<ExchangeRates> = {}): ExchangeRates {
   return {
@@ -55,6 +60,20 @@ describe("ratesBanner", () => {
       kind: "never",
       goldError: undefined,
     });
+  });
+});
+
+describe("restoredRatesStatus", () => {
+  it("reports success on the first restore", () => {
+    expect(restoredRatesStatus("idle")).toBe("ok");
+  });
+
+  it("keeps an error across a tab switch — the cached numbers are still stale", () => {
+    expect(restoredRatesStatus("error")).toBe("error");
+  });
+
+  it("leaves an already-successful status alone", () => {
+    expect(restoredRatesStatus("ok")).toBe("ok");
   });
 });
 

@@ -8,7 +8,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } 
 import { BankGroup } from "@/components/bank-group";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useAuth } from "@/lib/auth-context";
-import { EXCHANGE_RATES_PATH, ratesBanner, type RatesStatus } from "@/lib/economy-rates";
+import { EXCHANGE_RATES_PATH, ratesBanner, restoredRatesStatus, type RatesStatus } from "@/lib/economy-rates";
 import {
   getCachedRates,
   getPreferredCurrency,
@@ -54,10 +54,7 @@ export default function Economy() {
     const [cached, saved] = await Promise.all([getCachedRates(), getPreferredCurrency()]);
     if (cached) {
       setRates(cached);
-      // Only the first restore may report success: a failed refresh must keep its error
-      // banner when the user leaves the tab and comes back, since the cached numbers it
-      // is showing are still the stale ones.
-      setRatesStatus((prev) => (prev === "idle" ? "ok" : prev));
+      setRatesStatus(restoredRatesStatus);
     }
     if (saved) setPreferred(saved);
   }, []);

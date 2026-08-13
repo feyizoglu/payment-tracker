@@ -36,6 +36,14 @@ export function ratesBanner(rates: ExchangeRates | null, status: RatesStatus): R
   return time ? { kind: "updated", time, goldError } : { kind: "never", goldError };
 }
 
+// Status after restoring rates from the cache. Only the very first restore may report
+// success: the Economy tab re-reads the cache on every focus (so a manual gold entry
+// shows up), and a failed refresh must keep its error banner rather than have a tab
+// switch silently present stale numbers as current.
+export function restoredRatesStatus(previous: RatesStatus): RatesStatus {
+  return previous === "idle" ? "ok" : previous;
+}
+
 // Whether the manual gold entry can work at all: the conversion multiplies lira prices
 // by the USD-per-TRY rate, so without it there is nothing to convert with.
 export function canEnterGoldManually(rates: ExchangeRates | null): boolean {
