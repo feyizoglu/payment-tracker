@@ -15,6 +15,8 @@ export function PaymentsCalendar({
   onSelectDay,
   busyKey,
   onTogglePaid,
+  onEdit,
+  onEditSeries,
 }: {
   year: number;
   month: number; // 0-indexed
@@ -23,6 +25,8 @@ export function PaymentsCalendar({
   onSelectDay: (d: Date) => void;
   busyKey: string | null;
   onTogglePaid: (o: Occurrence) => void;
+  onEdit: (o: Occurrence) => void;
+  onEditSeries: (o: Occurrence) => void;
 }) {
   const weeks = useMemo(() => buildCalendarWeeks(year, month), [year, month]);
   const byDay = useMemo(() => {
@@ -74,6 +78,8 @@ export function PaymentsCalendar({
                 occurrence={o}
                 busy={busyKey === occurrenceKey(o)}
                 onTogglePaid={onTogglePaid}
+                onEdit={onEdit}
+                onEditSeries={onEditSeries}
               />
             ))
           )}

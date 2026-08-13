@@ -24,3 +24,13 @@ export function formatMonthYear(year: number, month: number): string {
 export function formatDayShort(date: Date): string {
   return format(date, "d LLL", { locale: tr });
 }
+
+// Full month name on its own, for the month picker's option list. month is 0-indexed.
+export function formatMonthName(month: number): string {
+  return format(new Date(2000, month, 1), "LLLL", { locale: tr });
+}
+
+// Long day label for the date field's closed state, e.g. "13 Ağustos 2026".
+export function formatDayLong(date: Date): string {
+  return format(date, "d LLLL yyyy", { locale: tr });
+}

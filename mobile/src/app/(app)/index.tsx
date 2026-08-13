@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
 import type { Occurrence, Payment, RecurringPayment } from "@ptracker/shared/types";
 import { getOccurrencesForMonth } from "@ptracker/shared/payments";
 import { useAuth } from "@/lib/auth-context";
+import { toIsoDate } from "@/lib/dates";
+import { occurrenceEditRoute, seriesEditRoute } from "@/lib/occurrence-edit";
 import { markPaidRequest, occurrenceKey } from "@/lib/occurrences";
 import { MonthHeader, type PaymentsView } from "@/components/month-header";
 import { MonthList } from "@/components/month-list";
@@ -39,9 +42,14 @@ export default function Payments() {
     }
   }, [api]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Reloads on mount and every time a form modal closes and this tab regains focus,
+  // which is how edits made in those modals show up here. Same full-refetch approach
+  // as mark-paid — no optimistic state to keep in sync.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -82,6 +90,22 @@ export default function Payments() {
     [api, load]
   );
 
+  const onEdit = useCallback((o: Occurrence) => {
+    router.push(occurrenceEditRoute(o, toIsoDate(o.dueDate)));
+  }, []);
+
+  const onEditSeries = useCallback((o: Occurrence) => {
+    router.push(seriesEditRoute(o));
+  }, []);
+
+  // A new payment defaults to the day the user has selected in the calendar.
+  const onAdd = useCallback(() => {
+    router.push({
+      pathname: "/payment-form",
+      params: selectedDay ? { date: toIsoDate(selectedDay) } : {},
+    });
+  }, [selectedDay]);
+
   if (!ready) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
@@ -110,7 +134,13 @@ export default function Payments() {
       ) : null}
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {view === "list" ? (
-          <MonthList occurrences={occurrences} busyKey={busyKey} onTogglePaid={onTogglePaid} />
+          <MonthList
+            occurrences={occurrences}
+            busyKey={busyKey}
+            onTogglePaid={onTogglePaid}
+            onEdit={onEdit}
+            onEditSeries={onEditSeries}
+          />
         ) : (
           <PaymentsCalendar
             year={year}
@@ -120,9 +150,16 @@ export default function Payments() {
             onSelectDay={setSelectedDay}
             busyKey={busyKey}
             onTogglePaid={onTogglePaid}
+            onEdit={onEdit}
+            onEditSeries={onEditSeries}
           />
         )}
       </ScrollView>
+      <Pressable
+        onPress={onAdd}
+        className="absolute bottom-20 right-5 h-14 w-14 items-center justify-center rounded-full bg-brand shadow-lg">
+        <Text className="text-2xl leading-7 text-brand-fg">+</Text>
+      </Pressable>
       <Pressable onPress={signOut} className="border-t border-gray-100 p-4">
         <Text className="text-center text-gray-500">Çıkış yap</Text>
       </Pressable>
