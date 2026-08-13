@@ -4,6 +4,13 @@ import { createContext, createElement, useContext, useState, ReactNode } from "r
 
 export type Lang = "en" | "tr";
 
+// BCP 47 tag for Intl / toLocaleString. Number and date formatting must follow the
+// selected language, not a hardcoded "tr-TR" — otherwise an English user still reads
+// Turkish dates and decimal commas.
+export function localeFor(lang: Lang): string {
+  return lang === "tr" ? "tr-TR" : "en-US";
+}
+
 const translations = {
   en: {
     // Landing
@@ -172,6 +179,28 @@ const translations = {
     currencyEUR: "Euro",
     currencyGBP: "British Pound",
     currencyTRY: "Turkish Lira",
+    // Mobile shell (tabs, views, settings)
+    // Number/date locale for Intl — kept in the dictionary so every place that already
+    // has `t` can format correctly without threading `lang` separately.
+    numberLocale: "en-US",
+    tabPayments: "Payments",
+    tabReports: "Reports",
+    tabSettings: "Settings",
+    viewList: "List",
+    viewCalendar: "Calendar",
+    noPaymentsMonth: "No payments this month",
+    noPaymentsThisDay: "No payments on this day",
+    updateFailed: "Could not update",
+    signInFailed: "Sign-in failed",
+    signInNoIdToken: "Google did not return an ID token",
+    language: "Language",
+    settings: "Settings",
+    createTeamTitle: "Create team",
+    inviteMember: "Invite member",
+    memberAdded: "Member added",
+    inviteFailed: "Could not invite",
+    teamNameRequired: "Enter a team name",
+    emailRequired: "Enter an email address",
   },
   tr: {
     // Landing
@@ -340,6 +369,26 @@ const translations = {
     currencyEUR: "Euro",
     currencyGBP: "İngiliz Sterlini",
     currencyTRY: "Türk Lirası",
+    // Mobil kabuk (sekmeler, görünümler, ayarlar)
+    numberLocale: "tr-TR",
+    tabPayments: "Ödemeler",
+    tabReports: "Raporlar",
+    tabSettings: "Ayarlar",
+    viewList: "Liste",
+    viewCalendar: "Takvim",
+    noPaymentsMonth: "Bu ay ödeme yok",
+    noPaymentsThisDay: "Bu gün ödeme yok",
+    updateFailed: "Güncellenemedi",
+    signInFailed: "Giriş yapılamadı",
+    signInNoIdToken: "Google bir ID token döndürmedi",
+    language: "Dil",
+    settings: "Ayarlar",
+    createTeamTitle: "Takım oluştur",
+    inviteMember: "Üye davet et",
+    memberAdded: "Üye eklendi",
+    inviteFailed: "Davet edilemedi",
+    teamNameRequired: "Takım adı gir",
+    emailRequired: "E-posta adresi gir",
   },
 };
 
@@ -355,19 +404,28 @@ const LangContext = createContext<{
   t: translations.en,
 });
 
-// `initialLang` lets a platform pick its own starting language — the web app keeps the
-// English default, the mobile app (whose existing screens are Turkish) passes "tr"
-// until the language switcher lands in Plan 3f.
+// `initialLang` lets a platform pick its own starting language (web defaults to
+// English; mobile restores the user's saved choice). `onLangChange` fires on every
+// switch so a platform can persist it — mobile writes it to AsyncStorage; web, which
+// has no persistence today, simply omits it.
 export function LanguageProvider({
   children,
   initialLang = "en",
+  onLangChange,
 }: {
   // Optional so callers may pass children positionally to createElement, which is how
   // the tests mount the provider; JSX usage is unaffected.
   children?: ReactNode;
   initialLang?: Lang;
+  onLangChange?: (lang: Lang) => void;
 }) {
-  const [lang, setLang] = useState<Lang>(initialLang);
+  const [lang, setLangState] = useState<Lang>(initialLang);
+
+  const setLang = (next: Lang) => {
+    setLangState(next);
+    onLangChange?.(next);
+  };
+
   // createElement rather than JSX so this file stays a plain .ts module. Mobile's babel
   // rewrites every JSX file to NativeWind's jsx-runtime, which Metro cannot resolve
   // from outside the mobile project root — a .tsx here fails the Android bundle.

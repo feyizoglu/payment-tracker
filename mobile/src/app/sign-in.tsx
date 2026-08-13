@@ -3,12 +3,15 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 
+import { useLang } from '@ptracker/shared/i18n';
+
 import { useAuth } from '@/lib/auth-context';
 import { getGoogleClientId } from '@/lib/config';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignIn() {
+  const { t } = useLang();
   const { signInWithGoogleIdToken } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,15 +31,15 @@ export default function SignIn() {
     if (response?.type !== 'success') return;
     const idToken = response.params?.id_token;
     if (!idToken) {
-      setError('Google did not return an ID token');
+      setError(t.signInNoIdToken);
       return;
     }
     setBusy(true);
     setError(null);
     signInWithGoogleIdToken(idToken)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Sign-in failed'))
+      .catch((e) => setError(e instanceof Error ? e.message : t.signInFailed))
       .finally(() => setBusy(false));
-  }, [response, signInWithGoogleIdToken]);
+  }, [response, signInWithGoogleIdToken, t.signInNoIdToken, t.signInFailed]);
 
   return (
     <View className="flex-1 items-center justify-center gap-4 bg-white p-6">
@@ -48,7 +51,7 @@ export default function SignIn() {
           disabled={!request}
           onPress={() => promptAsync()}
           className="rounded-lg bg-brand px-6 py-3 disabled:opacity-50">
-          <Text className="font-medium text-brand-fg">Google ile giriş yap</Text>
+          <Text className="font-medium text-brand-fg">{t.signIn}</Text>
         </Pressable>
       )}
       {error ? <Text className="text-red-600">{error}</Text> : null}

@@ -122,7 +122,7 @@ export default function Economy() {
         <View className="gap-2 rounded-xl bg-emerald-50 p-4">
           <Text className="text-xs font-medium text-emerald-700">{t.totalAssets}</Text>
           <Text className="text-3xl font-semibold text-emerald-900">
-            {total == null ? "—" : formatPreferred(total, preferred)}
+            {total == null ? "—" : formatPreferred(total, preferred, t.numberLocale)}
           </Text>
 
           <View className="flex-row items-center justify-between">

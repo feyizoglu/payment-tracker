@@ -29,13 +29,13 @@ const currencyOptions: SelectOption[] = ALLOWED_CURRENCIES.map((c) => ({
   label: `${getCurrencySymbol(c)} ${c}`,
 }));
 
-function formatAmount(value: number): string {
+function formatAmount(value: number, locale: string): string {
   if (!value || !Number.isFinite(value)) return "";
-  return value.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export default function PaymentFormScreen() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { api, user } = useAuth();
   const params = useLocalSearchParams<{ date?: string }>();
 
@@ -175,8 +175,8 @@ export default function PaymentFormScreen() {
           {/* Shows whichever amount the user did not type, like the web form. */}
           <Text className="text-xs text-gray-400">
             {form.inputMode === "total"
-              ? `${t.monthlyPayment}: ${getCurrencySymbol(form.currency)}${formatAmount(computedInstallment(form))}`
-              : `${t.totalAmount}: ${getCurrencySymbol(form.currency)}${formatAmount(computedTotal(form))}`}
+              ? `${t.monthlyPayment}: ${getCurrencySymbol(form.currency)}${formatAmount(computedInstallment(form), t.numberLocale)}`
+              : `${t.totalAmount}: ${getCurrencySymbol(form.currency)}${formatAmount(computedTotal(form), t.numberLocale)}`}
           </Text>
         </>
       )}
@@ -186,7 +186,7 @@ export default function PaymentFormScreen() {
         value={form.startDate}
         onChange={(next) => set("startDate", next)}
         hint={t.firstPaymentDateHint}
-        formatValue={(value) => formatDayLong(fromIsoDate(value))}
+        formatValue={(value) => formatDayLong(fromIsoDate(value), lang)}
       />
 
       {teams.length > 0 ? (

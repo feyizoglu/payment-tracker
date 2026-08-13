@@ -26,7 +26,7 @@ export function sumByCurrency(occurrences: Occurrence[]): CurrencyTotals {
 
 // "₺1.000,00 + $50,00" — an empty string when there is nothing to show, so callers can
 // fall back to their own placeholder.
-export function formatCurrencyTotals(totals: CurrencyTotals, locale = "tr-TR"): string {
+export function formatCurrencyTotals(totals: CurrencyTotals, locale: string): string {
   return Object.entries(totals)
     .map(
       ([currency, amount]) =>

@@ -7,6 +7,7 @@ import {
   toUSD,
 } from "@ptracker/shared/economy";
 import type { Asset, ExchangeRates, FiatCurrency } from "@ptracker/shared/types";
+import { useLang } from "@ptracker/shared/i18n";
 import { Pressable, Text, View } from "react-native";
 
 export function AssetRow({
@@ -24,6 +25,7 @@ export function AssetRow({
   goldErrorLabel: string;
   onEdit: (asset: Asset) => void;
 }) {
+  const { t } = useLang();
   const isGold = isGoldType(asset.currency);
   const goldUnpriced = isGold && !!rates?.goldError;
 
@@ -31,7 +33,7 @@ export function AssetRow({
   // and impossible when the gold price is missing.
   const converted =
     rates && !goldUnpriced && asset.currency !== preferredCurrency
-      ? formatPreferred(fromUSD(toUSD(asset.amount, asset.currency, rates), preferredCurrency, rates), preferredCurrency)
+      ? formatPreferred(fromUSD(toUSD(asset.amount, asset.currency, rates), preferredCurrency, rates), preferredCurrency, t.numberLocale)
       : null;
 
   const ownerName = asset.user?.name || asset.user?.email || "";
@@ -54,7 +56,7 @@ export function AssetRow({
       </View>
 
       <View className="items-end">
-        <Text className="font-semibold text-gray-900">{formatAmount(asset.amount, asset.currency)}</Text>
+        <Text className="font-semibold text-gray-900">{formatAmount(asset.amount, asset.currency, t.numberLocale)}</Text>
         {goldUnpriced ? (
           <Text className="text-xs text-amber-600">{goldErrorLabel}</Text>
         ) : converted ? (

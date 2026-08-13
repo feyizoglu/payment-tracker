@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import type { Occurrence, Payment, RecurringPayment } from "@ptracker/shared/types";
+import { useLang } from "@ptracker/shared/i18n";
 import { getOccurrencesForMonth } from "@ptracker/shared/payments";
 import { useAuth } from "@/lib/auth-context";
 import { toIsoDate } from "@/lib/dates";
@@ -12,7 +13,8 @@ import { MonthList } from "@/components/month-list";
 import { PaymentsCalendar } from "@/components/payments-calendar";
 
 export default function Payments() {
-  const { api, signOut } = useAuth();
+  const { t } = useLang();
+  const { api } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [recurrings, setRecurrings] = useState<RecurringPayment[]>([]);
   const [ready, setReady] = useState(false);
@@ -36,7 +38,7 @@ export default function Payments() {
       setPayments(p);
       setRecurrings(r);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Yüklenemedi");
+      setError(e instanceof Error ? e.message : t.loadFailed);
     } finally {
       setReady(true);
     }
@@ -82,7 +84,7 @@ export default function Payments() {
         else await api.put(req.url, req.body);
         await load();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Güncellenemedi");
+        setError(e instanceof Error ? e.message : t.updateFailed);
       } finally {
         setBusyKey(null);
       }
@@ -128,7 +130,7 @@ export default function Payments() {
         <View className="bg-red-50 p-4">
           <Text className="text-red-700">{error}</Text>
           <Pressable onPress={load} className="mt-2">
-            <Text className="text-brand">Tekrar dene</Text>
+            <Text className="text-brand">{t.tryAgain}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -159,9 +161,6 @@ export default function Payments() {
         onPress={onAdd}
         className="absolute bottom-20 right-5 h-14 w-14 items-center justify-center rounded-full bg-brand shadow-lg">
         <Text className="text-2xl leading-7 text-brand-fg">+</Text>
-      </Pressable>
-      <Pressable onPress={signOut} className="border-t border-gray-100 p-4">
-        <Text className="text-center text-gray-500">Çıkış yap</Text>
       </Pressable>
     </View>
   );

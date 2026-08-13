@@ -67,7 +67,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
 
   function fmt(n: number) {
     if (!n || isNaN(n)) return "";
-    return n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return n.toLocaleString(t.numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   async function handleSubmit(e: React.FormEvent) {

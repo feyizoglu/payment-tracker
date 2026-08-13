@@ -1,5 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 
+import { useLang } from "@ptracker/shared/i18n";
+
 import { SelectField, type SelectOption } from "@/components/ui/select-field";
 import { formatMonthName } from "@/lib/calendar";
 import {
@@ -27,6 +29,7 @@ export function MonthField({
   clearLabel: string;
   yearSpan?: number;
 }) {
+  const { lang } = useLang();
   const parsed = parseIsoMonth(value);
   const today = new Date();
 
@@ -36,7 +39,7 @@ export function MonthField({
   }));
   const months: SelectOption[] = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1).padStart(2, "0"),
-    label: formatMonthName(i),
+    label: formatMonthName(i, lang),
   }));
 
   return (

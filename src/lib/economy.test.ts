@@ -63,17 +63,17 @@ describe("currency classification", () => {
 
 describe("formatting", () => {
   it("shows gold in its own unit, without forcing decimals", () => {
-    expect(formatAmount(12.5, "GRAM_ALTIN")).toBe("12,5 gr");
-    expect(formatAmount(3, "CEYREK_ALTIN")).toBe("3 adet");
+    expect(formatAmount(12.5, "GRAM_ALTIN", "tr-TR")).toBe("12,5 gr");
+    expect(formatAmount(3, "CEYREK_ALTIN", "tr-TR")).toBe("3 adet");
   });
 
   it("shows fiat with a symbol and two decimals", () => {
-    expect(formatAmount(1234.5, "USD")).toBe("$1.234,50");
-    expect(formatAmount(1000, "TRY")).toBe("₺1.000,00");
+    expect(formatAmount(1234.5, "USD", "tr-TR")).toBe("$1.234,50");
+    expect(formatAmount(1000, "TRY", "tr-TR")).toBe("₺1.000,00");
   });
 
   it("formats a converted value in the display currency", () => {
-    expect(formatPreferred(1234.567, "EUR")).toBe("€1.234,57");
+    expect(formatPreferred(1234.567, "EUR", "tr-TR")).toBe("€1.234,57");
   });
 });
 

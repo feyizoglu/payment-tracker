@@ -28,10 +28,11 @@ export function occurrenceKey(o: Occurrence): string {
   return `${o.kind}-${o.sourceId}-${o.installmentIndex ?? o.period}-${o.currency}`;
 }
 
-// Short type badge: "Aylık" for a recurring reminder, else the 1-indexed
-// installment position "N/M" (e.g. index 2 of 12 -> "3/12").
-export function occurrenceTypeBadge(o: Occurrence): string {
-  if (o.kind === "recurring") return "Aylık";
+// Short type badge: the caller's "monthly" label for a recurring reminder, else the
+// 1-indexed installment position "N/M" (e.g. index 2 of 12 -> "3/12"). The label is a
+// parameter because this is a pure function — it cannot read the dictionary itself.
+export function occurrenceTypeBadge(o: Occurrence, monthlyLabel: string): string {
+  if (o.kind === "recurring") return monthlyLabel;
   return `${(o.installmentIndex ?? 0) + 1}/${o.totalInstallments ?? "?"}`;
 }
 

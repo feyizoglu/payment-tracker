@@ -156,7 +156,7 @@ export default function Dashboard() {
   });
 
   function fmtStat(n: number) {
-    return n.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    return n.toLocaleString(t.numberLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   // The stat cards count what is still owed, so paid occurrences are dropped before

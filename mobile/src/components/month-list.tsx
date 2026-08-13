@@ -1,3 +1,4 @@
+import { useLang } from "@ptracker/shared/i18n";
 import { Fragment } from "react";
 import { Text, View } from "react-native";
 import type { Occurrence } from "@ptracker/shared/types";
@@ -18,16 +19,17 @@ export function MonthList({
   onEdit: (o: Occurrence) => void;
   onEditSeries: (o: Occurrence) => void;
 }) {
+  const { t, lang } = useLang();
   const groups = groupOccurrencesByDay(occurrences);
   if (groups.length === 0) {
-    return <Text className="p-6 text-center text-gray-500">Bu ay ödeme yok</Text>;
+    return <Text className="p-6 text-center text-gray-500">{t.noPaymentsMonth}</Text>;
   }
   return (
     <View className="gap-4 p-4">
       {groups.map((g) => (
         <Fragment key={g.key}>
           <Text className="text-xs font-semibold text-gray-400">
-            {formatDayShort(g.date)}
+            {formatDayShort(g.date, lang)}
           </Text>
           <View className="gap-2">
             {g.items.map((o) => (

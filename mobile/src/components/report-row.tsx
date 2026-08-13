@@ -1,5 +1,6 @@
 import { getCurrencySymbol } from "@ptracker/shared/payments";
 import type { Occurrence } from "@ptracker/shared/types";
+import { useLang } from "@ptracker/shared/i18n";
 import { Text, View } from "react-native";
 
 import { formatDayShort } from "@/lib/calendar";
@@ -8,6 +9,7 @@ import { occurrenceTypeBadge } from "@/lib/occurrences";
 // Read-only occurrence row for the report lists. Deliberately not OccurrenceRow: that
 // one carries mark-paid and edit actions, which a report must not offer.
 export function ReportRow({ occurrence, paidLabel }: { occurrence: Occurrence; paidLabel: string }) {
+  const { t, lang } = useLang();
   const o = occurrence;
   return (
     <View
@@ -26,7 +28,7 @@ export function ReportRow({ occurrence, paidLabel }: { occurrence: Occurrence; p
           ) : null}
         </View>
         <Text className="mt-0.5 text-xs text-gray-400">
-          {formatDayShort(o.dueDate)} · {occurrenceTypeBadge(o)}
+          {formatDayShort(o.dueDate, lang)} · {occurrenceTypeBadge(o, t.monthly)}
         </Text>
       </View>
 

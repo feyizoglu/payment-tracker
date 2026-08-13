@@ -2,12 +2,14 @@ import '../../tailwind.css';
 
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, useColorScheme, View } from 'react-native';
 
-import { LanguageProvider } from '@ptracker/shared/i18n';
+import { LanguageProvider, type Lang } from '@ptracker/shared/i18n';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
+import { getStoredLanguage, setStoredLanguage } from '@/lib/language-storage';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -49,19 +51,35 @@ function RootNavigator() {
   );
 }
 
+// The saved language has to be read before the provider mounts: LanguageProvider takes
+// its language as an initial value, so hydrating afterwards would flash the default
+// language first. Turkish is the fallback — the app shipped Turkish-only until now.
+function LanguageGate({ children }: { children: React.ReactNode }) {
+  const [lang, setLang] = useState<Lang | null>(null);
+
+  useEffect(() => {
+    getStoredLanguage().then((stored) => setLang(stored ?? 'tr'));
+  }, []);
+
+  if (!lang) return <View className="flex-1 bg-white" />;
+
+  return (
+    <LanguageProvider initialLang={lang} onLangChange={setStoredLanguage}>
+      {children}
+    </LanguageProvider>
+  );
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
     <AuthProvider>
-      {/* The app's existing screens are hardcoded Turkish, so the shared dictionary
-          starts on "tr" here. The switcher that lets the user change it lands in
-          Plan 3f. */}
-      <LanguageProvider initialLang="tr">
+      <LanguageGate>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <AnimatedSplashOverlay />
           <RootNavigator />
         </ThemeProvider>
-      </LanguageProvider>
+      </LanguageGate>
     </AuthProvider>
   );
 }

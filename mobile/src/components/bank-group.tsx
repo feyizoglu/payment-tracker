@@ -1,5 +1,6 @@
 import { assetTotalIn, canManageAsset, formatPreferred } from "@ptracker/shared/economy";
 import type { Asset, ExchangeRates, FiatCurrency, Team } from "@ptracker/shared/types";
+import { useLang } from "@ptracker/shared/i18n";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -29,6 +30,7 @@ export function BankGroup({
   onEdit: (asset: Asset) => void;
   onAdd: (bankName: string) => void;
 }) {
+  const { t } = useLang();
   const [expanded, setExpanded] = useState(true);
   const subtotal = assetTotalIn(assets, preferredCurrency, rates);
 
@@ -41,7 +43,7 @@ export function BankGroup({
         </View>
 
         {subtotal != null ? (
-          <Text className="font-semibold text-gray-900">{formatPreferred(subtotal, preferredCurrency)}</Text>
+          <Text className="font-semibold text-gray-900">{formatPreferred(subtotal, preferredCurrency, t.numberLocale)}</Text>
         ) : null}
 
         <Pressable className="px-2" onPress={() => onAdd(bankName)}>

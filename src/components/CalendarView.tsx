@@ -17,7 +17,7 @@ import {
   isSameDay,
   isToday,
 } from "date-fns";
-import { tr as dateFnsTr } from "date-fns/locale";
+import { enUS, tr as dateFnsTr } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Trash2, Pencil } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
@@ -49,8 +49,8 @@ function userColor(userId: string, userMap?: UserMap): string {
   return userMap?.[userId]?.color ?? hashColor(userId);
 }
 
-function fmt(n: number, decimals = 0): string {
-  return n.toLocaleString("tr-TR", {
+function fmt(n: number, locale: string, decimals = 0): string {
+  return n.toLocaleString(locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
@@ -58,7 +58,7 @@ function fmt(n: number, decimals = 0): string {
 
 export default function CalendarView({ payments, recurrings = [], userMap = {}, onUpdated, onDaySelected, onMonthChange }: Props) {
   const { lang, t } = useLang();
-  const locale = lang === "tr" ? dateFnsTr : undefined;
+  const locale = lang === "tr" ? dateFnsTr : enUS;
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
   const [loading, setLoading] = useState<string | null>(null);
@@ -86,7 +86,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
     return Object.keys(due)
       .map((cur) => {
         const sym = getCurrencySymbol(cur);
-        return `${sym}${fmt(paid[cur] ?? 0)} ${t.paid} / ${sym}${fmt(due[cur])} ${t.total}`;
+        return `${sym}${fmt(paid[cur] ?? 0, t.numberLocale)} ${t.paid} / ${sym}${fmt(due[cur], t.numberLocale)} ${t.total}`;
       })
       .join(" · ");
   })();
@@ -270,7 +270,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
                   }
                   return Object.entries(by).map(([cur, amt]) => (
                     <span key={cur} className={`text-[10px] font-medium leading-none ${allPaid ? "text-green-500" : "text-blue-500"}`}>
-                      {getCurrencySymbol(cur)}{fmt(amt)}
+                      {getCurrencySymbol(cur)}{fmt(amt, t.numberLocale)}
                     </span>
                   ));
                 })()}
@@ -358,7 +358,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
                       <span className="text-sm font-semibold shrink-0 text-gray-300">—</span>
                     ) : (
                       <span className={`text-sm font-semibold shrink-0 ${o.isPaid ? "text-gray-400" : "text-gray-900"}`}>
-                        {getCurrencySymbol(o.currency)}{fmt(o.amount, 2)}
+                        {getCurrencySymbol(o.currency)}{fmt(o.amount, t.numberLocale, 2)}
                       </span>
                     )}
 

@@ -35,12 +35,14 @@ describe("occurrenceKey", () => {
 });
 
 describe("occurrenceTypeBadge", () => {
-  it("shows Aylık for recurring", () => {
-    expect(occurrenceTypeBadge(occ({ kind: "recurring", installmentIndex: undefined }))).toBe("Aylık");
+  it("returns the caller's monthly label for recurring, in whatever language", () => {
+    const recurring = occ({ kind: "recurring", installmentIndex: undefined });
+    expect(occurrenceTypeBadge(recurring, "Aylık")).toBe("Aylık");
+    expect(occurrenceTypeBadge(recurring, "Monthly")).toBe("Monthly");
   });
-  it("shows 1-indexed N/M for installments", () => {
-    expect(occurrenceTypeBadge(occ({ kind: "installment", installmentIndex: 2, totalInstallments: 12 }))).toBe("3/12");
-    expect(occurrenceTypeBadge(occ({ kind: "installment", installmentIndex: 0, totalInstallments: 6 }))).toBe("1/6");
+  it("shows 1-indexed N/M for installments, ignoring the label", () => {
+    expect(occurrenceTypeBadge(occ({ kind: "installment", installmentIndex: 2, totalInstallments: 12 }), "Aylık")).toBe("3/12");
+    expect(occurrenceTypeBadge(occ({ kind: "installment", installmentIndex: 0, totalInstallments: 6 }), "Aylık")).toBe("1/6");
   });
 });
 
