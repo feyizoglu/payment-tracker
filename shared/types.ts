@@ -3,6 +3,9 @@ export interface User {
   email: string;
   name: string | null;
   avatar_url: string | null;
+  // Avatar tint the user picked (PATCH /api/users/me). Selected by the team queries,
+  // absent elsewhere — the web components used to reach it through an `as any` cast.
+  color?: string | null;
   created_at: string;
 }
 

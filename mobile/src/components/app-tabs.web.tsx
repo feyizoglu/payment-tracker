@@ -30,6 +30,9 @@ export default function AppTabs() {
           <TabTrigger name="reports" href="/reports" asChild>
             <TabButton>Raporlar</TabButton>
           </TabTrigger>
+          <TabTrigger name="settings" href="/settings" asChild>
+            <TabButton>Ayarlar</TabButton>
+          </TabTrigger>
         </CustomTabList>
       </TabList>
     </Tabs>

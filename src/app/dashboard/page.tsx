@@ -9,6 +9,7 @@ import PaymentForm from "@/components/PaymentForm";
 import PaymentCard from "@/components/PaymentCard";
 import RecurringCard from "@/components/RecurringCard";
 import CalendarView, { UserMap } from "@/components/CalendarView";
+import { myColorFromTeams } from "@/lib/teams";
 import TeamPanel from "@/components/TeamPanel";
 import DateRangeReport from "@/components/DateRangeReport";
 import PayUntil from "@/components/PayUntil";
@@ -77,13 +78,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (teams.length > 0 && session?.user) {
       const uid = (session.user as any).id;
-      for (const team of teams) {
-        const me = team.members?.find((m) => m.user_id === uid);
-        if (me?.user && (me.user as any).color) {
-          setMyColor((me.user as any).color);
-          break;
-        }
-      }
+      setMyColor(myColorFromTeams(teams, uid));
     }
   }, [teams, session]);
 
@@ -107,7 +102,7 @@ export default function Dashboard() {
             name: m.user.name,
             email: m.user.email,
             avatar_url: m.user.avatar_url,
-            color: isMe ? myColor : (m.user as any).color ?? null,
+            color: isMe ? myColor : m.user.color ?? null,
           };
         }
       });
