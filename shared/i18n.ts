@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, createElement, useContext, useState, ReactNode } from "react";
 
 export type Lang = "en" | "tr";
 
@@ -352,11 +352,10 @@ export function LanguageProvider({
   initialLang?: Lang;
 }) {
   const [lang, setLang] = useState<Lang>(initialLang);
-  return (
-    <LangContext.Provider value={{ lang, setLang, t: translations[lang] }}>
-      {children}
-    </LangContext.Provider>
-  );
+  // createElement rather than JSX so this file stays a plain .ts module. Mobile's babel
+  // rewrites every JSX file to NativeWind's jsx-runtime, which Metro cannot resolve
+  // from outside the mobile project root — a .tsx here fails the Android bundle.
+  return createElement(LangContext.Provider, { value: { lang, setLang, t: translations[lang] } }, children);
 }
 
 export function useLang() {

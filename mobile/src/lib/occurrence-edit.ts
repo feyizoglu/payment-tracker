@@ -100,6 +100,27 @@ export function initialAmountLines(
   return amounts.map((a) => ({ currency: a.currency, amount: a.amount ? String(a.amount) : "" }));
 }
 
+// Route targets for the two edit entry points on an occurrence row. Built here rather
+// than inline in the screens so the param names stay in sync with parseOccurrenceRef.
+export function occurrenceEditRoute(occurrence: Occurrence, dueDate: string) {
+  return {
+    pathname: "/occurrence-edit" as const,
+    params: {
+      kind: occurrence.kind,
+      sourceId: occurrence.sourceId,
+      installmentIndex: occurrence.installmentIndex != null ? String(occurrence.installmentIndex) : "",
+      period: occurrence.period ?? "",
+      dueDate,
+    },
+  };
+}
+
+export function seriesEditRoute(occurrence: Occurrence) {
+  return occurrence.kind === "recurring"
+    ? { pathname: "/recurring/[id]" as const, params: { id: occurrence.sourceId } }
+    : { pathname: "/payment/[id]" as const, params: { id: occurrence.sourceId } };
+}
+
 // Blank rows are dropped; anything else must be a positive number. Returns null on the
 // first invalid row so the caller can show its own message.
 export function parseAmountLines(lines: AmountLine[]): CurrencyAmount[] | null {

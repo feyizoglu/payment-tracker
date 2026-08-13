@@ -5,6 +5,8 @@ import {
   findOccurrence,
   initialAmountLines,
   parseAmountLines,
+  occurrenceEditRoute,
+  seriesEditRoute,
 } from "@/lib/occurrence-edit";
 
 const installmentOcc: Occurrence = {
@@ -169,6 +171,32 @@ describe("initialAmountLines — recurring", () => {
       ],
     };
     expect(initialAmountLines(recurringOcc, [], [withEntry])).toEqual([{ currency: "EUR", amount: "42" }]);
+  });
+});
+
+describe("routes", () => {
+  it("round-trips an installment occurrence through parseOccurrenceRef", () => {
+    const { params } = occurrenceEditRoute(installmentOcc, "2026-08-10");
+    expect(params.dueDate).toBe("2026-08-10");
+    expect(parseOccurrenceRef(params)).toEqual({
+      kind: "installment",
+      sourceId: "p1",
+      installmentIndex: 2,
+    });
+  });
+
+  it("round-trips a recurring occurrence", () => {
+    const { params } = occurrenceEditRoute(recurringOcc, "2026-08-05");
+    expect(parseOccurrenceRef(params)).toEqual({
+      kind: "recurring",
+      sourceId: "r1",
+      period: "2026-08-01",
+    });
+  });
+
+  it("points at the matching series screen", () => {
+    expect(seriesEditRoute(installmentOcc)).toEqual({ pathname: "/payment/[id]", params: { id: "p1" } });
+    expect(seriesEditRoute(recurringOcc)).toEqual({ pathname: "/recurring/[id]", params: { id: "r1" } });
   });
 });
 

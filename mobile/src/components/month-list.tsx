@@ -9,10 +9,14 @@ export function MonthList({
   occurrences,
   busyKey,
   onTogglePaid,
+  onEdit,
+  onEditSeries,
 }: {
   occurrences: Occurrence[];
   busyKey: string | null;
   onTogglePaid: (o: Occurrence) => void;
+  onEdit: (o: Occurrence) => void;
+  onEditSeries: (o: Occurrence) => void;
 }) {
   const groups = groupOccurrencesByDay(occurrences);
   if (groups.length === 0) {
@@ -32,6 +36,8 @@ export function MonthList({
                 occurrence={o}
                 busy={busyKey === occurrenceKey(o)}
                 onTogglePaid={onTogglePaid}
+                onEdit={onEdit}
+                onEditSeries={onEditSeries}
               />
             ))}
           </View>

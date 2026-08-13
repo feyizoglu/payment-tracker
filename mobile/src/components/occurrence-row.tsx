@@ -7,14 +7,20 @@ export function OccurrenceRow({
   occurrence,
   busy,
   onTogglePaid,
+  onEdit,
+  onEditSeries,
 }: {
   occurrence: Occurrence;
   busy: boolean;
   onTogglePaid: (o: Occurrence) => void;
+  onEdit?: (o: Occurrence) => void;
+  onEditSeries?: (o: Occurrence) => void;
 }) {
   const o = occurrence;
   return (
-    <View
+    // Long-press opens the whole series; the pencil edits just this occurrence.
+    <Pressable
+      onLongPress={onEditSeries ? () => onEditSeries(o) : undefined}
       className={`flex-row items-center gap-3 rounded-xl border p-3 ${
         o.isPaid ? "border-green-100 bg-green-50" : "border-gray-100 bg-white"
       }`}>
@@ -36,6 +42,11 @@ export function OccurrenceRow({
       <Text className={`font-semibold ${o.isPaid ? "text-gray-400" : "text-gray-900"}`}>
         {o.amount == null ? "—" : `${getCurrencySymbol(o.currency)}${o.amount}`}
       </Text>
-    </View>
+      {onEdit ? (
+        <Pressable onPress={() => onEdit(o)} className="pl-1">
+          <Text className="text-gray-300">✎</Text>
+        </Pressable>
+      ) : null}
+    </Pressable>
   );
 }
