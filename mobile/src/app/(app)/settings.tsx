@@ -197,8 +197,12 @@ export default function Settings() {
         {teams.length === 0 ? (
           <Text className="text-sm text-gray-400">{t.noTeams}</Text>
         ) : (
-          teams.map((team) => (
-            <View key={team.id} className="gap-2 border-t border-gray-50 pt-3 first:border-t-0 first:pt-0">
+          teams.map((team, index) => (
+            // Separator between teams only. `first:` is a CSS pseudo-class — NativeWind
+            // cannot evaluate document position in React Native, so it would be inert.
+            <View
+              key={team.id}
+              className={`gap-2 ${index === 0 ? "" : "border-t border-gray-50 pt-3"}`}>
               <Text className="font-medium text-gray-900">{team.name}</Text>
 
               {(team.members ?? []).map((member) => (
