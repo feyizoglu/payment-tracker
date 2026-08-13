@@ -1,11 +1,6 @@
 import { decideEditSubmit } from "@ptracker/shared/edit-occurrence";
 import { useLang } from "@ptracker/shared/i18n";
-import {
-  ALLOWED_CURRENCIES,
-  getCurrencySymbol,
-  getOccurrencesForMonth,
-  isPureDayChange,
-} from "@ptracker/shared/payments";
+import { ALLOWED_CURRENCIES, getCurrencySymbol, getOccurrencesForMonth } from "@ptracker/shared/payments";
 import type { Occurrence, Payment, RecurringPayment } from "@ptracker/shared/types";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
@@ -24,6 +19,7 @@ import {
   initialAmountLines,
   parseAmountLines,
   parseOccurrenceRef,
+  shouldShowScope,
   type AmountLine,
 } from "@/lib/occurrence-edit";
 
@@ -105,9 +101,7 @@ export default function OccurrenceEditScreen() {
   }, [api, params.kind, params.sourceId, params.installmentIndex, params.period, params.dueDate]);
 
   const isRecurring = occurrence?.kind === "recurring";
-  // The scope question only makes sense for a day move inside the same month; any
-  // other date edit is inherently a single-occurrence override.
-  const showScope = !!occurrence && isPureDayChange(date, initialDate);
+  const showScope = shouldShowScope(occurrence, date, initialDate);
 
   async function submit(reset: boolean) {
     if (!occurrence) return;

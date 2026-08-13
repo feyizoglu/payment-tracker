@@ -7,7 +7,9 @@ import {
   parseAmountLines,
   occurrenceEditRoute,
   seriesEditRoute,
+  shouldShowScope,
 } from "@/lib/occurrence-edit";
+import { decideEditSubmit } from "@ptracker/shared/edit-occurrence";
 
 const installmentOcc: Occurrence = {
   kind: "installment",
@@ -171,6 +173,60 @@ describe("initialAmountLines — recurring", () => {
       ],
     };
     expect(initialAmountLines(recurringOcc, [], [withEntry])).toEqual([{ currency: "EUR", amount: "42" }]);
+  });
+});
+
+describe("shouldShowScope", () => {
+  it("asks only for a day move inside the same month", () => {
+    expect(shouldShowScope(installmentOcc, "2026-08-20", "2026-08-10")).toBe(true);
+  });
+
+  it("stays hidden for an unchanged date", () => {
+    expect(shouldShowScope(installmentOcc, "2026-08-10", "2026-08-10")).toBe(false);
+  });
+
+  it("stays hidden when the month changes — that is inherently a single override", () => {
+    expect(shouldShowScope(installmentOcc, "2026-09-20", "2026-08-10")).toBe(false);
+  });
+
+  it("stays hidden before the occurrence has loaded", () => {
+    expect(shouldShowScope(null, "2026-08-20", "2026-08-10")).toBe(false);
+  });
+});
+
+describe("reset path", () => {
+  // The screen sends `amounts: []` on reset; decideEditSubmit must ignore both the
+  // amounts and a "forward" scope, or a reset would silently become a day-forward write.
+  it("drops amounts and never forwards, even with scope 'forward'", () => {
+    expect(
+      decideEditSubmit({
+        occurrence: recurringOcc,
+        reset: true,
+        scope: "forward",
+        date: "2026-08-20",
+        initialDate: "2026-08-05",
+        amounts: [],
+      })
+    ).toEqual({
+      url: "/api/recurring/r1/entry",
+      body: { period: "2026-08-01", due_date: null },
+    });
+  });
+
+  it("removes the whole override for an installment", () => {
+    expect(
+      decideEditSubmit({
+        occurrence: installmentOcc,
+        reset: true,
+        scope: "forward",
+        date: "2026-08-20",
+        initialDate: "2026-08-10",
+        amounts: [],
+      })
+    ).toEqual({
+      url: "/api/payments/p1/override",
+      body: { installment_index: 2, due_date: null, amount: null },
+    });
   });
 });
 

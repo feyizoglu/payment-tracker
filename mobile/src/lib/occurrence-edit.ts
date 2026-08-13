@@ -1,3 +1,4 @@
+import { isPureDayChange } from "@ptracker/shared/payments";
 import type { CurrencyAmount, Occurrence, Payment, RecurringPayment } from "@ptracker/shared/types";
 
 // Pure helpers for the occurrence edit screen. The endpoint/body decision itself is
@@ -98,6 +99,17 @@ export function initialAmountLines(
 
   // A zero seeds an empty field rather than a literal "0" the user has to clear.
   return amounts.map((a) => ({ currency: a.currency, amount: a.amount ? String(a.amount) : "" }));
+}
+
+// Whether to ask the "only this / this and following" scope question. It is only
+// meaningful for a day move inside the same month — any other date edit is inherently a
+// single-occurrence override, and there is nothing to ask before the occurrence loads.
+export function shouldShowScope(
+  occurrence: Occurrence | null,
+  date: string,
+  initialDate: string
+): boolean {
+  return !!occurrence && isPureDayChange(date, initialDate);
 }
 
 // Route targets for the two edit entry points on an occurrence row. Built here rather
