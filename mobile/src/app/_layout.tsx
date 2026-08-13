@@ -38,6 +38,9 @@ function RootNavigator() {
         <Stack.Screen name="occurrence-edit" options={{ presentation: 'modal' }} />
         <Stack.Screen name="payment/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="recurring/[id]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="asset-form" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="asset/[id]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="manual-gold" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!isAuthenticated}>
         <Stack.Screen name="sign-in" />

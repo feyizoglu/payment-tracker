@@ -7,6 +7,24 @@ import Link from "next/link";
 import { Asset, Currency, FiatCurrency, GoldType, ExchangeRates, Team } from "@/types";
 import { useLang } from "@/lib/i18n";
 import {
+  FIAT_CURRENCIES,
+  FIAT_SYMBOLS,
+  GOLD_TYPES,
+  assetTotalIn,
+  canManageAsset,
+  filterAssets,
+  goldPricesInTRY,
+  manualGoldToRates,
+  formatAmount,
+  formatPreferred,
+  fromUSD,
+  goldUnit,
+  groupByBank,
+  hashColor,
+  isGoldType,
+  toUSD,
+} from "@/lib/economy";
+import {
   CreditCard,
   LogOut,
   ChevronDown,
@@ -22,70 +40,8 @@ import {
 } from "lucide-react";
 import TeamPanel from "@/components/TeamPanel";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const FIAT_CURRENCIES: FiatCurrency[] = ["USD", "EUR", "GBP", "TRY"];
-
-const GOLD_TYPES: { value: GoldType; labelKey: string; unit: "gr" | "adet" }[] = [
-  { value: "BILEZIK",      labelKey: "goldBilezik",     unit: "gr"   },
-  { value: "GRAM_ALTIN",   labelKey: "goldGram",        unit: "gr"   },
-  { value: "CEYREK_ALTIN", labelKey: "goldCeyrek",      unit: "adet" },
-  { value: "YARIM_ALTIN",  labelKey: "goldYarim",       unit: "adet" },
-  { value: "TAM_ALTIN",    labelKey: "goldTam",         unit: "adet" },
-];
-
-const FIAT_SYMBOLS: Record<FiatCurrency, string> = {
-  USD: "$", EUR: "€", GBP: "£", TRY: "₺",
-};
-
-function isGoldType(c: Currency): c is GoldType {
-  return ["BILEZIK", "GRAM_ALTIN", "CEYREK_ALTIN", "YARIM_ALTIN", "TAM_ALTIN"].includes(c);
-}
-
-function goldUnit(c: GoldType): "gr" | "adet" {
-  return (c === "BILEZIK" || c === "GRAM_ALTIN") ? "gr" : "adet";
-}
-
-function formatAmount(amount: number, currency: Currency): string {
-  if (isGoldType(currency)) {
-    const unit = goldUnit(currency);
-    return `${amount.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${unit}`;
-  }
-  const sym = FIAT_SYMBOLS[currency as FiatCurrency];
-  return `${sym}${amount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatPreferred(amount: number, currency: FiatCurrency): string {
-  const sym = FIAT_SYMBOLS[currency];
-  return `${sym}${amount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-// Converts any currency/gold amount to USD using the rates object
-function toUSD(amount: number, currency: Currency, rates: ExchangeRates): number {
-  return amount * rates[currency];
-}
-
-// Converts USD to a fiat preferred currency
-function fromUSD(usd: number, target: FiatCurrency, rates: ExchangeRates): number {
-  return usd / rates[target];
-}
-
-function groupByBank(assets: Asset[]): { bankName: string; assets: Asset[] }[] {
-  const map = new Map<string, Asset[]>();
-  for (const a of assets) {
-    const list = map.get(a.bank_name) ?? [];
-    list.push(a);
-    map.set(a.bank_name, list);
-  }
-  return Array.from(map.entries()).map(([bankName, assets]) => ({ bankName, assets }));
-}
-
-const PALETTE = ["#3B82F6","#8B5CF6","#F59E0B","#EF4444","#10B981","#EC4899","#F97316","#14B8A6"];
-function hashColor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
-  return PALETTE[Math.abs(h) % PALETTE.length];
-}
+// Constants and pure logic now live in @/lib/economy (= shared/economy.ts), shared with
+// the mobile Economy tab. This page only renders them.
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -194,21 +150,8 @@ export default function Economy() {
     );
   }
 
-  const filteredAssets = assets.filter((a) => {
-    if (activeFilter === "all") return true;
-    if (activeFilter === "personal") return !a.team_id;
-    return a.team_id === activeFilter;
-  });
-
-  // Total in preferred currency (skip gold if rates unavailable)
-  const totalInPreferred =
-    rates
-      ? filteredAssets.reduce((sum, asset) => {
-          if (isGoldType(asset.currency) && rates.goldError) return sum;
-          const usd = toUSD(asset.amount, asset.currency, rates);
-          return sum + fromUSD(usd, preferredCurrency, rates);
-        }, 0)
-      : null;
+  const filteredAssets = filterAssets(assets, activeFilter);
+  const totalInPreferred = assetTotalIn(filteredAssets, preferredCurrency, rates);
 
   const filters = [
     { id: "all", label: t.all },
@@ -501,7 +444,7 @@ function getGoldLabel(currency: GoldType, t: any): string {
 function getCurrencyLabel(currency: Currency, t: any): string {
   if (isGoldType(currency)) return getGoldLabel(currency, t);
   const labels: Record<FiatCurrency, string> = {
-    USD: "US Dollar", EUR: "Euro", GBP: "British Pound", TRY: "Türk Lirası",
+    USD: t.currencyUSD, EUR: t.currencyEUR, GBP: t.currencyGBP, TRY: t.currencyTRY,
   };
   return labels[currency as FiatCurrency];
 }
@@ -533,12 +476,7 @@ function BankGroup({
 }) {
   const [expanded, setExpanded] = useState(true);
 
-  const bankTotal = rates
-    ? assets.reduce((sum, a) => {
-        if (isGoldType(a.currency) && rates.goldError) return sum;
-        return sum + fromUSD(toUSD(a.amount, a.currency, rates), preferredCurrency, rates);
-      }, 0)
-    : null;
+  const bankTotal = assetTotalIn(assets, preferredCurrency, rates);
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -550,7 +488,7 @@ function BankGroup({
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate">{bankName}</p>
-          <p className="text-xs text-gray-400">{assets.length} {assets.length === 1 ? "hesap" : "hesap"}</p>
+          <p className="text-xs text-gray-400">{t.accountsCount.replace("{count}", String(assets.length))}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {bankTotal !== null && (
@@ -573,19 +511,13 @@ function BankGroup({
       {expanded && (
         <div className="border-t border-gray-100 divide-y divide-gray-50">
           {assets.map((asset) => {
-            const isOwner = asset.user_id === currentUserId;
-            const isTeamAdmin = asset.team_id
-              ? teams.find((tm) => tm.id === asset.team_id)?.members?.find(
-                  (m) => m.user_id === currentUserId
-                )?.role === "owner"
-              : false;
             return (
               <AssetRow
                 key={asset.id}
                 asset={asset}
                 rates={rates}
                 preferredCurrency={preferredCurrency}
-                canManage={isOwner || isTeamAdmin}
+                canManage={canManageAsset(asset, currentUserId, teams)}
                 onUpdated={onUpdated}
                 onDeleted={onDeleted}
                 t={t}
@@ -1067,36 +999,16 @@ function ManualGoldModal({
 
   const [values, setValues] = useState<Partial<Record<GoldType, string>>>(() => {
     if (!tryRate) return {};
+    const prices = goldPricesInTRY(rates!);
     return Object.fromEntries(
-      GOLD_FIELDS.map(({ key }) => [
-        key,
-        rates![key] ? String(Math.round(rates![key] / tryRate)) : "",
-      ])
+      GOLD_FIELDS.map(({ key }) => [key, prices[key] ? String(prices[key]) : ""])
     ) as Partial<Record<GoldType, string>>;
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!tryRate) return;
-
-    const now = new Date().toISOString();
-    const updated: ExchangeRates = {
-      ...(rates!),
-      fetchedAt: now,
-      goldError: null,
-    };
-
-    for (const { key } of GOLD_FIELDS) {
-      const raw = values[key];
-      if (raw && raw.trim() !== "") {
-        const tryPrice = parseFloat(raw.replace(",", "."));
-        if (!isNaN(tryPrice) && tryPrice > 0) {
-          updated[key] = tryPrice * tryRate;
-        }
-      }
-    }
-
-    onApply(updated);
+    onApply(manualGoldToRates(rates!, values, new Date().toISOString()));
   }
 
   return (
