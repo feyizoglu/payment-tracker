@@ -20,8 +20,10 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
+      {/* Reuses the scaffold's explore icon for now — a dedicated economy icon is
+          cosmetic and not worth blocking the tab on. */}
+      <NativeTabs.Trigger name="economy">
+        <NativeTabs.Trigger.Label>Ekonomi</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/explore.png')}
           renderingMode="template"

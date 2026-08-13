@@ -444,7 +444,7 @@ function getGoldLabel(currency: GoldType, t: any): string {
 function getCurrencyLabel(currency: Currency, t: any): string {
   if (isGoldType(currency)) return getGoldLabel(currency, t);
   const labels: Record<FiatCurrency, string> = {
-    USD: "US Dollar", EUR: "Euro", GBP: "British Pound", TRY: "Türk Lirası",
+    USD: t.currencyUSD, EUR: t.currencyEUR, GBP: t.currencyGBP, TRY: t.currencyTRY,
   };
   return labels[currency as FiatCurrency];
 }
@@ -488,7 +488,7 @@ function BankGroup({
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate">{bankName}</p>
-          <p className="text-xs text-gray-400">{assets.length} {assets.length === 1 ? "hesap" : "hesap"}</p>
+          <p className="text-xs text-gray-400">{t.accountsCount.replace("{count}", String(assets.length))}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {bankTotal !== null && (

@@ -165,6 +165,13 @@ const translations = {
     installmentsBelowPaid: "Number of installments cannot be lower than the paid ones",
     dayRange: "Day of month must be between 1 and 31",
     paymentDeleteConfirm: "This payment and all its installments will be deleted. Continue?",
+    // Economy
+    accountsCount: "{count} accounts",
+    assetDeleteConfirm: "This asset will be deleted. Continue?",
+    currencyUSD: "US Dollar",
+    currencyEUR: "Euro",
+    currencyGBP: "British Pound",
+    currencyTRY: "Turkish Lira",
   },
   tr: {
     // Landing
@@ -326,6 +333,13 @@ const translations = {
     installmentsBelowPaid: "Taksit sayısı ödenmiş taksit sayısından az olamaz",
     dayRange: "Ayın günü 1 ile 31 arasında olmalı",
     paymentDeleteConfirm: "Bu ödeme ve tüm taksitleri silinecek. Devam edilsin mi?",
+    // Ekonomi
+    accountsCount: "{count} hesap",
+    assetDeleteConfirm: "Bu varlık silinecek. Devam edilsin mi?",
+    currencyUSD: "Amerikan Doları",
+    currencyEUR: "Euro",
+    currencyGBP: "İngiliz Sterlini",
+    currencyTRY: "Türk Lirası",
   },
 };
 
