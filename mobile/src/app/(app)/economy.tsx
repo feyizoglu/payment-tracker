@@ -48,12 +48,16 @@ export default function Economy() {
   }, [api, t.loadFailed]);
 
   // Rates come from the cache on open — like the web page, they are never auto-fetched,
-  // so an offline launch still shows a total instead of a dash.
+  // so an offline launch still shows a total instead of a dash. Re-read on every focus
+  // so a manual gold entry made in the modal shows up here.
   const restoreCached = useCallback(async () => {
     const [cached, saved] = await Promise.all([getCachedRates(), getPreferredCurrency()]);
     if (cached) {
       setRates(cached);
-      setRatesStatus("ok");
+      // Only the first restore may report success: a failed refresh must keep its error
+      // banner when the user leaves the tab and comes back, since the cached numbers it
+      // is showing are still the stale ones.
+      setRatesStatus((prev) => (prev === "idle" ? "ok" : prev));
     }
     if (saved) setPreferred(saved);
   }, []);
