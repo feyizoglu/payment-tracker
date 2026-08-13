@@ -252,3 +252,29 @@ describe("goldPricesInTRY", () => {
     expect(updated.TAM_ALTIN).toBeCloseTo(rates.TAM_ALTIN, 6);
   });
 });
+
+// The point of threading a locale is that the SAME amount reads differently per
+// language. Asserting only the Turkish form would pass again if the tag were hardcoded.
+describe("locale-dependent formatting", () => {
+  it("flips the thousands and decimal separators for fiat", () => {
+    expect(formatAmount(1234.5, "USD", "tr-TR")).toBe("$1.234,50");
+    expect(formatAmount(1234.5, "USD", "en-US")).toBe("$1,234.50");
+  });
+
+  it("flips the decimal separator for gold amounts too", () => {
+    expect(formatAmount(12.5, "GRAM_ALTIN", "tr-TR")).toBe("12,5 gr");
+    expect(formatAmount(12.5, "GRAM_ALTIN", "en-US")).toBe("12.5 gr");
+  });
+
+  it("applies to converted display values as well", () => {
+    expect(formatPreferred(1234.5, "EUR", "tr-TR")).toBe("€1.234,50");
+    expect(formatPreferred(1234.5, "EUR", "en-US")).toBe("€1,234.50");
+  });
+
+  it("keeps the unit and symbol regardless of locale", () => {
+    for (const locale of ["tr-TR", "en-US"]) {
+      expect(formatAmount(3, "CEYREK_ALTIN", locale)).toContain("adet");
+      expect(formatAmount(10, "TRY", locale).startsWith("₺")).toBe(true);
+    }
+  });
+});

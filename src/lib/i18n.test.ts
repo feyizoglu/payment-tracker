@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { LanguageProvider, useLang } from "@/lib/i18n";
+import { LanguageProvider, useLang, localeFor } from "@/lib/i18n";
 
 // The project's Vitest config only matches src/**/*.test.ts and runs in a node
 // environment with no jsdom, so the two public exports of shared/i18n.tsx
@@ -94,5 +94,68 @@ describe("translation table parity", () => {
       const blank = Object.keys(t).filter((k) => !t[k] || typeof t[k] !== "string");
       expect(blank).toEqual([]);
     }
+  });
+});
+
+describe("localeFor", () => {
+  it("maps tr to the Turkish BCP-47 tag used for number and date formatting", () => {
+    expect(localeFor("tr")).toBe("tr-TR");
+  });
+
+  it("maps en to the US tag", () => {
+    expect(localeFor("en")).toBe("en-US");
+  });
+
+  it("returns tags Intl accepts, so formatters never throw a RangeError", () => {
+    for (const lang of ["en", "tr"] as const) {
+      expect(new Intl.NumberFormat(localeFor(lang)).format(1234.5)).toBeTypeOf("string");
+    }
+  });
+
+  it("formats numbers differently per language, which is why the tag is threaded through", () => {
+    const tr = new Intl.NumberFormat(localeFor("tr")).format(1234.5);
+    const en = new Intl.NumberFormat(localeFor("en")).format(1234.5);
+    expect(tr).not.toBe(en);
+  });
+});
+
+// `onLangChange` is what lets mobile persist the choice to AsyncStorage. It fires from
+// setLang, which server rendering can never reach — so the callback is invoked directly
+// on the context the provider handed out.
+describe("onLangChange", () => {
+  it("fires with the newly selected language", () => {
+    const seen: string[] = [];
+    let ctx: ReturnType<typeof useLang> | undefined;
+    function Capture() {
+      ctx = useLang();
+      return null;
+    }
+    renderToStaticMarkup(
+      createElement(
+        LanguageProvider,
+        { initialLang: "tr", onLangChange: (lang: "en" | "tr") => seen.push(lang) },
+        createElement(Capture)
+      )
+    );
+
+    ctx!.setLang("en");
+    expect(seen).toEqual(["en"]);
+  });
+
+  it("does not fire on mount — only on an actual switch", () => {
+    const seen: string[] = [];
+    renderToStaticMarkup(
+      createElement(
+        LanguageProvider,
+        { initialLang: "tr", onLangChange: (lang: "en" | "tr") => seen.push(lang) },
+        createElement(Probe)
+      )
+    );
+    expect(seen).toEqual([]);
+  });
+
+  it("is optional — the web app omits it and setLang must still work", () => {
+    const ctx = captureContext("en");
+    expect(() => ctx.setLang("tr")).not.toThrow();
   });
 });

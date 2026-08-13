@@ -194,3 +194,11 @@ describe("day boundaries", () => {
     expect([end.getHours(), end.getMinutes(), end.getSeconds()]).toEqual([23, 59, 59]);
   });
 });
+
+describe("formatCurrencyTotals is locale-driven", () => {
+  it("renders the same totals differently per language", () => {
+    const totals = { TRY: 1234.5, USD: 50 };
+    expect(formatCurrencyTotals(totals, "tr-TR")).toBe("₺1.234,50 + $50,00");
+    expect(formatCurrencyTotals(totals, "en-US")).toBe("₺1,234.50 + $50.00");
+  });
+});
