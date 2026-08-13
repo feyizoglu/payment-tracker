@@ -31,17 +31,17 @@ export function goldUnit(currency: GoldType): "gr" | "adet" {
 }
 
 // An asset's own amount, in its own unit: "12,5 gr" / "3 adet" / "$1.234,56".
-export function formatAmount(amount: number, currency: Currency): string {
+export function formatAmount(amount: number, currency: Currency, locale: string): string {
   if (isGoldType(currency)) {
-    const formatted = amount.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    const formatted = amount.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     return `${formatted} ${goldUnit(currency)}`;
   }
-  return formatPreferred(amount, currency as FiatCurrency);
+  return formatPreferred(amount, currency as FiatCurrency, locale);
 }
 
 // A value already converted into the user's display currency — always 2 decimals.
-export function formatPreferred(amount: number, currency: FiatCurrency): string {
-  const formatted = amount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export function formatPreferred(amount: number, currency: FiatCurrency, locale: string): string {
+  const formatted = amount.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `${FIAT_SYMBOLS[currency]}${formatted}`;
 }
 

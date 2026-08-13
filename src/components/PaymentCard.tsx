@@ -22,8 +22,8 @@ function userColor(userId: string, userMap?: UserMap): string {
   return userMap?.[userId]?.color ?? hashColor(userId);
 }
 
-function fmt(n: number) {
-  return n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmt(n: number, locale: string) {
+  return n.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 interface Props {
@@ -79,11 +79,11 @@ export default function PaymentCard({ payment, userMap = {}, canManage = false, 
                 <h3 className="font-semibold text-gray-900 truncate">{payment.name}</h3>
               </div>
               <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 flex-wrap">
-                <span>{sym}{fmt(monthly)}{t.perMonth}</span>
+                <span>{sym}{fmt(monthly, t.numberLocale)}{t.perMonth}</span>
                 <span>·</span>
                 <span>{payment.paid_installments}/{payment.total_installments} {t.paid}</span>
                 <span>·</span>
-                <span className="text-orange-500 font-medium">{sym}{fmt(remaining)} {t.left}</span>
+                <span className="text-orange-500 font-medium">{sym}{fmt(remaining, t.numberLocale)} {t.left}</span>
                 {addedBy && (
                   <>
                     <span>·</span>
@@ -176,8 +176,8 @@ export default function PaymentCard({ payment, userMap = {}, canManage = false, 
                 </div>
                 <span className="font-medium">
                   {inst.amounts && inst.amounts.length > 0
-                    ? inst.amounts.map((a) => `${getCurrencySymbol(a.currency)}${fmt(a.amount)}`).join(" · ")
-                    : `${sym}${fmt(inst.amount)}`}
+                    ? inst.amounts.map((a) => `${getCurrencySymbol(a.currency)}${fmt(a.amount, t.numberLocale)}`).join(" · ")
+                    : `${sym}${fmt(inst.amount, t.numberLocale)}`}
                 </span>
               </div>
             ))}
@@ -314,7 +314,7 @@ function EditPaymentModal({
 
           {Number(amount) > 0 && Number(totalInstallments) > 0 && (
             <p className="text-sm text-gray-500">
-              {t.monthlyPayment}: {getCurrencySymbol(currency)}{(Number(amount) / Number(totalInstallments)).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {t.monthlyPayment}: {getCurrencySymbol(currency)}{(Number(amount) / Number(totalInstallments)).toLocaleString(t.numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           )}
 

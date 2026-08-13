@@ -21,8 +21,8 @@ import { fromIsoDate } from "@/lib/dates";
 import { occurrenceKey } from "@/lib/occurrences";
 import { defaultPayUntilDate, defaultRangeDates, type ReportKind } from "@/lib/report-view";
 
-function TotalCard({ label, totals, tone }: { label: string; totals: CurrencyTotals; tone: string }) {
-  const text = formatCurrencyTotals(totals);
+function TotalCard({ label, totals, tone, locale }: { label: string; totals: CurrencyTotals; tone: string; locale: string }) {
+  const text = formatCurrencyTotals(totals, locale);
   return (
     <View className={`flex-1 gap-1 rounded-xl p-3 ${tone}`}>
       <Text className="text-xs font-medium text-gray-500">{label}</Text>
@@ -32,7 +32,7 @@ function TotalCard({ label, totals, tone }: { label: string; totals: CurrencyTot
 }
 
 export default function Reports() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { api } = useAuth();
 
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -122,19 +122,19 @@ export default function Reports() {
               label={t.startDate}
               value={range.start}
               onChange={(start) => setRange((prev) => ({ ...prev, start }))}
-              formatValue={(value) => formatDayLong(fromIsoDate(value))}
+              formatValue={(value) => formatDayLong(fromIsoDate(value), lang)}
             />
             <DateField
               label={t.endDate}
               value={range.end}
               onChange={(end) => setRange((prev) => ({ ...prev, end }))}
-              formatValue={(value) => formatDayLong(fromIsoDate(value))}
+              formatValue={(value) => formatDayLong(fromIsoDate(value), lang)}
             />
 
             <View className="flex-row gap-2">
-              <TotalCard label={t.totalDue} totals={report.due} tone="bg-blue-50" />
-              <TotalCard label={t.paid} totals={report.paid} tone="bg-green-50" />
-              <TotalCard label={t.remaining} totals={report.remaining} tone="bg-amber-50" />
+              <TotalCard label={t.totalDue} totals={report.due} tone="bg-blue-50" locale={t.numberLocale} />
+              <TotalCard label={t.paid} totals={report.paid} tone="bg-green-50" locale={t.numberLocale} />
+              <TotalCard label={t.remaining} totals={report.remaining} tone="bg-amber-50" locale={t.numberLocale} />
             </View>
           </>
         ) : (
@@ -143,10 +143,10 @@ export default function Reports() {
               label={t.endDate}
               value={payUntilEnd}
               onChange={setPayUntilEnd}
-              formatValue={(value) => formatDayLong(fromIsoDate(value))}
+              formatValue={(value) => formatDayLong(fromIsoDate(value), lang)}
             />
             <View className="flex-row gap-2">
-              <TotalCard label={t.remaining} totals={upcoming.byCurrency} tone="bg-purple-50" />
+              <TotalCard label={t.remaining} totals={upcoming.byCurrency} tone="bg-purple-50" locale={t.numberLocale} />
             </View>
           </>
         )}

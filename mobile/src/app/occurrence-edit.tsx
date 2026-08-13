@@ -29,7 +29,7 @@ const currencyOptions: SelectOption[] = ALLOWED_CURRENCIES.map((c) => ({
 }));
 
 export default function OccurrenceEditScreen() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { api } = useAuth();
   const params = useLocalSearchParams<{
     kind?: string;
@@ -150,7 +150,7 @@ export default function OccurrenceEditScreen() {
             label={t.installmentDate}
             value={date}
             onChange={setDate}
-            formatValue={(value) => formatDayLong(fromIsoDate(value))}
+            formatValue={(value) => formatDayLong(fromIsoDate(value), lang)}
           />
 
           {showScope ? (

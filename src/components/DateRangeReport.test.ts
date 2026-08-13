@@ -45,11 +45,13 @@ function summary(html: string): string[] {
   return [...html.matchAll(/break-all">([^<]*)</g)].map((m) => m[1]);
 }
 
-function render(recurrings?: RecurringPayment[]): string {
+// Amounts follow the rendered language, so the provider's language is part of the
+// fixture: the default is English (dot decimals), "tr" gives Turkish (comma decimals).
+function render(recurrings?: RecurringPayment[], initialLang: "en" | "tr" = "en"): string {
   return renderToStaticMarkup(
     createElement(
       LanguageProvider,
-      null,
+      { initialLang },
       createElement(DateRangeReport, { payments: [], recurrings, onClose: () => {} })
     )
   );
@@ -71,13 +73,13 @@ describe("DateRangeReport recurring reminders", () => {
 
   it("counts an unpaid recurring reminder in the total due", () => {
     const [due] = summary(render([makeRecurring()]));
-    expect(due).toBe("₺500,00");
+    expect(due).toBe("₺500.00");
   });
 
   it("counts an unpaid recurring reminder in the remaining total, not the paid total", () => {
     const [, paid, remaining] = summary(render([makeRecurring()]));
-    expect(paid).toBe("₺0,00");
-    expect(remaining).toBe("₺500,00");
+    expect(paid).toBe("₺0.00");
+    expect(remaining).toBe("₺500.00");
   });
 
   it("counts a paid recurring reminder in the paid total instead of the remaining one", () => {
@@ -96,13 +98,21 @@ describe("DateRangeReport recurring reminders", () => {
       ],
     });
     const [due, paidTotal, remaining] = summary(render([paid]));
-    expect(due).toBe("₺500,00");
-    expect(paidTotal).toBe("₺500,00");
-    expect(remaining).toBe("₺0,00");
+    expect(due).toBe("₺500.00");
+    expect(paidTotal).toBe("₺500.00");
+    expect(remaining).toBe("₺0.00");
   });
 
   it("renders the empty state when the optional recurrings prop is omitted", () => {
     const html = render(undefined);
     expect(html).not.toContain("Kira");
+  });
+
+  it("formats the totals in the selected language", () => {
+    // The report used to print Turkish decimal commas regardless of language.
+    const [dueEn] = summary(render([makeRecurring()], "en"));
+    const [dueTr] = summary(render([makeRecurring()], "tr"));
+    expect(dueEn).toBe("₺500.00");
+    expect(dueTr).toBe("₺500,00");
   });
 });

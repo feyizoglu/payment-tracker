@@ -83,11 +83,11 @@ describe("sumByCurrency", () => {
 
 describe("formatCurrencyTotals", () => {
   it("joins the currencies with a plus", () => {
-    expect(formatCurrencyTotals({ TRY: 1000, USD: 50 })).toBe("₺1.000,00 + $50,00");
+    expect(formatCurrencyTotals({ TRY: 1000, USD: 50 }, "tr-TR")).toBe("₺1.000,00 + $50,00");
   });
 
   it("is empty when there is nothing to show", () => {
-    expect(formatCurrencyTotals({})).toBe("");
+    expect(formatCurrencyTotals({}, "tr-TR")).toBe("");
   });
 });
 

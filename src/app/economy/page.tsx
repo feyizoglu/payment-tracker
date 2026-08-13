@@ -38,6 +38,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { myColorFromTeams } from "@/lib/teams";
 import TeamPanel from "@/components/TeamPanel";
 
 // Constants and pure logic now live in @/lib/economy (= shared/economy.ts), shared with
@@ -132,13 +133,7 @@ export default function Economy() {
   useEffect(() => {
     if (teams.length > 0 && session?.user) {
       const uid = (session.user as any).id;
-      for (const team of teams) {
-        const me = team.members?.find((m) => m.user_id === uid);
-        if (me?.user && (me.user as any).color) {
-          setMyColor((me.user as any).color);
-          break;
-        }
-      }
+      setMyColor(myColorFromTeams(teams, uid));
     }
   }, [teams, session]);
 
@@ -160,7 +155,7 @@ export default function Economy() {
   ];
 
   function fmtTime(iso: string) {
-    return new Date(iso).toLocaleTimeString(lang === "tr" ? "tr-TR" : "en-US", {
+    return new Date(iso).toLocaleTimeString(t.numberLocale, {
       hour: "2-digit", minute: "2-digit",
     });
   }
@@ -249,7 +244,7 @@ export default function Economy() {
             <p className="text-xs font-medium text-green-700 opacity-70 mb-1">{t.totalAssets}</p>
             <p className="text-3xl font-bold text-green-700">
               {rates && totalInPreferred !== null
-                ? formatPreferred(totalInPreferred, preferredCurrency)
+                ? formatPreferred(totalInPreferred, preferredCurrency, t.numberLocale)
                 : "—"}
             </p>
             {rates?.goldError && (
@@ -493,7 +488,7 @@ function BankGroup({
         <div className="flex items-center gap-2 shrink-0">
           {bankTotal !== null && (
             <span className="text-sm font-bold text-green-700">
-              {formatPreferred(bankTotal, preferredCurrency)}
+              {formatPreferred(bankTotal, preferredCurrency, t.numberLocale)}
             </span>
           )}
           <button
@@ -557,7 +552,7 @@ function AssetRow({
   let convertedValue: string | null = null;
   if (rates && !goldUnavailable && asset.currency !== preferredCurrency) {
     const usd = toUSD(asset.amount, asset.currency, rates);
-    convertedValue = formatPreferred(fromUSD(usd, preferredCurrency, rates), preferredCurrency);
+    convertedValue = formatPreferred(fromUSD(usd, preferredCurrency, rates), preferredCurrency, t.numberLocale);
   }
 
   const owner = asset.user as any;
@@ -601,7 +596,7 @@ function AssetRow({
 
         {/* Amount + converted */}
         <div className="text-right shrink-0">
-          <p className="font-semibold text-gray-900 text-sm">{formatAmount(asset.amount, asset.currency)}</p>
+          <p className="font-semibold text-gray-900 text-sm">{formatAmount(asset.amount, asset.currency, t.numberLocale)}</p>
           {convertedValue && (
             <p className="text-xs text-gray-400 flex items-center justify-end gap-0.5">
               <TrendingUp className="w-3 h-3" />

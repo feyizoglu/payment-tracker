@@ -19,8 +19,8 @@ function localDateStr(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function fmt(n: number) {
-  return n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmt(n: number, locale: string) {
+  return n.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export default function PayUntil({ payments, recurrings = [] }: Props) {
@@ -62,7 +62,7 @@ export default function PayUntil({ payments, recurrings = [] }: Props) {
               <div key={cur} className="bg-purple-50 rounded-xl px-4 py-2.5 flex-1 min-w-[110px]">
                 <p className="text-xs text-purple-500 font-medium mb-0.5">{cur}</p>
                 <p className="text-xl font-bold text-purple-700">
-                  {getCurrencySymbol(cur)}{fmt(amt)}
+                  {getCurrencySymbol(cur)}{fmt(amt, t.numberLocale)}
                 </p>
               </div>
             ))}
@@ -78,11 +78,11 @@ export default function PayUntil({ payments, recurrings = [] }: Props) {
                 <div className="flex-1 min-w-0 flex items-center gap-2">
                   <span className="text-gray-800 font-medium truncate">{o.name}</span>
                   <span className="text-gray-400 text-xs shrink-0">
-                    {o.dueDate.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
+                    {o.dueDate.toLocaleDateString(t.numberLocale, { day: "numeric", month: "short" })}
                   </span>
                 </div>
                 <span className="font-semibold text-gray-700 shrink-0 ml-3">
-                  {o.amount == null ? "—" : `${getCurrencySymbol(o.currency)}${fmt(o.amount)}`}
+                  {o.amount == null ? "—" : `${getCurrencySymbol(o.currency)}${fmt(o.amount, t.numberLocale)}`}
                 </span>
               </div>
             ))}

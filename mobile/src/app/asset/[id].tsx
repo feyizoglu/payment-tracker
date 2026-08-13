@@ -105,7 +105,7 @@ export default function EditAssetScreen() {
           {/* Currency is fixed after creation — changing it would silently redenominate
               the stored amount rather than convert it. */}
           <Text className="text-xs text-gray-400">
-            {asset.currency} · {formatAmount(asset.amount, asset.currency)}
+            {asset.currency} · {formatAmount(asset.amount, asset.currency, t.numberLocale)}
           </Text>
 
           <TextField label={t.bankName} value={form.bankName} onChangeText={(next) => set("bankName", next)} />

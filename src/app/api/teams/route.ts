@@ -38,9 +38,15 @@ export async function POST(req: NextRequest) {
 
   const { name } = await req.json();
 
+  // The client blocks a blank name, but nothing stopped a direct call from creating a
+  // nameless team that then renders as an empty row everywhere.
+  if (typeof name !== "string" || !name.trim()) {
+    return NextResponse.json({ error: "Team name is required" }, { status: 400 });
+  }
+
   const { data: team, error: teamError } = await db
     .from("teams")
-    .insert({ name, created_by: userId })
+    .insert({ name: name.trim(), created_by: userId })
     .select()
     .single();
 

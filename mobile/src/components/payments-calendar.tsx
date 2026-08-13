@@ -1,11 +1,10 @@
+import { useLang } from "@ptracker/shared/i18n";
 import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { Occurrence } from "@ptracker/shared/types";
-import { buildCalendarWeeks } from "@/lib/calendar";
+import { buildCalendarWeeks, weekdayLabels } from "@/lib/calendar";
 import { dayKey, groupOccurrencesByDay, occurrenceKey } from "@/lib/occurrences";
 import { OccurrenceRow } from "@/components/occurrence-row";
-
-const WEEKDAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
 export function PaymentsCalendar({
   year,
@@ -28,6 +27,8 @@ export function PaymentsCalendar({
   onEdit: (o: Occurrence) => void;
   onEditSeries: (o: Occurrence) => void;
 }) {
+  const { t, lang } = useLang();
+  const weekdays = useMemo(() => weekdayLabels(lang), [lang]);
   const weeks = useMemo(() => buildCalendarWeeks(year, month), [year, month]);
   const byDay = useMemo(() => {
     const map = new Map<string, Occurrence[]>();
@@ -41,7 +42,7 @@ export function PaymentsCalendar({
   return (
     <View className="p-4">
       <View className="flex-row">
-        {WEEKDAYS.map((d) => (
+        {weekdays.map((d) => (
           <Text key={d} className="flex-1 text-center text-xs text-gray-400">{d}</Text>
         ))}
       </View>
@@ -70,7 +71,7 @@ export function PaymentsCalendar({
       {selectedDay ? (
         <View className="mt-4 gap-2">
           {selectedItems.length === 0 ? (
-            <Text className="text-center text-sm text-gray-400">Bu gün ödeme yok</Text>
+            <Text className="text-center text-sm text-gray-400">{t.noPaymentsThisDay}</Text>
           ) : (
             selectedItems.map((o) => (
               <OccurrenceRow

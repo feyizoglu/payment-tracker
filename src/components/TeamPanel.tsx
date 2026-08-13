@@ -4,12 +4,8 @@ import { useState } from "react";
 import { Team } from "@/types";
 import { Users, Plus, Mail, Loader2 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { COLOR_OPTIONS } from "@/lib/teams";
 
-const COLOR_OPTIONS = [
-  "#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444",
-  "#10B981", "#EC4899", "#F97316", "#14B8A6",
-  "#6366F1", "#84CC16", "#06B6D4", "#F43F5E",
-];
 
 interface Props {
   teams: Team[];
@@ -69,11 +65,11 @@ export default function TeamPanel({ teams, currentUserId, currentUserColor, onCr
     const data = await res.json();
     setInviteLoading(false);
     if (res.ok) {
-      setMsg({ type: "ok", text: "Member added!" });
+      setMsg({ type: "ok", text: t.memberAdded });
       setInviteEmail("");
       onCreated();
     } else {
-      setMsg({ type: "err", text: data.error ?? "Failed" });
+      setMsg({ type: "err", text: data.error ?? t.inviteFailed });
     }
   }
 

@@ -22,8 +22,8 @@ function localDateStr(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function fmt(n: number): string {
-  return n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmt(n: number, locale: string): string {
+  return n.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 const PALETTE = [
@@ -58,10 +58,10 @@ export default function DateRangeReport({ payments, recurrings = [], userMap = {
   }, [payments, recurrings, startDate, endDate]);
 
   const results = report.occurrences;
-  const zero = `${getCurrencySymbol("TRY")}${fmt(0)}`;
-  const fmtDue = formatCurrencyTotals(report.due) || zero;
-  const fmtPaid = formatCurrencyTotals(report.paid) || zero;
-  const fmtUnpaid = formatCurrencyTotals(report.remaining) || zero;
+  const zero = `${getCurrencySymbol("TRY")}${fmt(0, t.numberLocale)}`;
+  const fmtDue = formatCurrencyTotals(report.due, t.numberLocale) || zero;
+  const fmtPaid = formatCurrencyTotals(report.paid, t.numberLocale) || zero;
+  const fmtUnpaid = formatCurrencyTotals(report.remaining, t.numberLocale) || zero;
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -152,7 +152,7 @@ export default function DateRangeReport({ payments, recurrings = [], userMap = {
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <p className="text-xs text-gray-400">
-                          {entry.dueDate.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
+                          {entry.dueDate.toLocaleDateString(t.numberLocale, { day: "numeric", month: "short" })}
                           {entry.kind === "installment"
                             ? ` · ${t.installmentOf} ${(entry.installmentIndex ?? 0) + 1}/${entry.totalInstallments}`
                             : ` · ${t.recurringBadge}`}
@@ -178,7 +178,7 @@ export default function DateRangeReport({ payments, recurrings = [], userMap = {
                       </div>
                     </div>
                     <span className={`text-sm font-semibold shrink-0 ${entry.isPaid ? "text-gray-400" : "text-gray-900"}`}>
-                      {entry.amount == null ? "—" : `${getCurrencySymbol(entry.currency)}${fmt(entry.amount)}`}
+                      {entry.amount == null ? "—" : `${getCurrencySymbol(entry.currency)}${fmt(entry.amount, t.numberLocale)}`}
                     </span>
                   </div>
                 );

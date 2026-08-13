@@ -1,3 +1,4 @@
+import { useLang } from "@ptracker/shared/i18n";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import type { Occurrence } from "@ptracker/shared/types";
 import { getCurrencySymbol } from "@ptracker/shared/payments";
@@ -16,6 +17,7 @@ export function OccurrenceRow({
   onEdit?: (o: Occurrence) => void;
   onEditSeries?: (o: Occurrence) => void;
 }) {
+  const { t } = useLang();
   const o = occurrence;
   return (
     // Long-press opens the whole series; the pencil edits just this occurrence.
@@ -37,7 +39,7 @@ export function OccurrenceRow({
         <Text className={`font-medium ${o.isPaid ? "text-gray-400 line-through" : "text-gray-800"}`}>
           {o.name}
         </Text>
-        <Text className="mt-0.5 text-xs text-gray-400">{occurrenceTypeBadge(o)}</Text>
+        <Text className="mt-0.5 text-xs text-gray-400">{occurrenceTypeBadge(o, t.monthly)}</Text>
       </View>
       <Text className={`font-semibold ${o.isPaid ? "text-gray-400" : "text-gray-900"}`}>
         {o.amount == null ? "—" : `${getCurrencySymbol(o.currency)}${o.amount}`}
