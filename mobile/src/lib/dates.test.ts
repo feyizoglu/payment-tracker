@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { toIsoDate, fromIsoDate, toIsoMonth, parseIsoMonth, dayOfIsoDate } from "@/lib/dates";
+import {
+  toIsoDate,
+  fromIsoDate,
+  toIsoMonth,
+  parseIsoMonth,
+  dayOfIsoDate,
+  monthPickerYears,
+  withMonthPickerYear,
+  withMonthPickerMonth,
+} from "@/lib/dates";
 
 describe("toIsoDate", () => {
   it("pads month and day and stays on the local day", () => {
@@ -41,6 +50,52 @@ describe("toIsoMonth / parseIsoMonth", () => {
     expect(parseIsoMonth("")).toBeNull();
     expect(parseIsoMonth("2026-13")).toBeNull();
     expect(parseIsoMonth("2026-9")).toBeNull();
+  });
+});
+
+describe("monthPickerYears", () => {
+  const today = new Date(2026, 7, 13);
+
+  it("starts at the current year when nothing is selected", () => {
+    expect(monthPickerYears("", today, 3)).toEqual([2026, 2027, 2028, 2029]);
+  });
+
+  it("reaches back to an already stored past year", () => {
+    expect(monthPickerYears("2024-05", today, 1)).toEqual([2024, 2025, 2026, 2027]);
+  });
+
+  it("extends past an already stored future year", () => {
+    expect(monthPickerYears("2030-05", today, 2)).toEqual([
+      2026, 2027, 2028, 2029, 2030, 2031, 2032,
+    ]);
+  });
+
+  it("always offers at least the current year", () => {
+    expect(monthPickerYears("", today, 0)).toEqual([2026]);
+  });
+});
+
+describe("withMonthPickerYear / withMonthPickerMonth", () => {
+  const today = new Date(2026, 7, 13); // August
+
+  it("fills the missing month from today when nothing was selected", () => {
+    expect(withMonthPickerYear("", "2027", today)).toBe("2027-08");
+  });
+
+  it("keeps the selected month when changing the year", () => {
+    expect(withMonthPickerYear("2026-03", "2028", today)).toBe("2028-03");
+  });
+
+  it("fills the missing year from today when nothing was selected", () => {
+    expect(withMonthPickerMonth("", "11", today)).toBe("2026-11");
+  });
+
+  it("keeps the selected year when changing the month", () => {
+    expect(withMonthPickerMonth("2029-03", "12", today)).toBe("2029-12");
+  });
+
+  it("produces a value parseIsoMonth accepts", () => {
+    expect(parseIsoMonth(withMonthPickerYear("", "2027", today))).toEqual({ year: 2027, month: 8 });
   });
 });
 

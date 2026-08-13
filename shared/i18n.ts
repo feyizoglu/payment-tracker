@@ -348,7 +348,9 @@ export function LanguageProvider({
   children,
   initialLang = "en",
 }: {
-  children: ReactNode;
+  // Optional so callers may pass children positionally to createElement, which is how
+  // the tests mount the provider; JSX usage is unaffected.
+  children?: ReactNode;
   initialLang?: Lang;
 }) {
   const [lang, setLang] = useState<Lang>(initialLang);

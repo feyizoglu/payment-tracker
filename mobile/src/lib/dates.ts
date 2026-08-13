@@ -36,3 +36,30 @@ export function parseIsoMonth(value: string): { year: number; month: number } | 
 export function dayOfIsoDate(value: string): number {
   return Number(value.slice(8, 10));
 }
+
+// Year range the month picker offers: always spans from the earlier of the current
+// value's year and today's year through `yearSpan` past the later one, so an already
+// stored past or far-future month is still selectable.
+export function monthPickerYears(value: string, today: Date, yearSpan: number): number[] {
+  const currentYear = today.getFullYear();
+  const baseYear = parseIsoMonth(value)?.year ?? currentYear;
+
+  const years: number[] = [];
+  for (let year = Math.min(baseYear, currentYear); year <= Math.max(baseYear, currentYear) + yearSpan; year++) {
+    years.push(year);
+  }
+  return years;
+}
+
+// Setting one half of an unset 'yyyy-MM' fills the other half from today, so the user
+// can never produce a half-written month.
+export function withMonthPickerYear(value: string, year: string, today: Date): string {
+  const parsed = parseIsoMonth(value);
+  const month = parsed?.month ?? today.getMonth() + 1;
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+export function withMonthPickerMonth(value: string, month: string, today: Date): string {
+  const parsed = parseIsoMonth(value);
+  return `${parsed?.year ?? today.getFullYear()}-${month}`;
+}

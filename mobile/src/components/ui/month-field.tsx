@@ -2,7 +2,12 @@ import { Pressable, Text, View } from "react-native";
 
 import { SelectField, type SelectOption } from "@/components/ui/select-field";
 import { formatMonthName } from "@/lib/calendar";
-import { parseIsoMonth } from "@/lib/dates";
+import {
+  monthPickerYears,
+  parseIsoMonth,
+  withMonthPickerMonth,
+  withMonthPickerYear,
+} from "@/lib/dates";
 
 // Neither platform ships a month-only picker, so this is a year select + a month
 // select over a 'yyyy-MM' value. An empty value means "not set" (the optional end
@@ -23,26 +28,16 @@ export function MonthField({
   yearSpan?: number;
 }) {
   const parsed = parseIsoMonth(value);
-  const currentYear = new Date().getFullYear();
-  const baseYear = parsed?.year ?? currentYear;
+  const today = new Date();
 
-  const years: SelectOption[] = [];
-  for (let y = Math.min(baseYear, currentYear); y <= Math.max(baseYear, currentYear) + yearSpan; y++) {
-    years.push({ value: String(y), label: String(y) });
-  }
+  const years: SelectOption[] = monthPickerYears(value, today, yearSpan).map((year) => ({
+    value: String(year),
+    label: String(year),
+  }));
   const months: SelectOption[] = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1).padStart(2, "0"),
     label: formatMonthName(i),
   }));
-
-  // Picking either half of an unset value fills the other from today, so the user never
-  // ends up with a half-written month.
-  function setYear(year: string) {
-    onChange(`${year}-${parsed ? String(parsed.month).padStart(2, "0") : String(new Date().getMonth() + 1).padStart(2, "0")}`);
-  }
-  function setMonth(month: string) {
-    onChange(`${parsed?.year ?? currentYear}-${month}`);
-  }
 
   return (
     <View className="gap-1">
@@ -52,7 +47,7 @@ export function MonthField({
             label={label}
             value={parsed ? String(parsed.year) : ""}
             options={years}
-            onChange={setYear}
+            onChange={(year) => onChange(withMonthPickerYear(value, year, today))}
             hint={hint}
           />
         </View>
@@ -61,7 +56,7 @@ export function MonthField({
             label=" "
             value={parsed ? String(parsed.month).padStart(2, "0") : ""}
             options={months}
-            onChange={setMonth}
+            onChange={(month) => onChange(withMonthPickerMonth(value, month, today))}
           />
         </View>
       </View>

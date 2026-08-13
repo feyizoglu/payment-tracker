@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { buildCalendarWeeks, formatMonthYear, formatDayShort } from "./calendar";
+import {
+  buildCalendarWeeks,
+  formatMonthYear,
+  formatDayShort,
+  formatMonthName,
+  formatDayLong,
+} from "./calendar";
 
 describe("buildCalendarWeeks", () => {
   it("returns Monday-first weeks of 7 days covering the whole month", () => {
@@ -24,5 +30,23 @@ describe("Turkish date formatters (date-fns tr locale)", () => {
   it("formatDayShort renders day + abbreviated Turkish month", () => {
     expect(formatDayShort(new Date(2026, 6, 5))).toBe("5 Tem");
     expect(formatDayShort(new Date(2026, 11, 20))).toBe("20 Ara");
+  });
+  it("formatMonthName renders the standalone Turkish month with no year", () => {
+    expect(formatMonthName(0)).toBe("Ocak");
+    expect(formatMonthName(7)).toBe("Ağustos");
+  });
+  it("formatMonthName is year-agnostic for the month picker's option list", () => {
+    // The 0-indexed month is the only input; the internal reference year must not leak.
+    const names = Array.from({ length: 12 }, (_, m) => formatMonthName(m));
+    expect(names).toHaveLength(12);
+    expect(new Set(names).size).toBe(12);
+    expect(names.some((n) => /\d/.test(n))).toBe(false);
+  });
+  it("formatDayLong renders day + full Turkish month + year", () => {
+    expect(formatDayLong(new Date(2026, 7, 13))).toBe("13 Ağustos 2026");
+    expect(formatDayLong(new Date(2026, 0, 1))).toBe("1 Ocak 2026");
+  });
+  it("formatDayLong does not zero-pad single-digit days", () => {
+    expect(formatDayLong(new Date(2026, 11, 9))).toBe("9 Aralık 2026");
   });
 });
