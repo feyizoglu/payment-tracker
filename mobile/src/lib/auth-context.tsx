@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { createApiClient, type ApiClient } from "./api";
 import { exchangeGoogleIdToken, type MobileAuthResponse } from "./auth";
 import { getApiUrl } from "./config";
@@ -25,6 +26,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
   const signOut = useCallback(async () => {
+    // Drop the Google session too, so the next sign-in shows the account
+    // chooser instead of silently reusing the last account. Best-effort: if the
+    // native side fails (never configured, no Play Services), the local token
+    // must still be cleared.
+    try {
+      await GoogleSignin.signOut();
+    } catch {
+      // ignore — local sign-out is what actually ends the session
+    }
     await clearToken();
     setTok(null);
     setUser(null);
