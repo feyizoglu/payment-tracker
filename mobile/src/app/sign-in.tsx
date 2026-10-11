@@ -1,14 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 
 import { useLang } from '@ptracker/shared/i18n';
 
 import { useAuth } from '@/lib/auth-context';
 import { getGoogleClientId } from '@/lib/config';
 
-WebBrowser.maybeCompleteAuthSession();
+// `webClientId` must be the WEB OAuth client — the id_token it mints carries
+// that client as its audience, which is exactly what the backend allowlists
+// (AUTH_GOOGLE_ID, see src/lib/mobile-auth.ts). The Android OAuth client only
+// has to exist in the same Google project (package + signing SHA-1); its id is
+// never referenced here.
+//
+// Configured lazily rather than at module load so a missing env var surfaces as
+// an error banner on the button instead of crashing the route on import.
+let configured = false;
+function configureOnce() {
+  if (configured) return;
+  GoogleSignin.configure({ webClientId: getGoogleClientId() });
+  configured = true;
+}
 
 export default function SignIn() {
   const { t } = useLang();
@@ -16,30 +32,28 @@ export default function SignIn() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Uses the web client id for both webClientId and (for now) androidClientId.
-  // Plan 4 adds a dedicated Android client id once EAS produces a signing SHA-1.
-  // NOTE: expo-auth-session's Google provider is deprecated in SDK 57 and the
-  // native prompt only completes in an EAS dev build (Plan 4); in Expo Go the
-  // button renders but the flow won't finish. The token-exchange it calls is
-  // unit-tested (lib/auth.ts).
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: getGoogleClientId(),
-    androidClientId: getGoogleClientId(),
-  });
-
-  useEffect(() => {
-    if (response?.type !== 'success') return;
-    const idToken = response.params?.id_token;
-    if (!idToken) {
-      setError(t.signInNoIdToken);
-      return;
-    }
+  async function onPress() {
     setBusy(true);
     setError(null);
-    signInWithGoogleIdToken(idToken)
-      .catch((e) => setError(e instanceof Error ? e.message : t.signInFailed))
-      .finally(() => setBusy(false));
-  }, [response, signInWithGoogleIdToken, t.signInNoIdToken, t.signInFailed]);
+    try {
+      configureOnce();
+      await GoogleSignin.hasPlayServices();
+      const res = await GoogleSignin.signIn();
+      // The user dismissing the account chooser is not an error — leave the
+      // screen exactly as it was.
+      if (res.type !== 'success') return;
+      if (!res.data.idToken) {
+        setError(t.signInNoIdToken);
+        return;
+      }
+      await signInWithGoogleIdToken(res.data.idToken);
+    } catch (e) {
+      if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) return;
+      setError(e instanceof Error ? e.message : t.signInFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <View className="flex-1 items-center justify-center gap-4 bg-white p-6">
@@ -47,10 +61,7 @@ export default function SignIn() {
       {busy ? (
         <ActivityIndicator />
       ) : (
-        <Pressable
-          disabled={!request}
-          onPress={() => promptAsync()}
-          className="rounded-lg bg-brand px-6 py-3 disabled:opacity-50">
+        <Pressable onPress={onPress} className="rounded-lg bg-brand px-6 py-3">
           <Text className="font-medium text-brand-fg">{t.signIn}</Text>
         </Pressable>
       )}

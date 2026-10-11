@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { createApiClient, type ApiClient } from "./api";
-import { exchangeGoogleIdToken, type MobileAuthResponse } from "./auth";
+import { exchangeGoogleIdToken, fetchProfile, type MobileAuthResponse } from "./auth";
 import { getApiUrl } from "./config";
 import { clearToken, getToken, setToken } from "./storage";
 
@@ -25,6 +26,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
   const signOut = useCallback(async () => {
+    // Drop the Google session too, so the next sign-in shows the account
+    // chooser instead of silently reusing the last account. Best-effort: if the
+    // native side fails (never configured, no Play Services), the local token
+    // must still be cleared.
+    try {
+      await GoogleSignin.signOut();
+    } catch {
+      // ignore — local sign-out is what actually ends the session
+    }
     await clearToken();
     setTok(null);
     setUser(null);
@@ -68,6 +78,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
   }, []);
+
+  // A restored session has a token but no profile. Fetch it, so the screens
+  // that key on `user` (the owner-only member picker, the settings colour)
+  // work after a cold start instead of waiting for a re-sign-in. A fresh
+  // sign-in already set both, so this is a no-op there.
+  useEffect(() => {
+    if (token == null || user != null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const profile = await fetchProfile((path) => api.get<AuthUser>(path));
+        // Sign-out can land while this is in flight; don't resurrect the profile.
+        if (!cancelled) setUser(profile);
+      } catch {
+        // A 401 already ran the client's onUnauthorized (sign-out). Anything
+        // else is transient: leave the profile null, exactly as before.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [api, token, user]);
 
   // Gate on token presence, not `user`: a restored session has a token but no
   // profile yet. An expired token self-heals — the first 401 triggers signOut.
