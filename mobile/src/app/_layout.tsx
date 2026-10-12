@@ -1,6 +1,7 @@
 import '../../tailwind.css';
 
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
+import { useLastNotificationResponse } from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, useColorScheme, View } from 'react-native';
@@ -10,6 +11,7 @@ import { LanguageProvider, type Lang } from '@ptracker/shared/i18n';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language-storage';
+import { monthFromNotificationData } from '@/lib/push';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -18,6 +20,14 @@ SplashScreen.preventAutoHideAsync();
 // conditionally rendering a screen component.
 function RootNavigator() {
   const { ready, isAuthenticated } = useAuth();
+  const lastNotification = useLastNotificationResponse();
+
+  // A tapped reminder opens the Payments tab on the month it is about.
+  useEffect(() => {
+    if (!ready || !isAuthenticated || !lastNotification) return;
+    const month = monthFromNotificationData(lastNotification.notification.request.content.data);
+    router.navigate(month ? { pathname: '/', params: { month } } : '/');
+  }, [ready, isAuthenticated, lastNotification]);
 
   // While the stored token is being restored, render nothing — the animated
   // splash overlay covers the screen until `ready` flips.

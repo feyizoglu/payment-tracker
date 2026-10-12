@@ -1,8 +1,10 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { createApiClient, type ApiClient } from "./api";
 import { exchangeGoogleIdToken, fetchProfile, type MobileAuthResponse } from "./auth";
 import { getApiUrl } from "./config";
+import { DEVICES_PATH, registerForPush, unregisterBody } from "./push";
+import { nativePushDeps } from "./push-native";
 import { clearToken, getToken, setToken } from "./storage";
 
 // Single source of truth: mirror the exact profile shape the auth endpoint
@@ -24,6 +26,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [token, setTok] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  // Refs, not state: signOut must reach the current values without depending on
+  // `api`, which itself depends on signOut.
+  const jwtRef = useRef<string | null>(null);
+  const pushTokenRef = useRef<string | null>(null);
 
   const signOut = useCallback(async () => {
     // Drop the Google session too, so the next sign-in shows the account
@@ -35,6 +41,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore — local sign-out is what actually ends the session
     }
+    // Stop reminders reaching this phone. Best-effort, and through a client with no
+    // onUnauthorized: signOut is itself the 401 handler, so an expired JWT must not loop.
+    const pushToken = pushTokenRef.current;
+    const jwt = jwtRef.current;
+    if (pushToken && jwt) {
+      try {
+        await createApiClient({ baseUrl: getApiUrl(), getToken: async () => jwt }).del(
+          DEVICES_PATH,
+          unregisterBody(pushToken)
+        );
+      } catch {
+        // ignore — the cron drops tokens Expo reports as unregistered
+      }
+    }
+    pushTokenRef.current = null;
     await clearToken();
     setTok(null);
     setUser(null);
@@ -100,6 +121,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [api, token, user]);
+
+  useEffect(() => {
+    jwtRef.current = token;
+  }, [token]);
+
+  // Register this phone for reminders once per signed-in session. Failures are
+  // swallowed: notifications are a bonus, never a reason to block the app.
+  useEffect(() => {
+    if (token == null) return;
+    let cancelled = false;
+    registerForPush(nativePushDeps((path, body) => api.post(path, body)))
+      .then((outcome) => {
+        if (!cancelled && outcome.kind === "registered") pushTokenRef.current = outcome.token;
+      })
+      .catch((e) => console.warn("push registration failed", e));
+    return () => {
+      cancelled = true;
+    };
+    // `api` changes with `token`; keying on token alone avoids a second registration.
+  }, [token]);
 
   // Gate on token presence, not `user`: a restored session has a token but no
   // profile yet. An expired token self-heals — the first 401 triggers signOut.

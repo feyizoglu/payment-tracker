@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import type { Occurrence, Payment, RecurringPayment, Team } from "@ptracker/shared/types";
 import { useLang } from "@ptracker/shared/i18n";
 import { getOccurrencesForMonth } from "@ptracker/shared/payments";
@@ -30,6 +30,15 @@ export default function Payments() {
   const [view, setView] = useState<PaymentsView>("list");
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  // Set by a tapped reminder notification ("yyyy-MM").
+  const { month: monthParam } = useLocalSearchParams<{ month?: string }>();
+  useEffect(() => {
+    const match = monthParam?.match(/^(\d{4})-(\d{2})$/);
+    if (!match) return;
+    setSelectedDay(null);
+    setCursor({ year: Number(match[1]), month: Number(match[2]) - 1 });
+  }, [monthParam]);
 
   const load = useCallback(async () => {
     setError(null);

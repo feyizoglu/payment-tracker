@@ -19,7 +19,7 @@ export interface ApiClient {
   post<T>(path: string, body: unknown): Promise<T>;
   put<T>(path: string, body: unknown): Promise<T>;
   patch<T>(path: string, body: unknown): Promise<T>;
-  del<T>(path: string): Promise<T>;
+  del<T>(path: string, body?: unknown): Promise<T>;
 }
 
 // This API returns errors as `{ error: string }` JSON. Extract that message so
@@ -73,8 +73,8 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
     patch<T>(path: string, body: unknown) {
       return request<T>(path, { method: "PATCH", body: JSON.stringify(body) });
     },
-    del<T>(path: string) {
-      return request<T>(path, { method: "DELETE" });
+    del<T>(path: string, body?: unknown) {
+      return request<T>(path, { method: "DELETE", body: body === undefined ? undefined : JSON.stringify(body) });
     },
   };
 }
