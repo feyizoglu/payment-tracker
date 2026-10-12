@@ -56,8 +56,8 @@ export default function SignIn() {
   }
 
   return (
-    <View className="flex-1 items-center justify-center gap-4 bg-white p-6">
-      <Text className="text-2xl font-semibold text-black">Payment Tracker</Text>
+    <View className="flex-1 items-center justify-center gap-4 bg-surface p-6">
+      <Text className="text-2xl font-semibold text-gray-900">Payment Tracker</Text>
       {busy ? (
         <ActivityIndicator />
       ) : (

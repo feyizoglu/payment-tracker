@@ -100,7 +100,7 @@ export default function Economy() {
 
   if (!ready) {
     return (
-      <TabScreen className="items-center justify-center bg-white">
+      <TabScreen className="items-center justify-center bg-surface">
         <ActivityIndicator />
       </TabScreen>
     );

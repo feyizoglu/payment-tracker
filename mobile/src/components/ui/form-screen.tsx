@@ -32,7 +32,7 @@ export function FormScreen({
   const { top } = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white"
+      className="flex-1 bg-surface"
       style={{ paddingTop: top }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View className="flex-row items-center justify-between border-b border-gray-100 px-4 py-3">

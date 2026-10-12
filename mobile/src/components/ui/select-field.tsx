@@ -40,7 +40,7 @@ export function SelectField({
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <Pressable className="flex-1 justify-end bg-black/40" onPress={() => setOpen(false)}>
           {/* Swallows the press so tapping inside the sheet doesn't close it. */}
-          <Pressable className="max-h-96 rounded-t-2xl bg-white pb-6 pt-2" onPress={() => {}}>
+          <Pressable className="max-h-96 rounded-t-2xl bg-surface pb-6 pt-2" onPress={() => {}}>
             <View className="mb-2 h-1 w-10 self-center rounded-full bg-gray-200" />
             <Text className="px-4 pb-2 text-xs font-medium text-gray-500">{label}</Text>
             <ScrollView>

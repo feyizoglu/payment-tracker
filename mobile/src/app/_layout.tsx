@@ -23,7 +23,7 @@ function RootNavigator() {
   // splash overlay covers the screen until `ready` flips.
   if (!ready) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View className="flex-1 items-center justify-center bg-surface">
         <ActivityIndicator />
       </View>
     );
@@ -61,7 +61,7 @@ function LanguageGate({ children }: { children: React.ReactNode }) {
     getStoredLanguage().then((stored) => setLang(stored ?? 'tr'));
   }, []);
 
-  if (!lang) return <View className="flex-1 bg-white" />;
+  if (!lang) return <View className="flex-1 bg-surface" />;
 
   return (
     <LanguageProvider initialLang={lang} onLangChange={setStoredLanguage}>

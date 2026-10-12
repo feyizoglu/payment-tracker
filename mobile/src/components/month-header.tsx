@@ -21,7 +21,7 @@ export function MonthHeader({
 }) {
   const { t, lang } = useLang();
   return (
-    <View className="border-b border-gray-100 bg-white px-4 py-3">
+    <View className="border-b border-gray-100 bg-surface px-4 py-3">
       <View className="flex-row items-center justify-between">
         <Pressable onPress={onPrev} className="px-3 py-1">
           <Text className="text-xl text-gray-600">‹</Text>
@@ -35,7 +35,7 @@ export function MonthHeader({
       </View>
       <View className="mt-3 flex-row self-center rounded-lg bg-gray-100 p-0.5">
         {(["list", "calendar"] as const).map((v) => (
-          <Pressable key={v} onPress={() => onToggleView(v)} className={`rounded-md px-4 py-1 ${view === v ? "bg-white" : ""}`}>
+          <Pressable key={v} onPress={() => onToggleView(v)} className={`rounded-md px-4 py-1 ${view === v ? "bg-surface" : ""}`}>
             <Text className={view === v ? "font-medium text-gray-900" : "text-gray-500"}>
               {v === "list" ? t.viewList : t.viewCalendar}
             </Text>

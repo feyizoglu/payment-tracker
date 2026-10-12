@@ -25,7 +25,7 @@ export function SegmentedToggle({
         return (
           <Pressable
             key={option.value}
-            className={`flex-1 rounded-md px-3 py-2 ${active ? "bg-white" : ""}`}
+            className={`flex-1 rounded-md px-3 py-2 ${active ? "bg-surface" : ""}`}
             onPress={() => onChange(option.value)}>
             <Text
               className={`text-center text-sm ${active ? "font-semibold text-gray-900" : "text-gray-500"}`}>

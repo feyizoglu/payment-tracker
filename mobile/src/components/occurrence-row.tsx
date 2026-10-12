@@ -29,7 +29,7 @@ export function OccurrenceRow({
     <Pressable
       onLongPress={onEditSeries ? () => onEditSeries(o) : undefined}
       className={`flex-row items-center gap-3 rounded-xl border p-3 ${
-        o.isPaid ? "border-green-100 bg-green-50" : "border-gray-100 bg-white"
+        o.isPaid ? "border-green-100 bg-green-50" : "border-gray-100 bg-surface"
       }`}
       style={{ borderLeftWidth: 3, borderLeftColor: color }}>
       <Pressable disabled={busy} onPress={() => onTogglePaid(o)} className="disabled:opacity-50">

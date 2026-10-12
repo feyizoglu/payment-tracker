@@ -20,7 +20,7 @@ import {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View className="gap-3 rounded-xl border border-gray-100 bg-white p-4">
+    <View className="gap-3 rounded-xl border border-gray-100 bg-surface p-4">
       <Text className="text-xs font-semibold uppercase text-gray-400">{title}</Text>
       {children}
     </View>
@@ -136,7 +136,7 @@ export default function Settings() {
 
   if (!ready) {
     return (
-      <TabScreen className="items-center justify-center bg-white">
+      <TabScreen className="items-center justify-center bg-surface">
         <ActivityIndicator />
       </TabScreen>
     );
@@ -259,7 +259,7 @@ export default function Settings() {
           )}
         </Section>
 
-        <Pressable onPress={signOut} className="rounded-xl border border-gray-100 bg-white p-4">
+        <Pressable onPress={signOut} className="rounded-xl border border-gray-100 bg-surface p-4">
           <Text className="text-center text-red-600">{t.signOut}</Text>
         </Pressable>
       </ScrollView>

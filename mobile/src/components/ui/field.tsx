@@ -24,4 +24,4 @@ export function Field({
 // Shared border/padding for anything that looks like an input box (TextInput, and the
 // Pressables that open the select and date pickers).
 export const inputBoxClass =
-  "rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-base text-gray-900";
+  "rounded-lg border border-gray-200 bg-surface px-3 py-2.5 text-base text-gray-900";
