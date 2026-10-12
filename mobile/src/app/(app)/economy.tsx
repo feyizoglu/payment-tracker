@@ -139,13 +139,12 @@ export default function Economy() {
             </Pressable>
           </View>
 
-          {banner.goldError ? (
+          <View className="flex-row items-center justify-between">
+            <Text className="flex-1 text-xs text-amber-700">{banner.goldError ? t.goldError : ""}</Text>
             <Pressable onPress={() => router.push("/manual-gold")}>
-              <Text className="text-xs text-amber-700">
-                {t.goldError} — {t.enterGoldManually}
-              </Text>
+              <Text className="text-amber-700">✎ {t.enterGoldManually}</Text>
             </Pressable>
-          ) : null}
+          </View>
         </View>
 
         <SegmentedToggle
