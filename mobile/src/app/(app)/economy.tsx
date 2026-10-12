@@ -7,6 +7,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } 
 
 import { BankGroup } from "@/components/bank-group";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { TabScreen } from "@/components/tab-screen";
 import { useAuth } from "@/lib/auth-context";
 import { EXCHANGE_RATES_PATH, ratesBanner, restoredRatesStatus, type RatesStatus } from "@/lib/economy-rates";
 import {
@@ -99,14 +100,14 @@ export default function Economy() {
 
   if (!ready) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <TabScreen className="items-center justify-center bg-white">
         <ActivityIndicator />
-      </View>
+      </TabScreen>
     );
   }
 
   return (
-    <View className="flex-1 bg-white">
+    <TabScreen>
       <ScrollView
         contentContainerClassName="gap-4 p-4"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
@@ -194,6 +195,6 @@ export default function Economy() {
         className="absolute bottom-20 right-5 h-14 w-14 items-center justify-center rounded-full bg-brand shadow-lg">
         <Text className="text-2xl leading-7 text-brand-fg">+</Text>
       </Pressable>
-    </View>
+    </TabScreen>
   );
 }

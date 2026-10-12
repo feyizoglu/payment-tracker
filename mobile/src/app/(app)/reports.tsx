@@ -15,6 +15,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } 
 import { ReportRow } from "@/components/report-row";
 import { DateField } from "@/components/ui/date-field";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { TabScreen } from "@/components/tab-screen";
 import { useAuth } from "@/lib/auth-context";
 import { formatDayLong } from "@/lib/calendar";
 import { fromIsoDate } from "@/lib/dates";
@@ -85,16 +86,16 @@ export default function Reports() {
 
   if (!ready) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <TabScreen className="items-center justify-center bg-white">
         <ActivityIndicator />
-      </View>
+      </TabScreen>
     );
   }
 
   const showing = kind === "range" ? report.occurrences : upcoming.occurrences;
 
   return (
-    <View className="flex-1 bg-white">
+    <TabScreen>
       <ScrollView
         contentContainerClassName="gap-4 p-4"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
@@ -167,6 +168,6 @@ export default function Reports() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </TabScreen>
   );
 }

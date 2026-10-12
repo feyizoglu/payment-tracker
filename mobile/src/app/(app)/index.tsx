@@ -4,6 +4,7 @@ import { router, useFocusEffect } from "expo-router";
 import type { Occurrence, Payment, RecurringPayment } from "@ptracker/shared/types";
 import { useLang } from "@ptracker/shared/i18n";
 import { getOccurrencesForMonth } from "@ptracker/shared/payments";
+import { TabScreen } from "@/components/tab-screen";
 import { useAuth } from "@/lib/auth-context";
 import { toIsoDate } from "@/lib/dates";
 import { occurrenceEditRoute, seriesEditRoute } from "@/lib/occurrence-edit";
@@ -110,14 +111,14 @@ export default function Payments() {
 
   if (!ready) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <TabScreen className="items-center justify-center bg-white">
         <ActivityIndicator />
-      </View>
+      </TabScreen>
     );
   }
 
   return (
-    <View className="flex-1 bg-white">
+    <TabScreen>
       <MonthHeader
         year={year}
         month={month}
@@ -162,6 +163,6 @@ export default function Payments() {
         className="absolute bottom-20 right-5 h-14 w-14 items-center justify-center rounded-full bg-brand shadow-lg">
         <Text className="text-2xl leading-7 text-brand-fg">+</Text>
       </Pressable>
-    </View>
+    </TabScreen>
   );
 }
