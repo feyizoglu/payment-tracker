@@ -42,7 +42,7 @@ export function AssetRow({
     <View className="flex-row items-center gap-3 border-t border-gray-50 px-3 py-2.5">
       <View
         className="h-7 w-7 items-center justify-center rounded-full"
-        style={{ backgroundColor: hashColor(asset.user_id) }}>
+        style={{ backgroundColor: asset.user?.color ?? hashColor(asset.user_id) }}>
         <Text className="text-xs font-semibold text-white">
           {(ownerName || "?").charAt(0).toUpperCase()}
         </Text>
