@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { ReactNode } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/ui/primary-button";
 
@@ -28,9 +29,11 @@ export function FormScreen({
   footer?: ReactNode;
   children: ReactNode;
 }) {
+  const { top } = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white"
+      className="flex-1 bg-surface"
+      style={{ paddingTop: top }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View className="flex-row items-center justify-between border-b border-gray-100 px-4 py-3">
         <Pressable onPress={() => router.back()} disabled={busy}>

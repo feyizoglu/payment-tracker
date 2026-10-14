@@ -5,11 +5,13 @@ import type { Occurrence } from "@ptracker/shared/types";
 import { buildCalendarWeeks, weekdayLabels } from "@/lib/calendar";
 import { dayKey, groupOccurrencesByDay, occurrenceKey } from "@/lib/occurrences";
 import { OccurrenceRow } from "@/components/occurrence-row";
+import { personColor, type People } from "@/lib/people";
 
 export function PaymentsCalendar({
   year,
   month,
   occurrences,
+  people,
   selectedDay,
   onSelectDay,
   busyKey,
@@ -20,6 +22,7 @@ export function PaymentsCalendar({
   year: number;
   month: number; // 0-indexed
   occurrences: Occurrence[];
+  people: People;
   selectedDay: Date | null;
   onSelectDay: (d: Date) => void;
   busyKey: string | null;
@@ -36,6 +39,7 @@ export function PaymentsCalendar({
     return map;
   }, [occurrences]);
 
+  const todayKey = dayKey(new Date());
   const selectedKey = selectedDay ? dayKey(selectedDay) : null;
   const selectedItems = selectedKey ? (byDay.get(selectedKey) ?? []) : [];
 
@@ -50,18 +54,34 @@ export function PaymentsCalendar({
         <View key={wi} className="flex-row">
           {week.map((day) => {
             const inMonth = day.getMonth() === month;
-            const has = byDay.has(dayKey(day));
+            const items = byDay.get(dayKey(day)) ?? [];
             const selected = selectedKey === dayKey(day);
+            const isToday = inMonth && todayKey === dayKey(day);
             return (
               <Pressable
                 key={dayKey(day)}
                 disabled={!inMonth}
                 onPress={() => onSelectDay(day)}
                 className={`h-12 flex-1 items-center justify-center ${selected ? "rounded-lg bg-blue-50" : ""}`}>
-                <Text className={`text-sm ${inMonth ? "text-gray-800" : "text-gray-300"} ${selected ? "font-semibold text-blue-600" : ""}`}>
-                  {day.getDate()}
-                </Text>
-                {has ? <View className="mt-0.5 h-1.5 w-1.5 rounded-full bg-blue-500" /> : <View className="mt-0.5 h-1.5" />}
+                <View className={`h-6 w-6 items-center justify-center rounded-full ${isToday ? "bg-brand" : ""}`}>
+                  <Text
+                    className={`text-sm ${
+                      isToday
+                        ? "font-semibold text-brand-fg"
+                        : `${inMonth ? "text-gray-800" : "text-gray-300"} ${selected ? "font-semibold text-blue-600" : ""}`
+                    }`}>
+                    {day.getDate()}
+                  </Text>
+                </View>
+                <View className="mt-0.5 h-1.5 flex-row gap-0.5">
+                  {items.slice(0, 4).map((o) => (
+                    <View
+                      key={occurrenceKey(o)}
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ backgroundColor: o.isPaid ? "#86EFAC" : personColor(people, o.user_id) }}
+                    />
+                  ))}
+                </View>
               </Pressable>
             );
           })}
@@ -77,6 +97,7 @@ export function PaymentsCalendar({
               <OccurrenceRow
                 key={occurrenceKey(o)}
                 occurrence={o}
+                people={people}
                 busy={busyKey === occurrenceKey(o)}
                 onTogglePaid={onTogglePaid}
                 onEdit={onEdit}

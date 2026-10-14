@@ -34,3 +34,27 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true }, { status: 201 });
 }
+
+// Called on sign-out so a phone that is no longer signed in stops getting reminders.
+export async function DELETE(req: NextRequest) {
+  const user = await getSessionUser(req);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const token = body?.expo_push_token;
+  if (typeof token !== "string" || !token.startsWith("ExponentPushToken")) {
+    return NextResponse.json({ error: "expo_push_token required" }, { status: 400 });
+  }
+
+  const db = supabaseAdmin();
+  const { error } = await db
+    .from("devices")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("expo_push_token", token);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}

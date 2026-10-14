@@ -5,15 +5,18 @@ import type { Occurrence } from "@ptracker/shared/types";
 import { groupOccurrencesByDay, occurrenceKey } from "@/lib/occurrences";
 import { formatDayShort } from "@/lib/calendar";
 import { OccurrenceRow } from "@/components/occurrence-row";
+import type { People } from "@/lib/people";
 
 export function MonthList({
   occurrences,
+  people,
   busyKey,
   onTogglePaid,
   onEdit,
   onEditSeries,
 }: {
   occurrences: Occurrence[];
+  people: People;
   busyKey: string | null;
   onTogglePaid: (o: Occurrence) => void;
   onEdit: (o: Occurrence) => void;
@@ -36,6 +39,7 @@ export function MonthList({
               <OccurrenceRow
                 key={occurrenceKey(o)}
                 occurrence={o}
+                people={people}
                 busy={busyKey === occurrenceKey(o)}
                 onTogglePaid={onTogglePaid}
                 onEdit={onEdit}

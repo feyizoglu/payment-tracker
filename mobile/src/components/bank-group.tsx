@@ -35,7 +35,7 @@ export function BankGroup({
   const subtotal = assetTotalIn(assets, preferredCurrency, rates);
 
   return (
-    <View className="overflow-hidden rounded-xl border border-gray-100 bg-white">
+    <View className="overflow-hidden rounded-xl border border-gray-100 bg-surface">
       <Pressable className="flex-row items-center gap-3 p-3" onPress={() => setExpanded((prev) => !prev)}>
         <View className="flex-1">
           <Text className="font-semibold text-gray-900">{bankName}</Text>

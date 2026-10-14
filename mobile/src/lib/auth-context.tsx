@@ -1,8 +1,11 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import * as Device from "expo-device";
 import { createApiClient, type ApiClient } from "./api";
 import { exchangeGoogleIdToken, fetchProfile, type MobileAuthResponse } from "./auth";
 import { getApiUrl } from "./config";
+import { registerForPush, unregisterFromPush } from "./push";
+import { getNativePushToken, nativePushDeps } from "./push-native";
 import { clearToken, getToken, setToken } from "./storage";
 
 // Single source of truth: mirror the exact profile shape the auth endpoint
@@ -20,10 +23,29 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+// Best-effort, through a client with no onUnauthorized: signOut is itself the 401
+// handler, so a rejected JWT must not loop back into it.
+function unregisterDevice(jwt: string, knownToken: string | null): Promise<void> {
+  const client = createApiClient({ baseUrl: getApiUrl(), getToken: async () => jwt });
+  return unregisterFromPush({
+    knownToken,
+    isDevice: Device.isDevice,
+    getPushToken: getNativePushToken,
+    del: (path, body) => client.del(path, body),
+  }).catch((e) => console.warn("push unregister failed", e));
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [token, setTok] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  // Refs, not state: signOut must reach the current values without depending on
+  // `api`, which itself depends on signOut.
+  const jwtRef = useRef<string | null>(null);
+  const pushTokenRef = useRef<string | null>(null);
+  // Every register/unregister runs in order on this chain, so a late DELETE can never
+  // land after a newer session's POST and remove its row.
+  const pushQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const signOut = useCallback(async () => {
     // Drop the Google session too, so the next sign-in shows the account
@@ -35,9 +57,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore — local sign-out is what actually ends the session
     }
+    const pushToken = pushTokenRef.current;
+    const jwt = jwtRef.current;
+    pushTokenRef.current = null;
     await clearToken();
     setTok(null);
     setUser(null);
+    // Stop reminders reaching this phone, without holding up the sign-out. An expired
+    // JWT (the 401 path) cannot unregister; the row moves to whoever signs in here next.
+    if (jwt) pushQueueRef.current = pushQueueRef.current.then(() => unregisterDevice(jwt, pushToken));
   }, []);
 
   // One API client instance; reads the latest token via the closed-over getter.
@@ -100,6 +128,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [api, token, user]);
+
+  useEffect(() => {
+    jwtRef.current = token;
+  }, [token]);
+
+  // Register this phone for reminders once per signed-in session. Failures are
+  // swallowed: notifications are a bonus, never a reason to block the app.
+  useEffect(() => {
+    if (token == null) return;
+    let cancelled = false;
+    pushQueueRef.current = pushQueueRef.current
+      .then(async () => {
+        if (cancelled) return;
+        const outcome = await registerForPush(nativePushDeps((path, body) => api.post(path, body)));
+        if (outcome.kind !== "registered") return;
+        // Signed out while the POST was in flight: it landed after signOut's DELETE.
+        if (cancelled) await unregisterDevice(token, outcome.token);
+        else pushTokenRef.current = outcome.token;
+      })
+      .catch((e) => console.warn("push registration failed", e));
+    return () => {
+      cancelled = true;
+    };
+    // `api` changes with `token`; keying on token alone avoids a second registration.
+  }, [token]);
 
   // Gate on token presence, not `user`: a restored session has a token but no
   // profile yet. An expired token self-heals — the first 401 triggers signOut.

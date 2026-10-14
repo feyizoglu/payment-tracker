@@ -1,8 +1,9 @@
 import '../../tailwind.css';
 
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
+import { useLastNotificationResponse } from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, useColorScheme, View } from 'react-native';
 
 import { LanguageProvider, type Lang } from '@ptracker/shared/i18n';
@@ -10,6 +11,7 @@ import { LanguageProvider, type Lang } from '@ptracker/shared/i18n';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language-storage';
+import { monthFromNotificationData } from '@/lib/push';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -18,12 +20,27 @@ SplashScreen.preventAutoHideAsync();
 // conditionally rendering a screen component.
 function RootNavigator() {
   const { ready, isAuthenticated } = useAuth();
+  const lastNotification = useLastNotificationResponse();
+  // The hook keeps returning the last tap for the life of the process; without this a
+  // sign-out and sign-in would replay it.
+  const handledTapRef = useRef<string | null>(null);
+
+  // A tapped reminder opens the Payments tab on the month it is about.
+  useEffect(() => {
+    if (!ready || !isAuthenticated || !lastNotification) return;
+    const { request } = lastNotification.notification;
+    if (handledTapRef.current === request.identifier) return;
+    handledTapRef.current = request.identifier;
+    const month = monthFromNotificationData(request.content.data);
+    // `tap` makes a second tap for the same month re-apply it after the user browsed away.
+    router.navigate(month ? { pathname: '/', params: { month, tap: request.identifier } } : '/');
+  }, [ready, isAuthenticated, lastNotification]);
 
   // While the stored token is being restored, render nothing — the animated
   // splash overlay covers the screen until `ready` flips.
   if (!ready) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View className="flex-1 items-center justify-center bg-surface">
         <ActivityIndicator />
       </View>
     );
@@ -61,7 +78,7 @@ function LanguageGate({ children }: { children: React.ReactNode }) {
     getStoredLanguage().then((stored) => setLang(stored ?? 'tr'));
   }, []);
 
-  if (!lang) return <View className="flex-1 bg-white" />;
+  if (!lang) return <View className="flex-1 bg-surface" />;
 
   return (
     <LanguageProvider initialLang={lang} onLangChange={setStoredLanguage}>

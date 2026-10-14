@@ -1,22 +1,25 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
-import { router, useFocusEffect } from "expo-router";
-import type { Occurrence, Payment, RecurringPayment } from "@ptracker/shared/types";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import type { Occurrence, Payment, RecurringPayment, Team } from "@ptracker/shared/types";
 import { useLang } from "@ptracker/shared/i18n";
 import { getOccurrencesForMonth } from "@ptracker/shared/payments";
+import { TabScreen } from "@/components/tab-screen";
 import { useAuth } from "@/lib/auth-context";
 import { toIsoDate } from "@/lib/dates";
 import { occurrenceEditRoute, seriesEditRoute } from "@/lib/occurrence-edit";
 import { markPaidRequest, occurrenceKey } from "@/lib/occurrences";
+import { buildPeople } from "@/lib/people";
 import { MonthHeader, type PaymentsView } from "@/components/month-header";
 import { MonthList } from "@/components/month-list";
 import { PaymentsCalendar } from "@/components/payments-calendar";
 
 export default function Payments() {
   const { t } = useLang();
-  const { api } = useAuth();
+  const { api, user } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [recurrings, setRecurrings] = useState<RecurringPayment[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -28,15 +31,27 @@ export default function Payments() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
+  // Set by a tapped reminder notification ("yyyy-MM").
+  const { month: monthParam, tap } = useLocalSearchParams<{ month?: string; tap?: string }>();
+  useEffect(() => {
+    const match = monthParam?.match(/^(\d{4})-(\d{2})$/);
+    if (!match) return;
+    setSelectedDay(null);
+    setCursor({ year: Number(match[1]), month: Number(match[2]) - 1 });
+  }, [monthParam, tap]);
+
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [p, r] = await Promise.all([
+      const [p, r, tm] = await Promise.all([
         api.get<Payment[]>("/api/payments?filter=all"),
         api.get<RecurringPayment[]>("/api/recurring?filter=all"),
+        // Only tints the rows; a failure here must not hide the payments.
+        api.get<Team[]>("/api/teams").catch(() => [] as Team[]),
       ]);
       setPayments(p);
       setRecurrings(r);
+      setTeams(tm);
     } catch (e) {
       setError(e instanceof Error ? e.message : t.loadFailed);
     } finally {
@@ -58,6 +73,8 @@ export default function Payments() {
     await load();
     setRefreshing(false);
   }, [load]);
+
+  const people = useMemo(() => buildPeople(teams, user), [teams, user]);
 
   const occurrences = useMemo(
     () => getOccurrencesForMonth(payments, recurrings, year, month),
@@ -110,14 +127,14 @@ export default function Payments() {
 
   if (!ready) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <TabScreen className="items-center justify-center bg-surface">
         <ActivityIndicator />
-      </View>
+      </TabScreen>
     );
   }
 
   return (
-    <View className="flex-1 bg-white">
+    <TabScreen>
       <MonthHeader
         year={year}
         month={month}
@@ -138,6 +155,7 @@ export default function Payments() {
         {view === "list" ? (
           <MonthList
             occurrences={occurrences}
+            people={people}
             busyKey={busyKey}
             onTogglePaid={onTogglePaid}
             onEdit={onEdit}
@@ -148,6 +166,7 @@ export default function Payments() {
             year={year}
             month={month}
             occurrences={occurrences}
+            people={people}
             selectedDay={selectedDay}
             onSelectDay={setSelectedDay}
             busyKey={busyKey}
@@ -162,6 +181,6 @@ export default function Payments() {
         className="absolute bottom-20 right-5 h-14 w-14 items-center justify-center rounded-full bg-brand shadow-lg">
         <Text className="text-2xl leading-7 text-brand-fg">+</Text>
       </Pressable>
-    </View>
+    </TabScreen>
   );
 }

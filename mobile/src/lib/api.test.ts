@@ -131,4 +131,17 @@ describe("createApiClient", () => {
     });
     await expect(client.del("/api/payments/p1")).resolves.toBeUndefined();
   });
+
+  it("sends a JSON body with DELETE when one is given", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    const client = createApiClient({
+      baseUrl: "https://api.example.com",
+      getToken: async () => null,
+      fetchImpl,
+    });
+    await client.del("/api/devices", { expo_push_token: "ExponentPushToken[x]" });
+    const [, init] = fetchImpl.mock.calls[0];
+    expect(init.method).toBe("DELETE");
+    expect(init.body).toBe(JSON.stringify({ expo_push_token: "ExponentPushToken[x]" }));
+  });
 });

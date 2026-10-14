@@ -14,7 +14,7 @@ export function ReportRow({ occurrence, paidLabel }: { occurrence: Occurrence; p
   return (
     <View
       className={`flex-row items-center gap-3 rounded-xl border p-3 ${
-        o.isPaid ? "border-green-100 bg-green-50" : "border-gray-100 bg-white"
+        o.isPaid ? "border-green-100 bg-green-50" : "border-gray-100 bg-surface"
       }`}>
       <View className="flex-1">
         <View className="flex-row items-center gap-2">
