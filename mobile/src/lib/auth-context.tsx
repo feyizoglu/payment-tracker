@@ -25,9 +25,9 @@ const AuthContext = createContext<AuthState | null>(null);
 
 // Best-effort, through a client with no onUnauthorized: signOut is itself the 401
 // handler, so a rejected JWT must not loop back into it.
-function unregisterDevice(jwt: string, knownToken: string | null) {
+function unregisterDevice(jwt: string, knownToken: string | null): Promise<void> {
   const client = createApiClient({ baseUrl: getApiUrl(), getToken: async () => jwt });
-  unregisterFromPush({
+  return unregisterFromPush({
     knownToken,
     isDevice: Device.isDevice,
     getPushToken: getNativePushToken,
@@ -43,6 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // `api`, which itself depends on signOut.
   const jwtRef = useRef<string | null>(null);
   const pushTokenRef = useRef<string | null>(null);
+  // The next registration waits for this, or a late DELETE would remove the new row.
+  const pendingUnregisterRef = useRef<Promise<void>>(Promise.resolve());
 
   const signOut = useCallback(async () => {
     // Drop the Google session too, so the next sign-in shows the account
@@ -62,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     // Stop reminders reaching this phone, without holding up the sign-out. An expired
     // JWT (the 401 path) cannot unregister; the row moves to whoever signs in here next.
-    if (jwt) unregisterDevice(jwt, pushToken);
+    if (jwt) pendingUnregisterRef.current = unregisterDevice(jwt, pushToken);
   }, []);
 
   // One API client instance; reads the latest token via the closed-over getter.
@@ -135,11 +137,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (token == null) return;
     let cancelled = false;
-    registerForPush(nativePushDeps((path, body) => api.post(path, body)))
+    pendingUnregisterRef.current
+      .then(() => (cancelled ? null : registerForPush(nativePushDeps((path, body) => api.post(path, body)))))
       .then((outcome) => {
-        if (outcome.kind !== "registered") return;
+        if (outcome?.kind !== "registered") return;
         // Signed out while the POST was in flight: it landed after signOut's DELETE.
-        if (cancelled) unregisterDevice(token, outcome.token);
+        if (cancelled) pendingUnregisterRef.current = unregisterDevice(token, outcome.token);
         else pushTokenRef.current = outcome.token;
       })
       .catch((e) => console.warn("push registration failed", e));
