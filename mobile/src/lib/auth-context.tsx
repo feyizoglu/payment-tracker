@@ -43,8 +43,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // `api`, which itself depends on signOut.
   const jwtRef = useRef<string | null>(null);
   const pushTokenRef = useRef<string | null>(null);
-  // The next registration waits for this, or a late DELETE would remove the new row.
-  const pendingUnregisterRef = useRef<Promise<void>>(Promise.resolve());
+  // Every register/unregister runs in order on this chain, so a late DELETE can never
+  // land after a newer session's POST and remove its row.
+  const pushQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const signOut = useCallback(async () => {
     // Drop the Google session too, so the next sign-in shows the account
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     // Stop reminders reaching this phone, without holding up the sign-out. An expired
     // JWT (the 401 path) cannot unregister; the row moves to whoever signs in here next.
-    if (jwt) pendingUnregisterRef.current = unregisterDevice(jwt, pushToken);
+    if (jwt) pushQueueRef.current = pushQueueRef.current.then(() => unregisterDevice(jwt, pushToken));
   }, []);
 
   // One API client instance; reads the latest token via the closed-over getter.
@@ -137,12 +138,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (token == null) return;
     let cancelled = false;
-    pendingUnregisterRef.current
-      .then(() => (cancelled ? null : registerForPush(nativePushDeps((path, body) => api.post(path, body)))))
-      .then((outcome) => {
-        if (outcome?.kind !== "registered") return;
+    pushQueueRef.current = pushQueueRef.current
+      .then(async () => {
+        if (cancelled) return;
+        const outcome = await registerForPush(nativePushDeps((path, body) => api.post(path, body)));
+        if (outcome.kind !== "registered") return;
         // Signed out while the POST was in flight: it landed after signOut's DELETE.
-        if (cancelled) pendingUnregisterRef.current = unregisterDevice(token, outcome.token);
+        if (cancelled) await unregisterDevice(token, outcome.token);
         else pushTokenRef.current = outcome.token;
       })
       .catch((e) => console.warn("push registration failed", e));
