@@ -80,3 +80,31 @@ describe("DELETE /api/devices", () => {
     expect(eq2).toHaveBeenCalledWith("expo_push_token", "ExponentPushToken[x]");
   });
 });
+
+describe("DELETE /api/devices failure paths", () => {
+  it("400s on a body that is not JSON", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue({ id: "u-1", email: "a@b.com" });
+    const req = new Request("http://localhost/api/devices", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: "not json",
+    });
+    const res = await DELETE(req as never);
+    expect(res.status).toBe(400);
+    expect(supabaseAdmin).not.toHaveBeenCalled();
+  });
+
+  it("500s with the database error message", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue({ id: "u-1", email: "a@b.com" });
+    const eq2 = vi.fn().mockResolvedValue({ error: { message: "boom" } });
+    const eq1 = vi.fn(() => ({ eq: eq2 }));
+    const del_ = vi.fn(() => ({ eq: eq1 }));
+    const from = vi.fn(() => ({ delete: del_ }));
+    vi.mocked(supabaseAdmin).mockReturnValue({ from } as never);
+
+    const res = await DELETE(del({ expo_push_token: "ExponentPushToken[x]" }) as never);
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "boom" });
+  });
+});

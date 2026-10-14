@@ -32,6 +32,13 @@ describe("buildPeople", () => {
     const people = buildPeople([team(member("u2", null, null))], null);
     expect(people.u2).toEqual({ name: "u2@x.com", color: hashColor("u2") });
   });
+
+  it("skips a member whose user was not loaded", () => {
+    const orphan: TeamMember = { ...member("u2", "Cansu"), user: undefined };
+    const people = buildPeople([team(orphan, member("u3", "Ali"))], null);
+    expect(people).not.toHaveProperty("u2");
+    expect(people.u3).toEqual({ name: "Ali", color: hashColor("u3") });
+  });
 });
 
 describe("personColor", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { DEVICES_PATH, monthFromNotificationData, registerForPush, type PushDeps } from "./push";
+import { DEVICES_PATH, monthFromNotificationData, registerForPush, unregisterBody, type PushDeps } from "./push";
 
 function deps(over: Partial<PushDeps> = {}): PushDeps {
   return {
@@ -76,5 +76,11 @@ describe("monthFromNotificationData", () => {
     expect(monthFromNotificationData(undefined)).toBeNull();
     expect(monthFromNotificationData({ month: "2026-13" })).toBeNull();
     expect(monthFromNotificationData({ month: 202610 })).toBeNull();
+  });
+});
+
+describe("unregisterBody", () => {
+  it("matches the DELETE /api/devices body", () => {
+    expect(unregisterBody("ExponentPushToken[abc]")).toEqual({ expo_push_token: "ExponentPushToken[abc]" });
   });
 });
