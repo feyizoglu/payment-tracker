@@ -39,6 +39,7 @@ export function PaymentsCalendar({
     return map;
   }, [occurrences]);
 
+  const todayKey = dayKey(new Date());
   const selectedKey = selectedDay ? dayKey(selectedDay) : null;
   const selectedItems = selectedKey ? (byDay.get(selectedKey) ?? []) : [];
 
@@ -55,15 +56,23 @@ export function PaymentsCalendar({
             const inMonth = day.getMonth() === month;
             const items = byDay.get(dayKey(day)) ?? [];
             const selected = selectedKey === dayKey(day);
+            const isToday = todayKey === dayKey(day);
             return (
               <Pressable
                 key={dayKey(day)}
                 disabled={!inMonth}
                 onPress={() => onSelectDay(day)}
                 className={`h-12 flex-1 items-center justify-center ${selected ? "rounded-lg bg-blue-50" : ""}`}>
-                <Text className={`text-sm ${inMonth ? "text-gray-800" : "text-gray-300"} ${selected ? "font-semibold text-blue-600" : ""}`}>
-                  {day.getDate()}
-                </Text>
+                <View className={`h-6 w-6 items-center justify-center rounded-full ${isToday ? "bg-brand" : ""}`}>
+                  <Text
+                    className={`text-sm ${
+                      isToday
+                        ? "font-semibold text-brand-fg"
+                        : `${inMonth ? "text-gray-800" : "text-gray-300"} ${selected ? "font-semibold text-blue-600" : ""}`
+                    }`}>
+                    {day.getDate()}
+                  </Text>
+                </View>
                 <View className="mt-0.5 h-1.5 flex-row gap-0.5">
                   {items.slice(0, 4).map((o) => (
                     <View
