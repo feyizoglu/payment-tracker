@@ -1,10 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import * as Device from "expo-device";
 import { createApiClient, type ApiClient } from "./api";
 import { exchangeGoogleIdToken, fetchProfile, type MobileAuthResponse } from "./auth";
 import { getApiUrl } from "./config";
-import { DEVICES_PATH, registerForPush, unregisterBody } from "./push";
-import { nativePushDeps } from "./push-native";
+import { registerForPush, unregisterFromPush } from "./push";
+import { getNativePushToken, nativePushDeps } from "./push-native";
 import { clearToken, getToken, setToken } from "./storage";
 
 // Single source of truth: mirror the exact profile shape the auth endpoint
@@ -21,6 +22,18 @@ interface AuthState {
 }
 
 const AuthContext = createContext<AuthState | null>(null);
+
+// Best-effort, through a client with no onUnauthorized: signOut is itself the 401
+// handler, so a rejected JWT must not loop back into it.
+function unregisterDevice(jwt: string, knownToken: string | null) {
+  const client = createApiClient({ baseUrl: getApiUrl(), getToken: async () => jwt });
+  unregisterFromPush({
+    knownToken,
+    isDevice: Device.isDevice,
+    getPushToken: getNativePushToken,
+    del: (path, body) => client.del(path, body),
+  }).catch((e) => console.warn("push unregister failed", e));
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -41,24 +54,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore — local sign-out is what actually ends the session
     }
-    // Stop reminders reaching this phone. Best-effort, and through a client with no
-    // onUnauthorized: signOut is itself the 401 handler, so an expired JWT must not loop.
     const pushToken = pushTokenRef.current;
     const jwt = jwtRef.current;
-    if (pushToken && jwt) {
-      try {
-        await createApiClient({ baseUrl: getApiUrl(), getToken: async () => jwt }).del(
-          DEVICES_PATH,
-          unregisterBody(pushToken)
-        );
-      } catch {
-        // ignore — the cron drops tokens Expo reports as unregistered
-      }
-    }
     pushTokenRef.current = null;
     await clearToken();
     setTok(null);
     setUser(null);
+    // Stop reminders reaching this phone, without holding up the sign-out. An expired
+    // JWT (the 401 path) cannot unregister; the row moves to whoever signs in here next.
+    if (jwt) unregisterDevice(jwt, pushToken);
   }, []);
 
   // One API client instance; reads the latest token via the closed-over getter.
@@ -133,7 +137,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     registerForPush(nativePushDeps((path, body) => api.post(path, body)))
       .then((outcome) => {
-        if (!cancelled && outcome.kind === "registered") pushTokenRef.current = outcome.token;
+        if (outcome.kind !== "registered") return;
+        // Signed out while the POST was in flight: it landed after signOut's DELETE.
+        if (cancelled) unregisterDevice(token, outcome.token);
+        else pushTokenRef.current = outcome.token;
       })
       .catch((e) => console.warn("push registration failed", e));
     return () => {

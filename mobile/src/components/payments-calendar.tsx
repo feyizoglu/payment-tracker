@@ -56,7 +56,7 @@ export function PaymentsCalendar({
             const inMonth = day.getMonth() === month;
             const items = byDay.get(dayKey(day)) ?? [];
             const selected = selectedKey === dayKey(day);
-            const isToday = todayKey === dayKey(day);
+            const isToday = inMonth && todayKey === dayKey(day);
             return (
               <Pressable
                 key={dayKey(day)}

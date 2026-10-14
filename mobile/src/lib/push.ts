@@ -39,6 +39,18 @@ export function unregisterBody(token: string) {
   return { expo_push_token: token };
 }
 
+// knownToken is null when this session's registration never finished (offline,
+// failed POST) while a row from an earlier session may still exist, so ask Expo.
+export async function unregisterFromPush(deps: {
+  knownToken: string | null;
+  isDevice: boolean;
+  getPushToken: () => Promise<string>;
+  del: (path: string, body: unknown) => Promise<unknown>;
+}): Promise<void> {
+  const token = deps.knownToken ?? (deps.isDevice ? await deps.getPushToken() : null);
+  if (token) await deps.del(DEVICES_PATH, unregisterBody(token));
+}
+
 // The cron puts the due month ("yyyy-MM") in the payload; anything else is ignored.
 export function monthFromNotificationData(data: unknown): string | null {
   const month = (data as { month?: unknown } | null | undefined)?.month;

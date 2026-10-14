@@ -32,13 +32,13 @@ export default function Payments() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   // Set by a tapped reminder notification ("yyyy-MM").
-  const { month: monthParam } = useLocalSearchParams<{ month?: string }>();
+  const { month: monthParam, tap } = useLocalSearchParams<{ month?: string; tap?: string }>();
   useEffect(() => {
     const match = monthParam?.match(/^(\d{4})-(\d{2})$/);
     if (!match) return;
     setSelectedDay(null);
     setCursor({ year: Number(match[1]), month: Number(match[2]) - 1 });
-  }, [monthParam]);
+  }, [monthParam, tap]);
 
   const load = useCallback(async () => {
     setError(null);

@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { DEVICES_PATH, monthFromNotificationData, registerForPush, unregisterBody, type PushDeps } from "./push";
+import {
+  DEVICES_PATH,
+  monthFromNotificationData,
+  registerForPush,
+  unregisterBody,
+  unregisterFromPush,
+  type PushDeps,
+} from "./push";
 
 function deps(over: Partial<PushDeps> = {}): PushDeps {
   return {
@@ -82,5 +89,38 @@ describe("monthFromNotificationData", () => {
 describe("unregisterBody", () => {
   it("matches the DELETE /api/devices body", () => {
     expect(unregisterBody("ExponentPushToken[abc]")).toEqual({ expo_push_token: "ExponentPushToken[abc]" });
+  });
+});
+
+describe("unregisterFromPush", () => {
+  const getPushToken = () => vi.fn().mockResolvedValue("ExponentPushToken[fresh]");
+
+  it("deletes the token this session registered without asking Expo", async () => {
+    const del = vi.fn().mockResolvedValue({ ok: true });
+    const fetchToken = getPushToken();
+    await unregisterFromPush({ knownToken: "ExponentPushToken[abc]", isDevice: true, getPushToken: fetchToken, del });
+    expect(fetchToken).not.toHaveBeenCalled();
+    expect(del).toHaveBeenCalledWith(DEVICES_PATH, { expo_push_token: "ExponentPushToken[abc]" });
+  });
+
+  it("asks Expo for the token when this session never registered", async () => {
+    const del = vi.fn().mockResolvedValue({ ok: true });
+    await unregisterFromPush({ knownToken: null, isDevice: true, getPushToken: getPushToken(), del });
+    expect(del).toHaveBeenCalledWith(DEVICES_PATH, { expo_push_token: "ExponentPushToken[fresh]" });
+  });
+
+  it("does nothing on an emulator with no known token", async () => {
+    const del = vi.fn();
+    const fetchToken = getPushToken();
+    await unregisterFromPush({ knownToken: null, isDevice: false, getPushToken: fetchToken, del });
+    expect(fetchToken).not.toHaveBeenCalled();
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it("propagates a failed DELETE so the caller can log it", async () => {
+    const del = vi.fn().mockRejectedValue(new Error("offline"));
+    await expect(
+      unregisterFromPush({ knownToken: "ExponentPushToken[abc]", isDevice: true, getPushToken: getPushToken(), del })
+    ).rejects.toThrow("offline");
   });
 });

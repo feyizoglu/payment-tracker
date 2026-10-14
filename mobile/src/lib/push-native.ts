@@ -16,6 +16,12 @@ Notifications.setNotificationHandler({
   }),
 });
 
+export async function getNativePushToken(): Promise<string> {
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+  const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+  return data;
+}
+
 export function nativePushDeps(post: PushDeps["post"]): PushDeps {
   return {
     isDevice: Device.isDevice,
@@ -33,11 +39,7 @@ export function nativePushDeps(post: PushDeps["post"]): PushDeps {
       const p = await Notifications.requestPermissionsAsync();
       return { granted: p.granted };
     },
-    getPushToken: async () => {
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-      const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
-      return data;
-    },
+    getPushToken: getNativePushToken,
     post,
   };
 }
