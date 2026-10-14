@@ -50,6 +50,12 @@
       "eas": {
         "projectId": "fab760c3-afc7-4400-8789-df780e68a6ee"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/fab760c3-afc7-4400-8789-df780e68a6ee"
     }
   }
 }
