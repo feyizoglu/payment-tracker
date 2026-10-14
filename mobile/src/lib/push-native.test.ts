@@ -14,7 +14,7 @@ vi.mock("expo-constants", () => ({
 }));
 
 import * as Notifications from "expo-notifications";
-import { nativePushDeps } from "./push-native";
+import { getNativePushToken, nativePushDeps } from "./push-native";
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -49,5 +49,20 @@ describe("nativePushDeps", () => {
   it("passes post through unchanged", () => {
     const post = vi.fn();
     expect(nativePushDeps(post).post).toBe(post);
+  });
+});
+
+describe("getNativePushToken", () => {
+  it("asks Expo for the token of the EAS project and returns its data", async () => {
+    vi.mocked(Notifications.getExpoPushTokenAsync).mockResolvedValue({
+      type: "expo",
+      data: "ExponentPushToken[direct]",
+    } as never);
+    await expect(getNativePushToken()).resolves.toBe("ExponentPushToken[direct]");
+    expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({ projectId: "proj-1" });
+  });
+
+  it("is the token source nativePushDeps hands out", () => {
+    expect(nativePushDeps(vi.fn()).getPushToken).toBe(getNativePushToken);
   });
 });
