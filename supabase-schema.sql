@@ -206,3 +206,63 @@ create policy "Users can view devices" on devices for select using (true);
 create policy "Users can insert devices" on devices for insert with check (true);
 create policy "Users can update devices" on devices for update using (true);
 create policy "Users can delete devices" on devices for delete using (true);
+
+-- Shared event expense splitting. RLS on with no policies: only the server's
+-- service-role client may touch these tables, never the public anon key.
+create table if not exists events (
+  id uuid default gen_random_uuid() primary key,
+  name text not null check (length(trim(name)) > 0),
+  event_date date,
+  created_by uuid not null references users(id) on delete cascade,
+  status text not null default 'open' check (status in ('open', 'closed')),
+  created_at timestamptz default now()
+);
+
+create table if not exists event_participants (
+  id uuid default gen_random_uuid() primary key,
+  event_id uuid not null references events(id) on delete cascade,
+  user_id uuid references users(id) on delete cascade,
+  display_name text,
+  created_at timestamptz default now(),
+  check ((user_id is null) <> (display_name is null)),
+  check (display_name is null or length(trim(display_name)) > 0)
+);
+create unique index if not exists event_participants_event_user
+  on event_participants (event_id, user_id) where user_id is not null;
+
+create table if not exists event_expenses (
+  id uuid default gen_random_uuid() primary key,
+  event_id uuid not null references events(id) on delete cascade,
+  description text not null check (length(trim(description)) > 0),
+  amount_minor bigint not null check (amount_minor > 0),
+  currency text not null check (currency in ('TRY', 'USD', 'EUR', 'GBP')),
+  paid_by uuid not null references event_participants(id),
+  spent_on date not null default current_date,
+  created_by uuid not null references users(id),
+  created_at timestamptz default now()
+);
+
+create table if not exists event_expense_shares (
+  expense_id uuid not null references event_expenses(id) on delete cascade,
+  participant_id uuid not null references event_participants(id),
+  amount_minor bigint not null check (amount_minor >= 0),
+  primary key (expense_id, participant_id)
+);
+
+create table if not exists event_settlements (
+  id uuid default gen_random_uuid() primary key,
+  event_id uuid not null references events(id) on delete cascade,
+  from_participant uuid not null references event_participants(id),
+  to_participant uuid not null references event_participants(id),
+  amount_minor bigint not null check (amount_minor > 0),
+  currency text not null check (currency in ('TRY', 'USD', 'EUR', 'GBP')),
+  created_by uuid not null references users(id),
+  created_at timestamptz default now(),
+  check (from_participant <> to_participant)
+);
+
+alter table events enable row level security;
+alter table event_participants enable row level security;
+alter table event_expenses enable row level security;
+alter table event_expense_shares enable row level security;
+alter table event_settlements enable row level security;
