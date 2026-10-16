@@ -32,14 +32,18 @@ export function OccurrenceRow({
         o.isPaid ? "border-green-100 bg-green-50" : "border-gray-100 bg-surface"
       }`}
       style={{ borderLeftWidth: 3, borderLeftColor: color }}>
-      <Pressable disabled={busy} onPress={() => onTogglePaid(o)} className="disabled:opacity-50">
+      <Pressable
+        disabled={busy}
+        onPress={() => onTogglePaid(o)}
+        hitSlop={8}
+        className={`h-8 w-8 items-center justify-center rounded-full border-2 disabled:opacity-50 ${
+          o.isPaid ? "border-green-500 bg-green-500" : "border-gray-300"
+        }`}>
         {busy ? (
-          <ActivityIndicator />
-        ) : (
-          <Text className={o.isPaid ? "text-green-500" : "text-gray-300"}>
-            {o.isPaid ? "✓" : "○"}
-          </Text>
-        )}
+          <ActivityIndicator size="small" />
+        ) : o.isPaid ? (
+          <Text className="text-base font-bold text-white">✓</Text>
+        ) : null}
       </Pressable>
       <View className="flex-1">
         <Text className={`font-medium ${o.isPaid ? "text-gray-400 line-through" : "text-gray-800"}`}>
