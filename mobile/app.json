@@ -2,7 +2,7 @@
   "expo": {
     "name": "Payment Tracker",
     "slug": "payment-tracker",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "paymenttracker",
@@ -40,7 +40,26 @@
           "color": "#2563EB"
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "UpcomingPayments",
+              "label": "Upcoming payments",
+              "description": "Overdue and next 7 days",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/images/icon.png"
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
