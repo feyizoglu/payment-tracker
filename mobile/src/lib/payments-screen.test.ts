@@ -39,6 +39,7 @@ vi.mock("expo-router", async () => {
 });
 vi.mock("@ptracker/shared/i18n", () => ({ useLang: () => ({ t: {} }) }));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => state.auth }));
+vi.mock("@/lib/widget-refresh", () => ({ refreshWidget: vi.fn() }));
 vi.mock("@/components/tab-screen", async () => {
   const { Fragment, createElement: h } = await import("react");
   return { TabScreen: ({ children }: { children?: unknown }) => h(Fragment, null, children as never) };
@@ -58,6 +59,7 @@ vi.mock("@/components/payments-calendar", () => ({
 }));
 
 import Payments from "@/app/(app)/index";
+import { refreshWidget } from "@/lib/widget-refresh";
 
 interface Root {
   render(node: unknown): void;
@@ -147,5 +149,29 @@ describe("Payments month/tap effect", () => {
     state.params = { month: "2026-03", tap: "n1" };
     await render();
     expect(header().month).toBe(3);
+  });
+});
+
+describe("Payments load", () => {
+  beforeEach(() => {
+    vi.mocked(refreshWidget).mockClear();
+  });
+
+  it("redraws the home screen widget after the payments load", async () => {
+    await render();
+    expect(refreshWidget).toHaveBeenCalled();
+  });
+
+  it("leaves the widget alone when the payments fail to load", async () => {
+    const get = state.auth.api.get;
+    state.auth.api.get = async () => {
+      throw new Error("boom");
+    };
+    try {
+      await render();
+      expect(refreshWidget).not.toHaveBeenCalled();
+    } finally {
+      state.auth.api.get = get;
+    }
   });
 });

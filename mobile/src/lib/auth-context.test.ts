@@ -22,6 +22,7 @@ vi.mock("./auth", () => ({
   exchangeGoogleIdToken: vi.fn(),
   fetchProfile: vi.fn(),
 }));
+vi.mock("./widget-refresh", () => ({ refreshWidget: vi.fn() }));
 vi.mock("./push-native", () => ({
   getNativePushToken: vi.fn(),
   nativePushDeps: vi.fn((post: unknown) => ({ post })),
@@ -37,6 +38,7 @@ import { exchangeGoogleIdToken, fetchProfile } from "./auth";
 import { registerForPush, type PushOutcome } from "./push";
 import { getNativePushToken } from "./push-native";
 import { clearToken, getToken } from "./storage";
+import { refreshWidget } from "./widget-refresh";
 
 interface Root {
   render(node: unknown): void;
@@ -215,6 +217,16 @@ describe("AuthProvider push registration effect", () => {
 });
 
 describe("signOut push unregister", () => {
+  it("redraws the home screen widget after the session is cleared", async () => {
+    await mount();
+    await signOut();
+    expect(clearToken).toHaveBeenCalled();
+    expect(refreshWidget).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(refreshWidget).mock.invocationCallOrder[0]).toBeGreaterThan(
+      vi.mocked(clearToken).mock.invocationCallOrder[0]
+    );
+  });
+
   it("DELETEs the registered token with the JWT held at sign-out", async () => {
     vi.mocked(registerForPush).mockResolvedValue({ kind: "registered", token: "T-reg" });
     await mount();

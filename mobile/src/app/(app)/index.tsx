@@ -10,6 +10,7 @@ import { toIsoDate } from "@/lib/dates";
 import { occurrenceEditRoute, seriesEditRoute } from "@/lib/occurrence-edit";
 import { markPaidRequest, occurrenceKey } from "@/lib/occurrences";
 import { buildPeople } from "@/lib/people";
+import { refreshWidget } from "@/lib/widget-refresh";
 import { MonthHeader, type PaymentsView } from "@/components/month-header";
 import { MonthList } from "@/components/month-list";
 import { PaymentsCalendar } from "@/components/payments-calendar";
@@ -52,6 +53,7 @@ export default function Payments() {
       setPayments(p);
       setRecurrings(r);
       setTeams(tm);
+      refreshWidget();
     } catch (e) {
       setError(e instanceof Error ? e.message : t.loadFailed);
     } finally {

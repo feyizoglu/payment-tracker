@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { useLang, LanguageProvider } from "@ptracker/shared/i18n";
+import { useLang, LanguageProvider, translationsFor } from "@ptracker/shared/i18n";
 
 // Proves the shared i18n module resolves through the mobile toolchain via the
 // @ptracker/shared local package. We assert on the exported provider/hook
@@ -9,5 +9,11 @@ describe("shared/i18n wiring (mobile)", () => {
   it("exposes the provider and hook", () => {
     expect(typeof LanguageProvider).toBe("function");
     expect(typeof useLang).toBe("function");
+  });
+
+  it("exposes the widget strings in both languages", () => {
+    expect(translationsFor("en").widgetTitle).toBe("Upcoming payments");
+    expect(translationsFor("tr").widgetTitle).toBe("Yaklaşan ödemeler");
+    expect(translationsFor("tr").widgetMore.replace("{n}", "3")).toBe("+3 daha");
   });
 });

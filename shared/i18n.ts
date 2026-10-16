@@ -190,6 +190,11 @@ const translations = {
     viewCalendar: "Calendar",
     noPaymentsMonth: "No payments this month",
     noPaymentsThisDay: "No payments on this day",
+    widgetTitle: "Upcoming payments",
+    widgetEmpty: "Nothing due in the next 7 days",
+    widgetSignIn: "Sign in to see your payments",
+    widgetRefreshFailed: "Couldn't refresh",
+    widgetMore: "+{n} more",
     updateFailed: "Could not update",
     signInFailed: "Sign-in failed",
     signInNoIdToken: "Google did not return an ID token",
@@ -378,6 +383,11 @@ const translations = {
     viewCalendar: "Takvim",
     noPaymentsMonth: "Bu ay ödeme yok",
     noPaymentsThisDay: "Bu gün ödeme yok",
+    widgetTitle: "Yaklaşan ödemeler",
+    widgetEmpty: "Önümüzdeki 7 gün boş",
+    widgetSignIn: "Ödemeleri görmek için giriş yap",
+    widgetRefreshFailed: "Yenilenemedi",
+    widgetMore: "+{n} daha",
     updateFailed: "Güncellenemedi",
     signInFailed: "Giriş yapılamadı",
     signInNoIdToken: "Google bir ID token döndürmedi",
@@ -393,6 +403,11 @@ const translations = {
 };
 
 type Translations = typeof translations.en;
+
+// For code outside the React tree (the home screen widget's headless task).
+export function translationsFor(lang: Lang): Translations {
+  return translations[lang];
+}
 
 const LangContext = createContext<{
   lang: Lang;
