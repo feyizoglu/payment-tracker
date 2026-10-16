@@ -7,6 +7,7 @@ import { getApiUrl } from "./config";
 import { registerForPush, unregisterFromPush } from "./push";
 import { getNativePushToken, nativePushDeps } from "./push-native";
 import { clearToken, getToken, setToken } from "./storage";
+import { refreshWidget } from "./widget-refresh";
 
 // Single source of truth: mirror the exact profile shape the auth endpoint
 // returns (defined in ./auth) rather than restating the Pick<User, ...> list.
@@ -63,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearToken();
     setTok(null);
     setUser(null);
+    refreshWidget();
     // Stop reminders reaching this phone, without holding up the sign-out. An expired
     // JWT (the 401 path) cannot unregister; the row moves to whoever signs in here next.
     if (jwt) pushQueueRef.current = pushQueueRef.current.then(() => unregisterDevice(jwt, pushToken));

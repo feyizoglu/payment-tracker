@@ -39,6 +39,7 @@ vi.mock("expo-router", async () => {
 });
 vi.mock("@ptracker/shared/i18n", () => ({ useLang: () => ({ t: {} }) }));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => state.auth }));
+vi.mock("@/lib/widget-refresh", () => ({ refreshWidget: vi.fn() }));
 vi.mock("@/components/tab-screen", async () => {
   const { Fragment, createElement: h } = await import("react");
   return { TabScreen: ({ children }: { children?: unknown }) => h(Fragment, null, children as never) };
