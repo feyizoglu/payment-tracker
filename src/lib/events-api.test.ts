@@ -6,7 +6,7 @@ vi.mock("@/lib/events-repo", () => ({ findMyParticipant: vi.fn(), getEvent: vi.f
 
 import { getSessionUser } from "@/lib/session";
 import { findMyParticipant, getEvent } from "@/lib/events-repo";
-import { withParticipant, parseAmountMinor, isCurrency } from "./events-api";
+import { withParticipant, parseAmountMinor, isCurrency, readJson } from "./events-api";
 
 const EVENT_ID = "00000000-0000-4000-8000-0000000000e1";
 const req = new Request(`http://localhost/api/events/${EVENT_ID}`);
@@ -78,5 +78,21 @@ describe("validators", () => {
   it("accepts the four app currencies", () => {
     expect(isCurrency("EUR")).toBe(true);
     expect(isCurrency("JPY")).toBe(false);
+  });
+});
+
+describe("readJson", () => {
+  const withBody = (body: string) => new Request("http://localhost/x", { method: "POST", body });
+
+  it("resolves to null for a body that is not JSON", async () => {
+    expect(await readJson(withBody("{not json"))).toBeNull();
+  });
+
+  it("resolves to null for a JSON array", async () => {
+    expect(await readJson(withBody("[1,2]"))).toBeNull();
+  });
+
+  it("resolves to a JSON object", async () => {
+    expect(await readJson(withBody(JSON.stringify({ a: 1 })))).toEqual({ a: 1 });
   });
 });

@@ -110,4 +110,21 @@ describe("PUT/DELETE expense", () => {
     expect(repo.replaceExpense).not.toHaveBeenCalled();
     expect(repo.deleteExpense).not.toHaveBeenCalled();
   });
+
+  it("400s an invalid expense without replacing it", async () => {
+    vi.mocked(repo.expenseEventId).mockResolvedValue(EVENT_ID);
+    expect((await PUT(req("PUT", { ...body, paid_by: "p9" }) as never, ctx)).status).toBe(400);
+    expect(repo.replaceExpense).not.toHaveBeenCalled();
+  });
+
+  it("replaces the expense with the computed shares", async () => {
+    vi.mocked(repo.expenseEventId).mockResolvedValue(EVENT_ID);
+    expect((await PUT(req("PUT", body) as never, ctx)).status).toBe(200);
+    expect(repo.replaceExpense).toHaveBeenCalledWith(
+      {},
+      EXPENSE_ID,
+      { description: "Dinner", amount_minor: 200, currency: "TRY", paid_by: "p1", spent_on: "2026-10-16" },
+      [{ participant_id: "p1", amount_minor: 100 }, { participant_id: "p2", amount_minor: 100 }]
+    );
+  });
 });

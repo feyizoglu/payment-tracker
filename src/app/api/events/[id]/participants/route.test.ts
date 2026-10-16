@@ -98,6 +98,7 @@ describe("DELETE participant", () => {
       { id: "p1", user_id: "u1" },
       { id: "p5", user_id: null },
     ] as never);
+    vi.mocked(repo.deleteParticipant).mockResolvedValue(true);
   });
 
   it("404s a participant of another event", async () => {
@@ -109,6 +110,14 @@ describe("DELETE participant", () => {
     vi.mocked(repo.participantIsReferenced).mockResolvedValue(true);
     expect((await DELETE(del() as never, delCtx)).status).toBe(409);
     expect(repo.deleteParticipant).not.toHaveBeenCalled();
+  });
+
+  it("409s when the delete hits a foreign-key reference added after the check", async () => {
+    vi.mocked(repo.participantIsReferenced).mockResolvedValue(false);
+    vi.mocked(repo.deleteParticipant).mockResolvedValue(false);
+    const res = await DELETE(del() as never, delCtx);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "Participant has expenses or payments" });
   });
 
   it("refuses to remove the creator", async () => {

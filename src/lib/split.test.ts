@@ -130,3 +130,25 @@ describe("parseDecimalToMinor", () => {
     }
   });
 });
+
+describe("buildShares exact share objects", () => {
+  it("returns fresh objects with only participant_id and amount_minor", () => {
+    const input = [{ participant_id: "a", amount_minor: 100, expense_id: "x", extra: 1 }];
+    const r = buildShares(100, { kind: "exact", shares: input }, ["a", "b"]);
+    expect(r).toEqual({ ok: true, shares: [{ participant_id: "a", amount_minor: 100 }] });
+    if (r.ok) expect(r.shares[0]).not.toBe(input[0]);
+  });
+});
+
+describe("buildShares duplicate exact participants", () => {
+  it("rejects an exact split that names one participant twice", () => {
+    const shares = [{ participant_id: "a", amount_minor: 50 }, { participant_id: "a", amount_minor: 50 }];
+    expect(buildShares(100, { kind: "exact", shares }, ["a", "b"])).toEqual({ ok: false, error: "Invalid participants" });
+  });
+});
+
+describe("parseDecimalToMinor safe-integer range", () => {
+  it("returns null past the safe-integer range", () => {
+    expect(parseDecimalToMinor("99999999999999999")).toBeNull();
+  });
+});

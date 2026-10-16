@@ -47,8 +47,8 @@ export async function listParticipants(db: Db, eventId: string): Promise<EventPa
   return (data ?? []) as unknown as EventParticipant[];
 }
 
-export async function loadEventDetail(db: Db, eventId: string): Promise<EventDetail | null> {
-  const event = await getEvent(db, eventId);
+export async function loadEventDetail(db: Db, eventId: string, preloaded?: SplitEvent): Promise<EventDetail | null> {
+  const event = preloaded ?? (await getEvent(db, eventId));
   if (!event) return null;
   const [participants, expenses, settlements] = await Promise.all([
     listParticipants(db, eventId),
@@ -65,7 +65,7 @@ export async function loadEventDetail(db: Db, eventId: string): Promise<EventDet
   return { ...event, participants, expenses: expenses.data ?? [], settlements: settlements.data ?? [] };
 }
 
-// Events the user takes part in, newest first.
+// Ids of the events the user takes part in, unordered; GET /api/events sorts them.
 export async function listMyEventIds(db: Db, userId: string): Promise<string[]> {
   const { data, error } = await db.from("event_participants").select("event_id").eq("user_id", userId);
   if (error) fail("listMyEventIds", error);
@@ -81,7 +81,8 @@ export async function createEvent(db: Db, userId: string, name: string, eventDat
   if (error) fail("createEvent", error);
   const { error: pErr } = await db.from("event_participants").insert({ event_id: data.id, user_id: userId });
   if (pErr) {
-    await db.from("events").delete().eq("id", data.id);
+    const { error: dErr } = await db.from("events").delete().eq("id", data.id);
+    if (dErr) console.error("events-repo createEvent rollback:", dErr);
     fail("createEvent participant", pErr);
   }
   return data;
@@ -101,8 +102,13 @@ export async function deleteEvent(db: Db, eventId: string): Promise<void> {
   if (error) fail("deleteEvent", error);
 }
 
+// Case-insensitive exact match: ilike with its wildcards and escape character escaped.
 export async function findUserByEmail(db: Db, email: string): Promise<{ id: string } | null> {
-  const { data, error } = await db.from("users").select("id").eq("email", email).maybeSingle();
+  // PostgREST reads `*` in an ilike value as `%` and has no escape for it, so a `*`
+  // would turn the exact lookup into a wildcard search over other users' emails.
+  if (email.includes("*")) return null;
+  const pattern = email.replace(/[\\%_]/g, "\\$&");
+  const { data, error } = await db.from("users").select("id").ilike("email", pattern).maybeSingle();
   if (error) fail("findUserByEmail", error);
   return data;
 }
@@ -143,9 +149,12 @@ export async function participantIsReferenced(db: Db, participantId: string): Pr
   return checks.some((c) => (c.count ?? 0) > 0);
 }
 
-export async function deleteParticipant(db: Db, participantId: string): Promise<void> {
+// Returns false when an expense, share or settlement still references the participant.
+export async function deleteParticipant(db: Db, participantId: string): Promise<boolean> {
   const { error } = await db.from("event_participants").delete().eq("id", participantId);
+  if (error?.code === "23503") return false;
   if (error) fail("deleteParticipant", error);
+  return true;
 }
 
 export async function insertExpense(
@@ -155,18 +164,18 @@ export async function insertExpense(
   input: Omit<ExpenseInput, "split">,
   shares: EventExpenseShare[]
 ): Promise<{ id: string }> {
-  const { data, error } = await db
-    .from("event_expenses")
-    .insert({ event_id: eventId, created_by: userId, ...input })
-    .select("id")
-    .single();
+  const { data, error } = await db.rpc("event_expense_insert", {
+    p_event_id: eventId,
+    p_created_by: userId,
+    p_description: input.description,
+    p_amount_minor: input.amount_minor,
+    p_currency: input.currency,
+    p_paid_by: input.paid_by,
+    p_spent_on: input.spent_on,
+    p_shares: shares.map((s) => ({ participant_id: s.participant_id, amount_minor: s.amount_minor })),
+  });
   if (error) fail("insertExpense", error);
-  const { error: sErr } = await db.from("event_expense_shares").insert(shares.map((s) => ({ expense_id: data.id, ...s })));
-  if (sErr) {
-    await db.from("event_expenses").delete().eq("id", data.id);
-    fail("insertExpense shares", sErr);
-  }
-  return data;
+  return { id: data as string };
 }
 
 export async function replaceExpense(
@@ -175,12 +184,16 @@ export async function replaceExpense(
   input: Omit<ExpenseInput, "split">,
   shares: EventExpenseShare[]
 ): Promise<void> {
-  const { error } = await db.from("event_expenses").update(input).eq("id", expenseId);
+  const { error } = await db.rpc("event_expense_replace", {
+    p_expense_id: expenseId,
+    p_description: input.description,
+    p_amount_minor: input.amount_minor,
+    p_currency: input.currency,
+    p_paid_by: input.paid_by,
+    p_spent_on: input.spent_on,
+    p_shares: shares.map((s) => ({ participant_id: s.participant_id, amount_minor: s.amount_minor })),
+  });
   if (error) fail("replaceExpense", error);
-  const { error: dErr } = await db.from("event_expense_shares").delete().eq("expense_id", expenseId);
-  if (dErr) fail("replaceExpense delete shares", dErr);
-  const { error: sErr } = await db.from("event_expense_shares").insert(shares.map((s) => ({ expense_id: expenseId, ...s })));
-  if (sErr) fail("replaceExpense shares", sErr);
 }
 
 export async function expenseEventId(db: Db, expenseId: string): Promise<string | null> {

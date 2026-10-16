@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { EventDetail, Team } from "@ptracker/shared/types";
 import { useLang } from "@ptracker/shared/i18n";
@@ -28,6 +28,8 @@ export function Participants({
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const tRef = useRef(t);
+  tRef.current = t;
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +38,9 @@ export function Participants({
       .then((list) => {
         if (!cancelled) setTeams(list ?? []);
       })
-      .catch(() => {});
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : tRef.current.loadFailed);
+      });
     return () => {
       cancelled = true;
     };

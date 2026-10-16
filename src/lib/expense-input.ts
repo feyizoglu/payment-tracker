@@ -16,7 +16,8 @@ function asSplit(value: unknown): ExpenseSplitInput | null {
     Array.isArray(v.shares) &&
     v.shares.every((s) => typeof s?.participant_id === "string" && typeof s?.amount_minor === "number")
   ) {
-    return { kind: "exact", shares: v.shares };
+    const shares = v.shares as { participant_id: string; amount_minor: number }[];
+    return { kind: "exact", shares: shares.map(({ participant_id, amount_minor }) => ({ participant_id, amount_minor })) };
   }
   return null;
 }

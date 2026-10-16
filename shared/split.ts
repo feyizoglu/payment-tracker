@@ -34,7 +34,9 @@ export function buildShares(
   if (new Set(ids).size !== ids.length || ids.some((id) => !known.has(id))) return { ok: false, error: "Invalid participants" };
   if (split.shares.some((s) => !Number.isInteger(s.amount_minor) || s.amount_minor < 0)) return { ok: false, error: "Invalid share amount" };
   if (split.shares.reduce((sum, s) => sum + s.amount_minor, 0) !== amountMinor) return { ok: false, error: "Shares must add up to the amount" };
-  const shares = split.shares.filter((s) => s.amount_minor > 0);
+  const shares = split.shares
+    .filter((s) => s.amount_minor > 0)
+    .map(({ participant_id, amount_minor }) => ({ participant_id, amount_minor }));
   if (shares.length === 0) return { ok: false, error: "Invalid participants" };
   return { ok: true, shares };
 }

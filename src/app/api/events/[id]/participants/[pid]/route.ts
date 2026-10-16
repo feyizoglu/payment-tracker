@@ -13,7 +13,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (!target) return jsonError(404, "Not found");
     if (target.user_id === event.created_by) return jsonError(409, "The creator cannot be removed");
     if (await participantIsReferenced(db, pid)) return jsonError(409, "Participant has expenses or payments");
-    await deleteParticipant(db, pid);
+    if (!(await deleteParticipant(db, pid))) return jsonError(409, "Participant has expenses or payments");
     return new NextResponse(null, { status: 204 });
   });
 }

@@ -8,8 +8,8 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Ctx) {
   const { id } = await params;
-  return withParticipant(req, id, async ({ db }) => {
-    const detail = await loadEventDetail(db, id);
+  return withParticipant(req, id, async ({ db, event }) => {
+    const detail = await loadEventDetail(db, id, event);
     return detail ? NextResponse.json(detail) : jsonError(404, "Not found");
   });
 }

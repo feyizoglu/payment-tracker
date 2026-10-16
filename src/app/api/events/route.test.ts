@@ -43,6 +43,56 @@ describe("GET /api/events", () => {
   });
 });
 
+describe("GET /api/events edge cases", () => {
+  const detail = (id: string, created_at: string, expenses: unknown[] = []) => ({
+    id, name: id, event_date: null, created_by: "u1", status: "open", created_at,
+    participants: [
+      { id: "p1", event_id: id, user_id: "u1", display_name: null, created_at: "" },
+      { id: "p2", event_id: id, user_id: null, display_name: "Can", created_at: "" },
+    ],
+    expenses,
+    settlements: [],
+  });
+  const expense = (currency: string, paid_by: string) => ({
+    id: `x-${currency}-${paid_by}`, event_id: "e1", description: "d", amount_minor: 100, currency, paid_by, spent_on: "", created_by: "u1", created_at: "",
+    shares: [{ participant_id: "p1", amount_minor: 50 }, { participant_id: "p2", amount_minor: 50 }],
+  });
+
+  it("500s when listing my events fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(listMyEventIds).mockRejectedValue(new Error("db down"));
+    const res = await GET(new Request("http://localhost/api/events") as never);
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Internal error" });
+  });
+
+  it("lists the newest event first", async () => {
+    vi.mocked(listMyEventIds).mockResolvedValue(["e1", "e2"]);
+    vi.mocked(loadEventDetail).mockImplementation(async (_db, id) =>
+      (id === "e1" ? detail("e1", "2026-10-01") : detail("e2", "2026-10-05")) as never
+    );
+    const body = await (await GET(new Request("http://localhost/api/events") as never)).json();
+    expect(body.map((e: { created_at: string }) => e.created_at)).toEqual(["2026-10-05", "2026-10-01"]);
+  });
+
+  it("leaves out an event whose detail is gone", async () => {
+    vi.mocked(listMyEventIds).mockResolvedValue(["e1", "e2"]);
+    vi.mocked(loadEventDetail).mockImplementation(async (_db, id) => (id === "e1" ? null : detail("e2", "2026-10-05")) as never);
+    const res = await GET(new Request("http://localhost/api/events") as never);
+    expect(res.status).toBe(200);
+    expect((await res.json()).map((e: { id: string }) => e.id)).toEqual(["e2"]);
+  });
+
+  it("leaves a currency that nets to zero out of my balance", async () => {
+    vi.mocked(listMyEventIds).mockResolvedValue(["e1"]);
+    vi.mocked(loadEventDetail).mockResolvedValue(
+      detail("e1", "2026-10-01", [expense("TRY", "p1"), expense("TRY", "p2"), expense("EUR", "p1")]) as never
+    );
+    const body = await (await GET(new Request("http://localhost/api/events") as never)).json();
+    expect(body[0].my_balance).toEqual({ EUR: 50 });
+  });
+});
+
 describe("POST /api/events", () => {
   it("400s on a blank name or a bad date", async () => {
     for (const b of [{ name: "  " }, { name: 5 }, { name: "Trip", event_date: "tomorrow" }]) {
@@ -56,5 +106,15 @@ describe("POST /api/events", () => {
     const res = await POST(post({ name: " Trip ", event_date: "2026-10-16" }) as never);
     expect(res.status).toBe(201);
     expect(createEvent).toHaveBeenCalledWith({}, "u1", "Trip", "2026-10-16");
+  });
+});
+
+describe("POST /api/events errors", () => {
+  it("500s when creating the event fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(createEvent).mockRejectedValue(new Error("db down"));
+    const res = await POST(post({ name: "Trip" }) as never);
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Internal error" });
   });
 });
