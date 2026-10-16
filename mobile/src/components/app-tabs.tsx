@@ -29,6 +29,11 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon md="bar_chart" />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="events">
+        <NativeTabs.Trigger.Label>{t.events}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon md="groups" />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="settings">
         <NativeTabs.Trigger.Label>{t.tabSettings}</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon md="settings" />

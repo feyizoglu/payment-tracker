@@ -235,12 +235,16 @@ const translations = {
     closeEvent: "Close event",
     reopenEvent: "Reopen",
     closed: "Closed",
+    eventIsClosed: "This event is closed",
     deleteEvent: "Delete event",
     cannotRemoveParticipant: "This person has expenses or payments",
     eventNotFound: "Event not found",
     eventDeleteConfirm: "This event and all its expenses and payments will be deleted. Continue?",
     invalidAmount: "Enter a valid amount",
     undoPaymentConfirm: "This payment will be removed. Continue?",
+    editExpense: "Edit expense",
+    splitInvalid: "Pick who shares it; exact amounts must add up to the total",
+    back: "Back",
   },
   tr: {
     // Landing
@@ -463,12 +467,16 @@ const translations = {
     closeEvent: "Etkinliği kapat",
     reopenEvent: "Yeniden aç",
     closed: "Kapandı",
+    eventIsClosed: "Bu etkinlik kapandı",
     deleteEvent: "Etkinliği sil",
     cannotRemoveParticipant: "Bu kişinin harcaması veya ödemesi var",
     eventNotFound: "Etkinlik bulunamadı",
     eventDeleteConfirm: "Bu etkinlik tüm harcama ve ödemeleriyle birlikte silinecek. Devam edilsin mi?",
     invalidAmount: "Geçerli bir tutar gir",
     undoPaymentConfirm: "Bu ödeme kaldırılacak. Devam edilsin mi?",
+    editExpense: "Harcamayı düzenle",
+    splitInvalid: "Paylaşanları seç; tutarların toplamı harcamaya eşit olmalı",
+    back: "Geri",
   },
 };
 
