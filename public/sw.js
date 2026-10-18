@@ -1,3 +1,9 @@
+// Take over pages already open when the worker first installs, so a notification click
+// can reuse them.
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   if (!event.data) return;
   let data;
@@ -22,7 +28,12 @@ self.addEventListener("notificationclick", (event) => {
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
       const open = windows.find((w) => w.url === target) || windows[0];
       if (!open) return self.clients.openWindow(target);
-      return open.url === target ? open.focus() : open.navigate(target).then((w) => (w || open).focus());
+      if (open.url === target) return open.focus();
+      // navigate() rejects on a tab this worker does not control yet; open a new one then.
+      return open
+        .navigate(target)
+        .then((w) => (w || open).focus())
+        .catch(() => self.clients.openWindow(target));
     })
   );
 });

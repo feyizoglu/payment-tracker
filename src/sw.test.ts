@@ -13,16 +13,17 @@ function loadWorker(windows: { url: string; focus: () => unknown; navigate?: (ur
   const showNotification = vi.fn().mockResolvedValue(undefined);
   const openWindow = vi.fn().mockResolvedValue(undefined);
   const matchAll = vi.fn().mockResolvedValue(windows);
+  const claim = vi.fn().mockResolvedValue(undefined);
   const self = {
     addEventListener: (type: string, handler: Handler) => {
       handlers[type] = handler;
     },
     registration: { showNotification },
     location: { origin: ORIGIN },
-    clients: { matchAll, openWindow },
+    clients: { matchAll, openWindow, claim },
   };
   vm.runInNewContext(source, { self, URL });
-  return { handlers, showNotification, openWindow, matchAll };
+  return { handlers, showNotification, openWindow, matchAll, claim };
 }
 
 describe("sw.js push handler", () => {
@@ -130,5 +131,28 @@ describe("sw.js notificationclick handler", () => {
     await waitUntil.mock.calls[0][0];
 
     expect(openWindow).toHaveBeenCalledWith(`${ORIGIN}/dashboard`);
+  });
+});
+
+describe("sw.js lifecycle and uncontrolled tabs", () => {
+  it("claims open pages on activate", async () => {
+    const { handlers, claim } = loadWorker();
+    const waitUntil = vi.fn();
+    handlers.activate({ waitUntil });
+    await waitUntil.mock.calls[0][0];
+    expect(claim).toHaveBeenCalled();
+  });
+
+  it("opens a new window when navigating an uncontrolled tab is refused", async () => {
+    const focus = vi.fn();
+    const navigate = vi.fn(async () => {
+      throw new TypeError("not controlled");
+    });
+    const { handlers, openWindow } = loadWorker([{ url: `${ORIGIN}/dashboard`, focus, navigate }]);
+    const close = vi.fn();
+    const waitUntil = vi.fn();
+    handlers.notificationclick({ notification: { close, data: { url: "/dashboard?month=2026-11" } }, waitUntil });
+    await waitUntil.mock.calls[0][0];
+    expect(openWindow).toHaveBeenCalledWith(`${ORIGIN}/dashboard?month=2026-11`);
   });
 });
