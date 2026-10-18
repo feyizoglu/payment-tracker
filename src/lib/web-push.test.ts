@@ -98,3 +98,13 @@ describe("sendWebPush", () => {
     expect(webpush.sendNotification).not.toHaveBeenCalled();
   });
 });
+
+describe("sendWebPush non-Error rejection", () => {
+  it("records a generic error when the push service rejects with a non-Error", async () => {
+    vi.mocked(webpush.sendNotification).mockRejectedValueOnce("boom");
+
+    const result = await sendWebPush([sub("https://push.example/a")], payload);
+
+    expect(result).toEqual({ sent: 0, expiredEndpoints: [], errors: ["unknown web push error"] });
+  });
+});

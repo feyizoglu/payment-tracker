@@ -317,3 +317,108 @@ describe("GET /api/cron/send-reminders web push", () => {
     expect(json.webPush).toEqual({ sent: 0, expiredEndpoints: [], errors: [] });
   });
 });
+
+describe("GET /api/cron/send-reminders web push aggregation", () => {
+  const payment = (id: string, userId: string, name: string) => ({
+    id,
+    user_id: userId,
+    name,
+    currency: "TRY",
+    paid_installments: 0,
+    total_installments: 3,
+    user: { id: userId, name, email: `${userId}@example.com` },
+  });
+
+  beforeEach(() => {
+    process.env.CRON_SECRET = "s3cret";
+    vi.mocked(getInstallments).mockReturnValue([
+      { index: 0, dueDate: addDays(new Date(), 1), amount: 100, isPaid: false } as never,
+    ]);
+    vi.mocked(sendExpoPush).mockResolvedValue({ sent: 0, invalidTokens: [], errors: [] });
+  });
+
+  it("surfaces a failed expired-endpoint prune in webPush.errors", async () => {
+    const db = makeDb(
+      {
+        payments: [payment("p-1", "u-1", "Kredi Kartı")],
+        recurring_payments: [],
+        devices: [],
+        web_push_subscriptions: [
+          { user_id: "u-1", endpoint: "https://push.example/gone", p256dh: "p1", auth: "a1" },
+        ],
+      },
+      {},
+      { message: "delete failed" }
+    );
+    vi.mocked(supabaseAdmin).mockReturnValue(db as never);
+    vi.mocked(sendWebPush).mockResolvedValue({
+      sent: 0,
+      expiredEndpoints: ["https://push.example/gone"],
+      errors: [],
+    });
+
+    const res = await GET(req("Bearer s3cret") as never);
+    const json = await res.json();
+
+    expect(json.webPush.errors).toContain("expired web push prune failed: delete failed");
+  });
+
+  it("sends once per due user with that user's subscriptions and sums the results", async () => {
+    const db = makeDb({
+      payments: [payment("p-1", "u-1", "Kira"), payment("p-2", "u-2", "Aidat")],
+      recurring_payments: [],
+      devices: [],
+      web_push_subscriptions: [
+        { user_id: "u-1", endpoint: "https://push.example/u1", p256dh: "p1", auth: "a1" },
+        { user_id: "u-2", endpoint: "https://push.example/u2", p256dh: "p2", auth: "a2" },
+      ],
+    });
+    vi.mocked(supabaseAdmin).mockReturnValue(db as never);
+    vi.mocked(sendWebPush)
+      .mockResolvedValueOnce({ sent: 1, expiredEndpoints: ["https://push.example/x1"], errors: [] })
+      .mockResolvedValueOnce({ sent: 2, expiredEndpoints: ["https://push.example/x2"], errors: [] });
+
+    const res = await GET(req("Bearer s3cret") as never);
+    const json = await res.json();
+
+    expect(sendWebPush).toHaveBeenCalledTimes(2);
+    expect(sendWebPush).toHaveBeenNthCalledWith(
+      1,
+      [{ endpoint: "https://push.example/u1", p256dh: "p1", auth: "a1" }],
+      expect.objectContaining({ body: expect.stringContaining("Kira") })
+    );
+    expect(sendWebPush).toHaveBeenNthCalledWith(
+      2,
+      [{ endpoint: "https://push.example/u2", p256dh: "p2", auth: "a2" }],
+      expect.objectContaining({ body: expect.stringContaining("Aidat") })
+    );
+    expect(vi.mocked(sendWebPush).mock.calls[0][1].body).not.toContain("Aidat");
+    expect(vi.mocked(sendWebPush).mock.calls[1][1].body).not.toContain("Kira");
+    expect(json.webPush.sent).toBe(3);
+    expect(json.webPush.expiredEndpoints).toEqual(["https://push.example/x1", "https://push.example/x2"]);
+  });
+
+  it("reports an error shared by several users only once", async () => {
+    const db = makeDb({
+      payments: [payment("p-1", "u-1", "Kira"), payment("p-2", "u-2", "Aidat")],
+      recurring_payments: [],
+      devices: [],
+      web_push_subscriptions: [
+        { user_id: "u-1", endpoint: "https://push.example/u1", p256dh: "p1", auth: "a1" },
+        { user_id: "u-2", endpoint: "https://push.example/u2", p256dh: "p2", auth: "a2" },
+      ],
+    });
+    vi.mocked(supabaseAdmin).mockReturnValue(db as never);
+    vi.mocked(sendWebPush).mockResolvedValue({
+      sent: 0,
+      expiredEndpoints: [],
+      errors: ["VAPID env not configured"],
+    });
+
+    const res = await GET(req("Bearer s3cret") as never);
+    const json = await res.json();
+
+    expect(sendWebPush).toHaveBeenCalledTimes(2);
+    expect(json.webPush.errors).toEqual(["VAPID env not configured"]);
+  });
+});

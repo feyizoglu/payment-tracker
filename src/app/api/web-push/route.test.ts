@@ -134,3 +134,15 @@ describe("DELETE /api/web-push", () => {
     expect(await res.json()).toEqual({ error: "boom" });
   });
 });
+
+describe("POST /api/web-push endpoint length", () => {
+  it("400s on a push-service endpoint longer than 2048 characters", async () => {
+    signedIn();
+    const base = "https://fcm.googleapis.com/fcm/send/";
+    const endpoint = base + "a".repeat(2049 - base.length);
+    expect(endpoint).toHaveLength(2049);
+    const res = await POST(request("POST", { ...validBody, endpoint }) as never);
+    expect(res.status).toBe(400);
+    expect(supabaseAdmin).not.toHaveBeenCalled();
+  });
+});
