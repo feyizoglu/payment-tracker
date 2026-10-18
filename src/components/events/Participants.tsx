@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import type { EventDetail, Team } from "@/types";
-import { participantLabel } from "@/lib/split";
+import { canRemoveParticipant, participantLabel } from "@/lib/split";
 import { useLang } from "@/lib/i18n";
 
 type AddBody = { user_id: string } | { email: string } | { display_name: string };
@@ -30,6 +31,7 @@ export default function Participants({
   onChanged: () => void;
 }) {
   const { t } = useLang();
+  const router = useRouter();
   const [teams, setTeams] = useState<Team[]>([]);
   const [mate, setMate] = useState("");
   const [email, setEmail] = useState("");
@@ -75,7 +77,7 @@ export default function Participants({
     }
   }
 
-  async function remove(pid: string) {
+  async function remove(pid: string, leaving: boolean) {
     if (busy) return;
     setBusy(true);
     setError(null);
@@ -90,7 +92,9 @@ export default function Participants({
         setError(typeof data?.error === "string" ? data.error : t.updateFailed);
         return;
       }
-      onChanged();
+      // Leaving drops this user's access, so the event can no longer be shown.
+      if (leaving) router.push("/events");
+      else onChanged();
     } catch {
       setError(t.updateFailed);
     } finally {
@@ -108,10 +112,10 @@ export default function Participants({
             className="flex items-center gap-1 pl-3 pr-2 py-1 rounded-full bg-purple-50 text-purple-700 text-sm"
           >
             {participantLabel(p)}
-            {editable && p.user_id !== event.created_by && (
+            {editable && canRemoveParticipant(event, p, myId) && (
               <button
                 disabled={busy}
-                onClick={() => remove(p.id)}
+                onClick={() => remove(p.id, p.user_id === myId)}
                 aria-label={t.delete}
                 className="text-purple-400 hover:text-red-600 disabled:opacity-50"
               >

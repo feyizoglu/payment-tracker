@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { router } from "expo-router";
 import type { EventDetail, Team } from "@ptracker/shared/types";
 import { useLang } from "@ptracker/shared/i18n";
-import { participantLabel } from "@ptracker/shared/split";
+import { canRemoveParticipant, participantLabel } from "@ptracker/shared/split";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { SelectField, type SelectOption } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
@@ -71,13 +72,15 @@ export function Participants({
     }
   }
 
-  async function remove(pid: string) {
+  async function remove(pid: string, leaving: boolean) {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
       await api.del(`/api/events/${event.id}/participants/${pid}`);
-      onChanged();
+      // Leaving drops this user's access, so the event can no longer be shown.
+      if (leaving) router.back();
+      else onChanged();
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         setError(e.message === "Event is closed" ? t.eventIsClosed : t.cannotRemoveParticipant);
@@ -95,8 +98,8 @@ export function Participants({
         {event.participants.map((p) => (
           <View key={p.id} className="flex-row items-center gap-1 rounded-full bg-gray-100 py-1 pl-3 pr-2">
             <Text className="text-sm text-gray-900">{participantLabel(p)}</Text>
-            {editable && p.user_id !== event.created_by ? (
-              <Pressable disabled={busy} onPress={() => remove(p.id)} className={`px-1 ${busy ? "opacity-50" : ""}`}>
+            {editable && canRemoveParticipant(event, p, user?.id) ? (
+              <Pressable disabled={busy} onPress={() => remove(p.id, p.user_id === user?.id)} className={`px-1 ${busy ? "opacity-50" : ""}`}>
                 <Text className="text-gray-400">✕</Text>
               </Pressable>
             ) : null}

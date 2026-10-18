@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { balances, buildShares, parseDecimalToMinor, participantLabel, splitEqually, suggestTransfers } from "./split";
+import { balances, canRemoveParticipant, buildShares, parseDecimalToMinor, participantLabel, splitEqually, suggestTransfers } from "./split";
 import type { EventExpense, EventParticipant, EventSettlement } from "@/types";
 
 const exp = (paid_by: string, amount_minor: number, currency: string, shares: [string, number][]): EventExpense => ({
@@ -150,5 +150,25 @@ describe("buildShares duplicate exact participants", () => {
 describe("parseDecimalToMinor safe-integer range", () => {
   it("returns null past the safe-integer range", () => {
     expect(parseDecimalToMinor("99999999999999999")).toBeNull();
+  });
+});
+
+describe("canRemoveParticipant", () => {
+  const event = { created_by: "creator" };
+
+  it("lets the creator remove anyone but themselves", () => {
+    expect(canRemoveParticipant(event, { user_id: "mate" }, "creator")).toBe(true);
+    expect(canRemoveParticipant(event, { user_id: null }, "creator")).toBe(true);
+    expect(canRemoveParticipant(event, { user_id: "creator" }, "creator")).toBe(false);
+  });
+
+  it("lets anyone else only leave", () => {
+    expect(canRemoveParticipant(event, { user_id: "mate" }, "mate")).toBe(true);
+    expect(canRemoveParticipant(event, { user_id: "other" }, "mate")).toBe(false);
+    expect(canRemoveParticipant(event, { user_id: null }, "mate")).toBe(false);
+  });
+
+  it("refuses without a signed-in user", () => {
+    expect(canRemoveParticipant(event, { user_id: null }, undefined)).toBe(false);
   });
 });

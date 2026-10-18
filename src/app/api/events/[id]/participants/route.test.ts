@@ -125,6 +125,24 @@ describe("DELETE participant", () => {
     expect((await DELETE(del() as never, creatorCtx)).status).toBe(409);
   });
 
+  it("403s when a non-creator removes someone else", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue({ id: "u2", email: "b@x" });
+    vi.mocked(repo.participantIsReferenced).mockResolvedValue(false);
+    expect((await DELETE(del() as never, delCtx)).status).toBe(403);
+    expect(repo.deleteParticipant).not.toHaveBeenCalled();
+  });
+
+  it("lets a non-creator leave the event", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue({ id: "u2", email: "b@x" });
+    vi.mocked(repo.listParticipants).mockResolvedValue([
+      { id: "p1", user_id: "u1" },
+      { id: "p5", user_id: "u2" },
+    ] as never);
+    vi.mocked(repo.participantIsReferenced).mockResolvedValue(false);
+    expect((await DELETE(del() as never, delCtx)).status).toBe(204);
+    expect(repo.deleteParticipant).toHaveBeenCalledWith({}, "p5");
+  });
+
   it("deletes an unreferenced participant", async () => {
     vi.mocked(repo.participantIsReferenced).mockResolvedValue(false);
     expect((await DELETE(del() as never, delCtx)).status).toBe(204);

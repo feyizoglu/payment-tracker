@@ -87,6 +87,16 @@ export function parseDecimalToMinor(text: string): number | null {
   return Number.isSafeInteger(minor) ? minor : null;
 }
 
+// The creator can remove anyone but themselves; everyone else can only leave.
+export function canRemoveParticipant(
+  event: { created_by: string },
+  target: Pick<EventParticipant, "user_id">,
+  myUserId: string | null | undefined
+): boolean {
+  if (!myUserId || target.user_id === event.created_by) return false;
+  return myUserId === event.created_by || target.user_id === myUserId;
+}
+
 export function participantLabel(p: EventParticipant): string {
   return p.user?.name ?? p.user?.email ?? p.display_name ?? "?";
 }
