@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { ChevronDown, CreditCard, LogOut } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import PushToggle from "@/components/PushToggle";
+import ThemePicker from "@/components/ThemePicker";
 import { signOutWithPushCleanup } from "@/lib/web-push-client";
 
 export default function EventsHeader() {
@@ -14,11 +15,11 @@ export default function EventsHeader() {
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   return (
-    <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
+    <header className="bg-surface border-b border-gray-100 sticky top-0 z-40">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-y-1 py-2 lg:py-0 lg:h-14">
         <div className="contents lg:flex lg:items-center lg:gap-4">
           <div className="flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-blue-600" />
+            <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             <span className="font-bold text-gray-900">PayTrack</span>
           </div>
           <nav className="order-last w-full flex items-center gap-1 lg:order-none lg:w-auto">
@@ -36,7 +37,7 @@ export default function EventsHeader() {
             </Link>
             <Link
               href="/events"
-              className="px-3 py-1.5 rounded-lg text-sm text-purple-700 bg-purple-50 font-semibold"
+              className="px-3 py-1.5 rounded-lg text-sm text-purple-700 dark:text-purple-400 bg-purple-50 font-semibold"
             >
               {t.events}
             </Link>
@@ -57,7 +58,7 @@ export default function EventsHeader() {
               onClick={() => setShowUserMenu((v) => !v)}
               className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
             >
-              <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs">
+              <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-xs">
                 {session?.user?.name?.[0]?.toUpperCase() ?? "U"}
               </div>
               <span className="hidden sm:block truncate max-w-[120px]">
@@ -67,11 +68,12 @@ export default function EventsHeader() {
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+              <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-lg border border-gray-100 py-1 z-50">
                 <div className="px-3 py-2 border-b border-gray-100">
                   <p className="text-xs font-medium text-gray-900 truncate">{session?.user?.name}</p>
                   <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
                 </div>
+                <ThemePicker />
                 <button
                   onClick={() => void signOutWithPushCleanup()}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition"

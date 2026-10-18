@@ -132,7 +132,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900">{t.addPaymentTitle}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
@@ -151,7 +151,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
                   type="button"
                   onClick={() => setEntryKind(kind)}
                   className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition ${
-                    entryKind === kind ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
+                    entryKind === kind ? "bg-surface shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
                   {kind === "installment" ? t.installmentType : t.recurringType}
@@ -169,7 +169,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
               placeholder={t.paymentNamePlaceholder}
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -184,7 +184,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
                   type="button"
                   onClick={() => setInputMode(mode)}
                   className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition ${
-                    inputMode === mode ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
+                    inputMode === mode ? "bg-surface shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
                   {mode === "total" ? t.totalMode : t.perInstallmentMode}
@@ -217,7 +217,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
                 placeholder="0,00"
                 value={inputMode === "total" ? form.totalAmount : form.installmentAmount}
                 onChange={(e) => set(inputMode === "total" ? "totalAmount" : "installmentAmount", e.target.value)}
-                className="flex-1 px-3 py-2 text-sm text-black focus:outline-none"
+                className="flex-1 px-3 py-2 text-sm text-gray-900 focus:outline-none"
               />
             </div>
           </div>
@@ -233,7 +233,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
               placeholder="12"
               value={form.total_installments}
               onChange={(e) => set("total_installments", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {computedTotal > 0 && (
               <p className="text-xs text-gray-400 mt-1">
@@ -254,7 +254,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
                 <select
                   value={form.currency}
                   onChange={(e) => set("currency", e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="TRY">₺ TRY</option>
                   <option value="USD">$ USD</option>
@@ -271,7 +271,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
                   type="month"
                   value={endMonth}
                   onChange={(e) => setEndMonth(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </>
@@ -285,7 +285,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
               required
               value={form.start_date}
               onChange={(e) => set("start_date", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-gray-400 mt-1">{t.firstPaymentDateHint}</p>
           </div>
@@ -297,7 +297,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
               <select
                 value={form.team_id}
                 onChange={(e) => set("team_id", e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">{t.personalOption}</option>
                 {teams.map((team) => (
@@ -314,7 +314,7 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
               <select
                 value={targetUserId}
                 onChange={(e) => setTargetUserId(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">{t.myself}</option>
                 {otherMembers.map((m) => (

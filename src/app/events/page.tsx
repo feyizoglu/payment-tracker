@@ -79,7 +79,7 @@ export default function Events() {
       <EventsHeader />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        <form onSubmit={create} className="bg-white rounded-2xl border border-gray-100 p-5">
+        <form onSubmit={create} className="bg-surface rounded-2xl border border-gray-100 p-5">
           <h2 className="font-semibold text-gray-900 mb-3">{t.newEvent}</h2>
           <div className="flex flex-col sm:flex-row gap-2">
             <input
@@ -105,13 +105,13 @@ export default function Events() {
               {creating ? t.adding : t.create}
             </button>
           </div>
-          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400 mt-2">{error}</p>}
         </form>
 
         <section>
           <h2 className="font-semibold text-gray-900 mb-3">{t.events}</h2>
           {loadFailed ? (
-            <p className="text-sm text-red-600">{t.loadFailed}</p>
+            <p className="text-sm text-red-600 dark:text-red-400">{t.loadFailed}</p>
           ) : events === null ? (
             <div className="flex justify-center py-8">
               <div className="w-6 h-6 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
@@ -124,7 +124,7 @@ export default function Events() {
                 <Link
                   key={ev.id}
                   href={`/events/${ev.id}`}
-                  className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-purple-200 transition"
+                  className="bg-surface rounded-2xl border border-gray-100 p-5 hover:border-purple-200 transition"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -143,7 +143,7 @@ export default function Events() {
                   </div>
                   <div className="mt-3 space-y-0.5">
                     {Object.entries(ev.my_balance).map(([currency, v]) => (
-                      <p key={currency} className={`text-sm font-medium ${v > 0 ? "text-green-600" : "text-red-600"}`}>
+                      <p key={currency} className={`text-sm font-medium ${v > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                         {v > 0 ? t.youAreOwed : t.youOwe} {formatMinor(Math.abs(v), currency, t.numberLocale)}
                       </p>
                     ))}

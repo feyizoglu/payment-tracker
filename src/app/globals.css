@@ -1,15 +1,61 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --surface: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/* Dark theme: the gray scale is inverted and the light tints (50-200) become deep
+   ones, so existing classes such as text-gray-900 or bg-green-50 flip without a
+   dark: variant. Shades 300 and up keep Tailwind's values because they double as
+   button backgrounds; dark text variants use 400. Same scheme as mobile/tailwind.css. */
+.dark {
+  color-scheme: dark;
+  --background: rgb(3 7 18);
+  --foreground: rgb(243 244 246);
+  --surface: rgb(17 24 39);
+
+  --color-gray-50: rgb(3 7 18);
+  --color-gray-100: rgb(31 41 55);
+  --color-gray-200: rgb(55 65 81);
+  --color-gray-300: rgb(75 85 99);
+  --color-gray-400: rgb(139 147 161);
+  --color-gray-500: rgb(180 186 196);
+  --color-gray-600: rgb(209 213 219);
+  --color-gray-700: rgb(229 231 235);
+  --color-gray-800: rgb(243 244 246);
+  --color-gray-900: rgb(249 250 251);
+
+  --color-blue-50: rgb(23 37 84);
+  --color-blue-100: rgb(30 58 138);
+  --color-blue-200: rgb(30 64 175);
+  --color-green-50: rgb(15 42 26);
+  --color-green-100: rgb(20 83 45);
+  --color-green-200: rgb(22 101 52);
+  --color-red-50: rgb(59 18 25);
+  --color-red-100: rgb(92 23 32);
+  --color-red-200: rgb(127 29 29);
+  --color-amber-50: rgb(58 42 5);
+  --color-amber-100: rgb(87 55 6);
+  --color-amber-200: rgb(120 53 15);
+  --color-purple-50: rgb(46 16 101);
+  --color-purple-100: rgb(59 7 100);
+  --color-purple-200: rgb(88 28 135);
+  --color-indigo-50: rgb(30 27 75);
+  --color-indigo-100: rgb(49 46 129);
+  --color-orange-50: rgb(67 20 7);
+  --color-emerald-50: rgb(2 44 34);
 }
 
 body {
@@ -19,5 +65,5 @@ body {
 }
 
 input, select, textarea {
-  color: #000000;
+  color: var(--foreground);
 }

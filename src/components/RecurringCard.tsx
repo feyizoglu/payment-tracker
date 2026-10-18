@@ -48,7 +48,7 @@ export default function RecurringCard({ recurring, userMap = {}, canManage = fal
   return (
     <>
       <div
-        className="bg-white rounded-xl border border-gray-100 shadow-sm p-4"
+        className="bg-surface rounded-xl border border-gray-100 shadow-sm p-4"
         style={{ borderLeftWidth: 3, borderLeftColor: color }}
       >
         <div className="flex items-start justify-between gap-2">
@@ -140,7 +140,7 @@ function EditRecurringModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+      <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold text-gray-900">{t.recurringType}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">

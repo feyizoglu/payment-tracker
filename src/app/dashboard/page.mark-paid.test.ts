@@ -50,6 +50,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/components/PushToggle", () => ({ default: () => null }));
 vi.mock("@/components/PayUntil", () => ({ default: () => null }));
+vi.mock("@/components/ThemePicker", () => ({ default: () => null }));
 vi.mock("@/components/CalendarView", () => ({
   default: (props: { payments: Payment[]; onTogglePaid: (o: Occurrence) => Promise<void> }) => {
     calendar.props = props;

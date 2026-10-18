@@ -45,9 +45,14 @@ vi.mock("@/lib/language-storage", () => ({
   getStoredLanguage: vi.fn(async () => "tr"),
   setStoredLanguage: vi.fn(async () => undefined),
 }));
+vi.mock("@/lib/theme-storage", () => ({
+  getStoredTheme: vi.fn(async () => "dark"),
+  applyTheme: vi.fn(),
+}));
 
 import { router } from "expo-router";
 import RootLayout from "@/app/_layout";
+import { applyTheme } from "@/lib/theme-storage";
 
 interface Root {
   render(node: unknown): void;
@@ -160,5 +165,12 @@ describe("RootNavigator handledTapRef", () => {
     await render();
     expect(router.navigate).toHaveBeenCalledTimes(2);
     expect(router.navigate).toHaveBeenLastCalledWith({ pathname: "/", params: { month: "2026-03", tap: "n2" } });
+  });
+});
+
+describe("RootLayout theme", () => {
+  it("applies the saved theme before the app renders", async () => {
+    await render();
+    expect(applyTheme).toHaveBeenCalledWith("dark");
   });
 });

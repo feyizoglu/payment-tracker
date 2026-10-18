@@ -69,7 +69,7 @@ export default function PaymentCard({ payment, userMap = {}, canManage = false, 
 
   return (
     <>
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
+      <div className="bg-surface rounded-xl border border-gray-100 shadow-sm overflow-hidden"
         style={{ borderLeftWidth: 3, borderLeftColor: color }}>
         {/* Header */}
         <div className="p-4">
@@ -250,7 +250,7 @@ function EditPaymentModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+      <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold text-gray-900">{t.editPayment}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
@@ -290,7 +290,7 @@ function EditPaymentModal({
                 min="0"
                 step="any"
                 required
-                className="flex-1 px-3 py-2.5 text-sm text-black focus:outline-none"
+                className="flex-1 px-3 py-2.5 text-sm text-gray-900 focus:outline-none"
               />
             </div>
           </div>

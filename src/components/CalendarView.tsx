@@ -208,7 +208,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
       )}
 
       {/* Calendar grid */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-4">
+      <div className="bg-surface rounded-2xl border border-gray-100 overflow-hidden mb-4">
         <div className="grid grid-cols-7 border-b border-gray-100">
           {weekDays.map((d) => (
             <div key={d} className="py-2 text-center text-xs font-medium text-gray-400">{d}</div>
@@ -236,7 +236,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
                 `}
               >
                 <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full
-                  ${isToday(day) ? "bg-blue-600 text-white" : isSelected ? "text-blue-600" : "text-gray-700"}
+                  ${isToday(day) ? "bg-blue-600 text-white" : isSelected ? "text-blue-600 dark:text-blue-400" : "text-gray-700"}
                 `}>
                   {format(day, "d")}
                 </span>
@@ -299,7 +299,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
                   <div
                     key={rowKey}
                     className={`flex items-center gap-3 p-3 rounded-xl border transition ${
-                      o.isPaid ? "bg-green-50 border-green-100" : "bg-white border-gray-100"
+                      o.isPaid ? "bg-green-50 border-green-100" : "bg-surface border-gray-100"
                     }`}
                     style={{ borderLeftWidth: 3, borderLeftColor: color }}
                   >
@@ -326,7 +326,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
                             : t.recurringBadge}
                         </p>
                         {o.overridden && (
-                          <span className="text-[10px] font-medium text-amber-600 bg-amber-50 rounded px-1.5 py-0.5">
+                          <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 rounded px-1.5 py-0.5">
                             {t.editedBadge}
                           </span>
                         )}
@@ -475,7 +475,7 @@ function EditOccurrenceModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+      <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold text-gray-900">{isRecurring ? t.editReminder : t.editInstallment}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition text-xl leading-none">×</button>
@@ -490,7 +490,7 @@ function EditOccurrenceModal({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -538,7 +538,7 @@ function EditOccurrenceModal({
                       min="0"
                       value={line.amount}
                       onChange={(e) => updateLine(i, { amount: e.target.value })}
-                      className="flex-1 min-w-0 px-3 py-2.5 text-sm text-black focus:outline-none"
+                      className="flex-1 min-w-0 px-3 py-2.5 text-sm text-gray-900 focus:outline-none"
                     />
                     {lines.length > 1 && (
                       <button
@@ -556,7 +556,7 @@ function EditOccurrenceModal({
               <button
                 type="button"
                 onClick={addLine}
-                className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition"
+                className="mt-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
               >
                 + {t.addCurrency}
               </button>
