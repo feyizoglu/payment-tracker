@@ -15,13 +15,13 @@ export default function EventsHeader() {
 
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-y-1 py-2 lg:py-0 lg:h-14">
+        <div className="contents lg:flex lg:items-center lg:gap-4">
           <div className="flex items-center gap-2">
             <CreditCard className="w-6 h-6 text-blue-600" />
             <span className="font-bold text-gray-900">PayTrack</span>
           </div>
-          <nav className="flex items-center gap-1">
+          <nav className="order-last w-full flex items-center gap-1 lg:order-none lg:w-auto">
             <Link
               href="/dashboard"
               className="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition font-medium"
