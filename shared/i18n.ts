@@ -245,6 +245,12 @@ const translations = {
     editExpense: "Edit expense",
     splitInvalid: "Pick who shares it; exact amounts must add up to the total",
     back: "Back",
+    // Web push reminders
+    enableReminders: "Turn on reminder notifications",
+    disableReminders: "Turn off reminder notifications",
+    remindersBlocked: "Notifications are blocked. Allow them in your browser settings.",
+    remindersFailed: "Could not change reminder notifications. Try again.",
+    iosInstallHint: "To get reminders, tap Share and then \"Add to Home Screen\", and open PayTrack from there.",
   },
   tr: {
     // Landing
@@ -477,6 +483,12 @@ const translations = {
     editExpense: "Harcamayı düzenle",
     splitInvalid: "Paylaşanları seç; tutarların toplamı harcamaya eşit olmalı",
     back: "Geri",
+    // Web push reminders
+    enableReminders: "Hatırlatma bildirimlerini aç",
+    disableReminders: "Hatırlatma bildirimlerini kapat",
+    remindersBlocked: "Bildirimler engelli. Tarayıcı ayarlarından izin ver.",
+    remindersFailed: "Hatırlatma bildirimleri değiştirilemedi. Tekrar dene.",
+    iosInstallHint: "Hatırlatma almak için Paylaş'a, ardından \"Ana Ekrana Ekle\"ye dokun ve PayTrack'i oradan aç.",
   },
 };
 

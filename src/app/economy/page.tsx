@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
@@ -40,6 +40,8 @@ import {
 } from "lucide-react";
 import { myColorFromTeams } from "@/lib/teams";
 import TeamPanel from "@/components/TeamPanel";
+import PushToggle from "@/components/PushToggle";
+import { signOutWithPushCleanup } from "@/lib/web-push-client";
 
 // Constants and pure logic now live in @/lib/economy (= shared/economy.ts), shared with
 // the mobile Economy tab. This page only renders them.
@@ -190,6 +192,7 @@ export default function Economy() {
           </div>
 
           <div className="flex items-center gap-2">
+            <PushToggle />
             <button
               onClick={() => setLang(lang === "en" ? "tr" : "en")}
               className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
@@ -230,7 +233,7 @@ export default function Economy() {
                     <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
                   </div>
                   <button
-                    onClick={() => signOut({ callbackUrl: "/" })}
+                    onClick={() => void signOutWithPushCleanup()}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition"
                   >
                     <LogOut className="w-4 h-4" />
