@@ -8,7 +8,8 @@ import { TabScreen } from "@/components/tab-screen";
 import { useAuth } from "@/lib/auth-context";
 import { toIsoDate } from "@/lib/dates";
 import { occurrenceEditRoute, seriesEditRoute } from "@/lib/occurrence-edit";
-import { markPaidRequest, occurrenceKey } from "@/lib/occurrences";
+import { occurrenceKey } from "@/lib/occurrences";
+import { planMarkPaid, type ListEdit } from "@ptracker/shared/mark-paid";
 import { buildPeople } from "@/lib/people";
 import { refreshWidget } from "@/lib/widget-refresh";
 import { MonthHeader, type PaymentsView } from "@/components/month-header";
@@ -93,22 +94,30 @@ export default function Payments() {
     });
   }, []);
 
+  const applyEdit = useCallback((edit: ListEdit) => {
+    if (edit.payments) setPayments(edit.payments);
+    if (edit.recurrings) setRecurrings(edit.recurrings);
+  }, []);
+
   const onTogglePaid = useCallback(
     async (o: Occurrence) => {
       const key = occurrenceKey(o);
       setBusyKey(key);
+      const plan = planMarkPaid(o);
+      applyEdit(plan.optimistic);
       try {
-        const req = markPaidRequest(o);
-        if (req.method === "PATCH") await api.patch(req.url, req.body);
-        else await api.put(req.url, req.body);
-        await load();
+        const req = plan.request;
+        const reply = req.method === "PATCH" ? await api.patch(req.url, req.body) : await api.put(req.url, req.body);
+        applyEdit(plan.confirmed(reply));
+        refreshWidget();
       } catch (e) {
         setError(e instanceof Error ? e.message : t.updateFailed);
+        await load();
       } finally {
         setBusyKey(null);
       }
     },
-    [api, load]
+    [api, load, applyEdit]
   );
 
   const onEdit = useCallback((o: Occurrence) => {

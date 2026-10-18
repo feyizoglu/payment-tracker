@@ -28,6 +28,7 @@ interface Props {
   recurrings?: RecurringPayment[];
   userMap?: UserMap;
   onUpdated: () => void;
+  onTogglePaid: (o: Occurrence) => Promise<void>;
   onDaySelected?: (date: Date | null) => void;
   onMonthChange?: (date: Date) => void;
   initialDate?: Date;
@@ -57,7 +58,7 @@ function fmt(n: number, locale: string, decimals = 0): string {
   });
 }
 
-export default function CalendarView({ payments, recurrings = [], userMap = {}, onUpdated, onDaySelected, onMonthChange, initialDate }: Props) {
+export default function CalendarView({ payments, recurrings = [], userMap = {}, onUpdated, onTogglePaid, onDaySelected, onMonthChange, initialDate }: Props) {
   const { lang, t } = useLang();
   const locale = lang === "tr" ? dateFnsTr : enUS;
   const [currentDate, setCurrentDate] = useState(() => initialDate ?? new Date());
@@ -130,21 +131,7 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
   async function togglePaid(o: Occurrence) {
     const key = `${o.kind}-${o.sourceId}-${o.installmentIndex ?? o.period}`;
     setLoading(key);
-    if (o.kind === "installment") {
-      const newPaid = o.isPaid ? o.installmentIndex! : o.installmentIndex! + 1;
-      await fetch(`/api/payments/${o.sourceId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paid_installments: newPaid }),
-      });
-    } else {
-      await fetch(`/api/recurring/${o.sourceId}/entry`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ period: o.period, is_paid: !o.isPaid }),
-      });
-    }
-    onUpdated();
+    await onTogglePaid(o);
     setLoading(null);
   }
 
