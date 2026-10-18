@@ -108,4 +108,21 @@ describe("readThemePref / setThemePref", () => {
     expect(b.classes.has("dark")).toBe(false);
     expect(readThemePref()).toBe("system");
   });
+
+  it("still applies dark when storage refuses the write", () => {
+    b.globals.localStorage.setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+
+    expect(() => setThemePref("dark")).not.toThrow();
+    expect(b.classes.has("dark")).toBe(true);
+  });
+
+  it("reads system when storage is blocked", () => {
+    b.globals.localStorage.getItem = () => {
+      throw new Error("SecurityError");
+    };
+
+    expect(readThemePref()).toBe("system");
+  });
 });
