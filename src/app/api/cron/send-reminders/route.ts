@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   const db = supabaseAdmin();
   const resend = new Resend(process.env.RESEND_API_KEY);
 
-  // Tomorrow's local date components — cron fires at 12:00 UTC = 15:00 Turkey (UTC+3)
+  // Tomorrow's local date components — cron fires at 18:00 UTC = 21:00 Turkey (UTC+3)
   const tomorrow = addDays(new Date(), 1);
   const tYear = tomorrow.getFullYear();
   const tMonth = tomorrow.getMonth();
