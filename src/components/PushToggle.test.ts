@@ -141,6 +141,19 @@ describe("PushToggle init", () => {
     expect(button(tree).props["aria-pressed"]).toBe(true);
   });
 
+  it("POSTs the existing subscription again", async () => {
+    const sub = makeSubscription();
+    registration.pushManager.getSubscription.mockResolvedValue(sub);
+
+    await mount();
+
+    expect(fetch).toHaveBeenCalledWith("/api/web-push", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(sub.toJSON()),
+    });
+  });
+
   it("stays hidden when registering the service worker fails", async () => {
     register.mockRejectedValue(new Error("insecure"));
 
@@ -192,6 +205,29 @@ describe("PushToggle subscribe", () => {
     expect(message(tree)).toBe("FAILED");
   });
 
+  it("rolls back the browser subscription when the POST rejects", async () => {
+    const sub = makeSubscription();
+    registration.pushManager.subscribe.mockResolvedValue(sub);
+    vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+    await mount();
+
+    const tree = await click();
+
+    expect(sub.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(button(tree).props["aria-pressed"]).toBe(false);
+    expect(message(tree)).toBe("FAILED");
+  });
+
+  it("shows no message and does not subscribe when the prompt is dismissed", async () => {
+    requestPermission.mockResolvedValue("default");
+    await mount();
+
+    const tree = await click();
+
+    expect(message(tree)).toBeNull();
+    expect(registration.pushManager.subscribe).not.toHaveBeenCalled();
+  });
+
   it("shows the blocked message and does not subscribe when permission is denied", async () => {
     requestPermission.mockResolvedValue("denied");
     await mount();
@@ -219,6 +255,19 @@ describe("PushToggle unsubscribe", () => {
       expect.objectContaining({ method: "DELETE", body: JSON.stringify({ endpoint: ENDPOINT }) })
     );
     expect(button(tree).props["aria-pressed"]).toBe(false);
+  });
+
+  it("switches off without a message when the DELETE rejects", async () => {
+    const sub = makeSubscription();
+    registration.pushManager.getSubscription.mockResolvedValue(sub);
+    await mount();
+    vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+
+    const tree = await click();
+
+    expect(sub.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(button(tree).props["aria-pressed"]).toBe(false);
+    expect(message(tree)).toBeNull();
   });
 });
 

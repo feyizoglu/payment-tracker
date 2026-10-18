@@ -26,4 +26,29 @@ describe("CalendarView initialDate", () => {
     expect(html).toContain("November 2026");
     expect(html).not.toContain("May 2026</h2>");
   });
+
+  it("selects the first day of the initialDate month in another month", () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        LanguageProvider,
+        { initialLang: "en" },
+        createElement(CalendarView, { payments: [], onUpdated: () => {}, initialDate: new Date(2026, 10, 1) })
+      )
+    );
+
+    expect(html).toMatch(/<h3[^>]*>1 November 2026</);
+    expect(html).not.toContain("15 May 2026");
+  });
+
+  it("selects today when initialDate is in the current month", () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        LanguageProvider,
+        { initialLang: "en" },
+        createElement(CalendarView, { payments: [], onUpdated: () => {}, initialDate: new Date(2026, 4, 1) })
+      )
+    );
+
+    expect(html).toMatch(/<h3[^>]*>15 May 2026</);
+  });
 });
