@@ -95,6 +95,17 @@ describe("PATCH /api/payments/[id]", () => {
     expect(supabaseAdmin).not.toHaveBeenCalled();
   });
 
+  it("400s without touching the database when the body is not valid JSON", async () => {
+    const req = new Request("http://localhost/api/payments/p-1", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: "{",
+    });
+    const res = await PATCH(req as never, params);
+    expect(res.status).toBe(400);
+    expect(supabaseAdmin).not.toHaveBeenCalled();
+  });
+
   it("lets the team owner update a member's payment", async () => {
     const db = makeDb({
       updates: [{ data: null, error: null }, { data: { ...row, user_id: "u-2" }, error: null }],

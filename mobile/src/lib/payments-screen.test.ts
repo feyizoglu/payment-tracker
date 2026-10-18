@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRequire } from "node:module";
 import { act, createElement } from "react";
+import type { Occurrence, Payment } from "@ptracker/shared/types";
 
 const state = vi.hoisted(() => ({
   params: {} as { month?: string; tap?: string },
@@ -11,6 +12,7 @@ const state = vi.hoisted(() => ({
     onToggleView: (v: string) => void;
   },
   calendar: null as null | { selectedDay: Date | null; onSelectDay: (d: Date) => void },
+  list: null as null | { occurrences: Occurrence[]; onTogglePaid: (o: Occurrence) => Promise<void> },
   auth: {
     api: { get: async () => [] as unknown[], patch: async () => undefined, put: async () => undefined },
     user: { id: "u1", email: "a@b.c", name: "A" },
@@ -50,7 +52,12 @@ vi.mock("@/components/month-header", () => ({
     return null;
   },
 }));
-vi.mock("@/components/month-list", () => ({ MonthList: () => null }));
+vi.mock("@/components/month-list", () => ({
+  MonthList: (props: NonNullable<typeof state.list>) => {
+    state.list = props;
+    return null;
+  },
+}));
 vi.mock("@/components/payments-calendar", () => ({
   PaymentsCalendar: (props: NonNullable<typeof state.calendar>) => {
     state.calendar = props;
@@ -111,6 +118,7 @@ beforeEach(() => {
   state.params = { month: "2026-03", tap: "n1" };
   state.header = null;
   state.calendar = null;
+  state.list = null;
 });
 
 afterEach(async () => {
@@ -173,5 +181,81 @@ describe("Payments load", () => {
     } finally {
       state.auth.api.get = get;
     }
+  });
+});
+
+describe("Payments mark paid", () => {
+  const loan: Payment = {
+    id: "p-1",
+    team_id: null,
+    user_id: "u1",
+    name: "Loan",
+    amount: 100,
+    currency: "TRY",
+    start_date: "2026-01-15",
+    day_of_month: 15,
+    total_installments: 12,
+    paid_installments: 2,
+    created_at: "",
+  };
+  const original = { ...state.auth.api };
+  const get = vi.fn(async (url: string) => (url === "/api/payments?filter=all" ? [loan] : []));
+  const paymentFetches = () => get.mock.calls.filter(([url]) => url === "/api/payments?filter=all").length;
+
+  function list() {
+    if (!state.list) throw new Error("MonthList not rendered");
+    return state.list;
+  }
+
+  const march = () => list().occurrences.find((o) => o.sourceId === "p-1")!;
+
+  beforeEach(() => {
+    get.mockClear();
+    vi.mocked(refreshWidget).mockClear();
+    Object.assign(state.auth.api, { get });
+  });
+
+  afterEach(() => {
+    Object.assign(state.auth.api, original);
+  });
+
+  it("shows the tick before the request resolves and keeps the server's count without refetching", async () => {
+    let resolve: (v: unknown) => void = () => undefined;
+    const patch = vi.fn(() => new Promise((r) => (resolve = r)));
+    Object.assign(state.auth.api, { patch });
+    await render();
+    expect(march().isPaid).toBe(false);
+
+    let pending: Promise<void> = Promise.resolve();
+    await act(async () => {
+      pending = list().onTogglePaid(march());
+    });
+    expect(patch).toHaveBeenCalledWith("/api/payments/p-1", { paid_installments: 3 });
+    expect(march().isPaid).toBe(true);
+
+    await act(async () => {
+      resolve({ ...loan, paid_installments: 5 });
+      await pending;
+    });
+    await act(async () => header().onNext());
+    expect(list().occurrences.find((o) => o.sourceId === "p-1")).toMatchObject({ installmentIndex: 3, isPaid: true });
+    expect(refreshWidget).toHaveBeenCalledTimes(2);
+    expect(paymentFetches()).toBe(1);
+  });
+
+  it("refetches and drops the tick when the request fails", async () => {
+    const patch = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    Object.assign(state.auth.api, { patch });
+    await render();
+
+    await act(async () => {
+      await list().onTogglePaid(march());
+    });
+    await flush();
+
+    expect(paymentFetches()).toBe(2);
+    expect(march().isPaid).toBe(false);
   });
 });

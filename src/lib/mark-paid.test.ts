@@ -153,4 +153,13 @@ describe("withRecurringEntry", () => {
     const [, untouched] = withRecurringEntry([recurring(), other], "r-1", { period: "2026-11-01", is_paid: true });
     expect(untouched).toBe(other);
   });
+
+  it("updates only the named period and keeps the other entries as they were", () => {
+    const october = entry({ id: "e-10", period: "2026-10-01", is_paid: true, paid_at: "2026-10-02T09:00:00Z" });
+    const november = entry();
+    const [r] = withRecurringEntry([recurring([october, november])], "r-1", { period: "2026-11-01", is_paid: true });
+    expect(r.entries).toHaveLength(2);
+    expect(r.entries![0]).toBe(october);
+    expect(r.entries![1]).toMatchObject({ id: "e-1", period: "2026-11-01", is_paid: true });
+  });
 });
