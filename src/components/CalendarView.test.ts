@@ -19,7 +19,7 @@ describe("CalendarView initialDate", () => {
       createElement(
         LanguageProvider,
         { initialLang: "en" },
-        createElement(CalendarView, { payments: [], onUpdated: () => {}, initialDate: new Date(2026, 10, 1) })
+        createElement(CalendarView, { payments: [], onUpdated: () => {}, onTogglePaid: async () => {}, initialDate: new Date(2026, 10, 1) })
       )
     );
 
@@ -32,7 +32,7 @@ describe("CalendarView initialDate", () => {
       createElement(
         LanguageProvider,
         { initialLang: "en" },
-        createElement(CalendarView, { payments: [], onUpdated: () => {}, initialDate: new Date(2026, 10, 1) })
+        createElement(CalendarView, { payments: [], onUpdated: () => {}, onTogglePaid: async () => {}, initialDate: new Date(2026, 10, 1) })
       )
     );
 
@@ -45,7 +45,7 @@ describe("CalendarView initialDate", () => {
       createElement(
         LanguageProvider,
         { initialLang: "en" },
-        createElement(CalendarView, { payments: [], onUpdated: () => {}, initialDate: new Date(2026, 4, 1) })
+        createElement(CalendarView, { payments: [], onUpdated: () => {}, onTogglePaid: async () => {}, initialDate: new Date(2026, 4, 1) })
       )
     );
 

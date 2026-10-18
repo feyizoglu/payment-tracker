@@ -16,6 +16,7 @@ import PayUntil from "@/components/PayUntil";
 import PushToggle from "@/components/PushToggle";
 import { signOutWithPushCleanup } from "@/lib/web-push-client";
 import { parseMonthParam } from "@/lib/month-param";
+import { planMarkPaid, type ListEdit } from "@/lib/mark-paid";
 import Link from "next/link";
 import {
   CreditCard,
@@ -85,6 +86,31 @@ function Dashboard() {
     const res = await fetch("/api/recurring?filter=all");
     if (res.ok) setRecurrings(await res.json());
   }, []);
+
+  const applyEdit = useCallback((edit: ListEdit) => {
+    if (edit.payments) setPayments(edit.payments);
+    if (edit.recurrings) setRecurrings(edit.recurrings);
+  }, []);
+
+  const togglePaid = useCallback(
+    async (o: Occurrence) => {
+      const plan = planMarkPaid(o);
+      applyEdit(plan.optimistic);
+      const { url, method, body } = plan.request;
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).catch(() => null);
+      if (res?.ok) {
+        applyEdit(plan.confirmed(await res.json().catch(() => null)));
+        return;
+      }
+      applyEdit(plan.rollback);
+      await Promise.all([fetchPayments(), fetchRecurrings()]).catch(() => undefined);
+    },
+    [applyEdit, fetchPayments, fetchRecurrings]
+  );
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -364,6 +390,7 @@ function Dashboard() {
               recurrings={filteredRecurrings}
               userMap={userMap}
               onUpdated={() => { fetchPayments(); fetchRecurrings(); }}
+              onTogglePaid={togglePaid}
               onDaySelected={setSelectedCalendarDay}
               onMonthChange={setCalendarDate}
               initialDate={calendarDate}
