@@ -60,6 +60,8 @@ function RootNavigator() {
         <Stack.Screen name="asset-form" options={{ presentation: 'modal' }} />
         <Stack.Screen name="asset/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="manual-gold" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="event/[id]" />
+        <Stack.Screen name="event-expense" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!isAuthenticated}>
         <Stack.Screen name="sign-in" />

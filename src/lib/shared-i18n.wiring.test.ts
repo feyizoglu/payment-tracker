@@ -25,4 +25,9 @@ describe("@/lib/i18n → shared/i18n wiring", () => {
     expect(typeof shim.LanguageProvider).toBe("function");
     expect(typeof shim.useLang).toBe("function");
   });
+
+  it("has the event strings in both languages", () => {
+    expect(shim.translationsFor("en").events).toBe("Events");
+    expect(shim.translationsFor("tr").events).toBe("Etkinlikler");
+  });
 });

@@ -148,3 +148,76 @@ export interface ExchangeRates {
   fetchedAt: string;
   goldError?: string | null;
 }
+
+export type EventStatus = "open" | "closed";
+
+export interface SplitEvent {
+  id: string;
+  name: string;
+  event_date: string | null;
+  created_by: string;
+  status: EventStatus;
+  created_at: string;
+}
+
+export interface EventParticipant {
+  id: string;
+  event_id: string;
+  user_id: string | null;
+  display_name: string | null;
+  created_at: string;
+  user?: Pick<User, "id" | "name" | "email" | "color"> | null;
+}
+
+export interface EventExpenseShare {
+  participant_id: string;
+  amount_minor: number;
+}
+
+export interface EventExpense {
+  id: string;
+  event_id: string;
+  description: string;
+  amount_minor: number;
+  currency: string;
+  paid_by: string;
+  spent_on: string;
+  created_by: string;
+  created_at: string;
+  shares: EventExpenseShare[];
+}
+
+export interface EventSettlement {
+  id: string;
+  event_id: string;
+  from_participant: string;
+  to_participant: string;
+  amount_minor: number;
+  currency: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface EventDetail extends SplitEvent {
+  participants: EventParticipant[];
+  expenses: EventExpense[];
+  settlements: EventSettlement[];
+}
+
+// GET /api/events row: the caller's own net per currency (positive = owed to them).
+export interface EventSummary extends SplitEvent {
+  my_balance: Record<string, number>;
+}
+
+export type ExpenseSplitInput =
+  | { kind: "equal"; participant_ids: string[] }
+  | { kind: "exact"; shares: EventExpenseShare[] };
+
+export interface ExpenseInput {
+  description: string;
+  amount_minor: number;
+  currency: string;
+  paid_by: string;
+  spent_on: string;
+  split: ExpenseSplitInput;
+}
