@@ -18,6 +18,8 @@ export interface MarkPaidPlan {
   optimistic: ListEdit;
   // Records the row the server stored, once the request succeeds.
   confirmed: (reply: unknown) => ListEdit;
+  // Puts back what `optimistic` replaced, when the request fails.
+  rollback: ListEdit;
 }
 
 // Builds the API request that toggles an occurrence's paid state.
@@ -69,13 +71,35 @@ export function withRecurringEntry(
   });
 }
 
+export function withoutRecurringEntry(
+  recurrings: RecurringPayment[],
+  recurringId: string,
+  period: string
+): RecurringPayment[] {
+  return recurrings.map((r) =>
+    r.id === recurringId && r.entries?.some((e) => e.period === period)
+      ? { ...r, entries: r.entries.filter((e) => e.period !== period) }
+      : r
+  );
+}
+
 export function planMarkPaid(o: Occurrence): MarkPaidPlan {
   const request = markPaidRequest(o);
   if (o.kind === "installment") {
     const paid = request.body.paid_installments as number;
+    // Captured on the first run of the optimistic updater (React may call it twice).
+    let previous: number | undefined;
     return {
       request,
-      optimistic: { payments: (p) => withPaidInstallments(p, o.sourceId, paid) },
+      optimistic: {
+        payments: (p) => {
+          previous ??= p.find((x) => x.id === o.sourceId)?.paid_installments;
+          return withPaidInstallments(p, o.sourceId, paid);
+        },
+      },
+      rollback: {
+        payments: (p) => (previous === undefined ? p : withPaidInstallments(p, o.sourceId, previous)),
+      },
       confirmed: (reply) => {
         const row = reply as Partial<Payment> | null;
         if (typeof row?.paid_installments !== "number") return {};
@@ -85,15 +109,29 @@ export function planMarkPaid(o: Occurrence): MarkPaidPlan {
     };
   }
   const isPaid = !o.isPaid;
+  const period = o.period!;
+  let captured = false;
+  let previous: RecurringEntry | undefined;
   return {
     request,
     optimistic: {
-      recurrings: (r) =>
-        withRecurringEntry(r, o.sourceId, {
-          period: o.period!,
+      recurrings: (r) => {
+        if (!captured) {
+          captured = true;
+          previous = r.find((x) => x.id === o.sourceId)?.entries?.find((e) => e.period === period);
+        }
+        return withRecurringEntry(r, o.sourceId, {
+          period,
           is_paid: isPaid,
           paid_at: isPaid ? new Date().toISOString() : null,
-        }),
+        });
+      },
+    },
+    rollback: {
+      recurrings: (r) => {
+        if (!captured) return r;
+        return previous ? withRecurringEntry(r, o.sourceId, previous) : withoutRecurringEntry(r, o.sourceId, period);
+      },
     },
     confirmed: (reply) => {
       const entry = reply as RecurringEntry | null;

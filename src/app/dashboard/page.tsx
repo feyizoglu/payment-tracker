@@ -104,9 +104,10 @@ function Dashboard() {
       }).catch(() => null);
       if (res?.ok) {
         applyEdit(plan.confirmed(await res.json().catch(() => null)));
-      } else {
-        await Promise.all([fetchPayments(), fetchRecurrings()]);
+        return;
       }
+      applyEdit(plan.rollback);
+      await Promise.all([fetchPayments(), fetchRecurrings()]).catch(() => undefined);
     },
     [applyEdit, fetchPayments, fetchRecurrings]
   );

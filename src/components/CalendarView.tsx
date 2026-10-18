@@ -131,8 +131,11 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
   async function togglePaid(o: Occurrence) {
     const key = `${o.kind}-${o.sourceId}-${o.installmentIndex ?? o.period}`;
     setLoading(key);
-    await onTogglePaid(o);
-    setLoading(null);
+    try {
+      await onTogglePaid(o);
+    } finally {
+      setLoading(null);
+    }
   }
 
   async function deleteOccurrence(o: Occurrence) {

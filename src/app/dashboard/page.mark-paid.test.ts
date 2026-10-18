@@ -192,4 +192,18 @@ describe("DashboardPage togglePaid", () => {
     expect(fetchesOf(fetch, "/api/recurring?filter=all")).toBe(2);
     expect(view().payments[0].paid_installments).toBe(2);
   });
+
+  it("undoes the tick and settles when the refetch fails too", async () => {
+    const fetch = stubFetch(async () => {
+      throw new Error("offline");
+    });
+    await render();
+    fetch.mockImplementation(async () => {
+      throw new Error("offline");
+    });
+
+    await act(async () => expect(view().onTogglePaid(installment)).resolves.toBeUndefined());
+
+    expect(view().payments[0].paid_installments).toBe(2);
+  });
 });

@@ -63,8 +63,8 @@ export default function Payments() {
   }, [api]);
 
   // Reloads on mount and every time a form modal closes and this tab regains focus,
-  // which is how edits made in those modals show up here. Same full-refetch approach
-  // as mark-paid — no optimistic state to keep in sync.
+  // which is how edits made in those modals show up here. Mark-paid edits the lists
+  // in place instead (see onTogglePaid).
   useFocusEffect(
     useCallback(() => {
       load();
@@ -111,8 +111,10 @@ export default function Payments() {
         applyEdit(plan.confirmed(reply));
         refreshWidget();
       } catch (e) {
-        setError(e instanceof Error ? e.message : t.updateFailed);
+        applyEdit(plan.rollback);
+        // load() clears the error first, so report the failure after it.
         await load();
+        setError(e instanceof Error ? e.message : t.updateFailed);
       } finally {
         setBusyKey(null);
       }

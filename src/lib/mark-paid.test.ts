@@ -163,3 +163,29 @@ describe("withRecurringEntry", () => {
     expect(r.entries![1]).toMatchObject({ id: "e-1", period: "2026-11-01", is_paid: true });
   });
 });
+
+describe("planMarkPaid rollback", () => {
+  it("puts back the paid count the optimistic edit replaced", () => {
+    const plan = planMarkPaid(installment());
+    const ticked = apply(plan.optimistic, [payment()], []);
+    expect(apply(plan.rollback, ticked.payments, []).payments[0].paid_installments).toBe(2);
+  });
+
+  it("restores the previous recurring entry", () => {
+    const plan = planMarkPaid(monthly());
+    const ticked = apply(plan.optimistic, [], [recurring([entry()])]).recurrings;
+    expect(apply(plan.rollback, [], ticked).recurrings[0].entries).toEqual([entry()]);
+  });
+
+  it("removes the placeholder entry when the period had none", () => {
+    const plan = planMarkPaid(monthly());
+    const ticked = apply(plan.optimistic, [], [recurring([])]).recurrings;
+    expect(apply(plan.rollback, [], ticked).recurrings[0].entries).toEqual([]);
+  });
+
+  it("changes nothing when the optimistic edit never ran", () => {
+    const lists = { payments: [payment()], recurrings: [recurring([entry()])] };
+    expect(apply(planMarkPaid(installment()).rollback, lists.payments, []).payments).toEqual(lists.payments);
+    expect(apply(planMarkPaid(monthly()).rollback, [], lists.recurrings).recurrings).toEqual(lists.recurrings);
+  });
+});

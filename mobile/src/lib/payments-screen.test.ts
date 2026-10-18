@@ -4,6 +4,7 @@ import { act, createElement } from "react";
 import type { Occurrence, Payment } from "@ptracker/shared/types";
 
 const state = vi.hoisted(() => ({
+  texts: [] as unknown[],
   params: {} as { month?: string; tap?: string },
   header: null as null | {
     year: number;
@@ -27,7 +28,10 @@ vi.mock("react-native", async () => {
     Pressable: pass,
     RefreshControl: () => null,
     ScrollView: pass,
-    Text: () => null,
+    Text: ({ children }: { children?: unknown }) => {
+      state.texts.push(children);
+      return null;
+    },
     View: pass,
   };
 });
@@ -256,6 +260,40 @@ describe("Payments mark paid", () => {
     await flush();
 
     expect(paymentFetches()).toBe(2);
+    expect(march().isPaid).toBe(false);
+  });
+
+  it("keeps the failure message on screen after the reload succeeds", async () => {
+    const patch = vi.fn(async () => {
+      throw new Error("Forbidden");
+    });
+    Object.assign(state.auth.api, { patch });
+    await render();
+
+    await act(async () => {
+      await list().onTogglePaid(march());
+    });
+    state.texts = [];
+    await render();
+
+    expect(state.texts).toContain("Forbidden");
+  });
+
+  it("undoes the tick when the reload fails too", async () => {
+    const patch = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    Object.assign(state.auth.api, { patch });
+    await render();
+    get.mockImplementation(async () => {
+      throw new Error("offline");
+    });
+
+    await act(async () => {
+      await list().onTogglePaid(march());
+    });
+    get.mockImplementation(async (url: string) => (url === "/api/payments?filter=all" ? [loan] : []));
+
     expect(march().isPaid).toBe(false);
   });
 });
