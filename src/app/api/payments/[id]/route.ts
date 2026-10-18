@@ -4,6 +4,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
+const EDITABLE_FIELDS = ["name", "amount", "currency", "total_installments", "paid_installments"] as const;
+
 // Returns true if userId owns the payment OR is the team owner of the payment's team
 async function canManagePayment(db: ReturnType<typeof supabaseAdmin>, paymentId: string, userId: string) {
   const { data: payment } = await db
@@ -38,18 +40,36 @@ export async function PATCH(
   }
 
   const { id } = await params;
+  const body = await req.json().catch(() => null);
+  const patch: Record<string, unknown> = {};
+  for (const field of EDITABLE_FIELDS) {
+    if (body?.[field] !== undefined) patch[field] = body[field];
+  }
+  if (Object.keys(patch).length === 0) {
+    return NextResponse.json({ error: "No editable fields" }, { status: 400 });
+  }
+
   const db = supabaseAdmin();
   const userId = user.id;
+
+  // The payment's own creator is the common caller: one round trip updates and authorizes.
+  const own = await db
+    .from("payments")
+    .update(patch)
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select("*")
+    .maybeSingle();
+  if (own.error) return NextResponse.json({ error: own.error.message }, { status: 500 });
+  if (own.data) return NextResponse.json(own.data);
 
   if (!(await canManagePayment(db, id, userId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
-
   const { data, error } = await db
     .from("payments")
-    .update(body)
+    .update(patch)
     .eq("id", id)
     .select("*")
     .single();
