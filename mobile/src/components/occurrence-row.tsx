@@ -1,5 +1,5 @@
 import { useLang } from "@ptracker/shared/i18n";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import type { Occurrence } from "@ptracker/shared/types";
 import { getCurrencySymbol } from "@ptracker/shared/payments";
 import { occurrenceTypeBadge } from "@/lib/occurrences";
@@ -39,9 +39,7 @@ export function OccurrenceRow({
         className={`h-8 w-8 items-center justify-center rounded-full border-2 disabled:opacity-50 ${
           o.isPaid ? "border-green-500 bg-green-500" : "border-gray-300"
         }`}>
-        {busy ? (
-          <ActivityIndicator size="small" />
-        ) : o.isPaid ? (
+        {o.isPaid ? (
           <Text className="text-base font-bold text-white">✓</Text>
         ) : null}
       </Pressable>

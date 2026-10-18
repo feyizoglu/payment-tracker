@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRequire } from "node:module";
 import { act, createElement } from "react";
+import type { Occurrence, Payment, RecurringPayment } from "@ptracker/shared/types";
 
 const state = vi.hoisted(() => ({
+  texts: [] as unknown[],
   params: {} as { month?: string; tap?: string },
   header: null as null | {
     year: number;
@@ -11,6 +13,7 @@ const state = vi.hoisted(() => ({
     onToggleView: (v: string) => void;
   },
   calendar: null as null | { selectedDay: Date | null; onSelectDay: (d: Date) => void },
+  list: null as null | { occurrences: Occurrence[]; onTogglePaid: (o: Occurrence) => Promise<void> },
   auth: {
     api: { get: async () => [] as unknown[], patch: async () => undefined, put: async () => undefined },
     user: { id: "u1", email: "a@b.c", name: "A" },
@@ -25,7 +28,10 @@ vi.mock("react-native", async () => {
     Pressable: pass,
     RefreshControl: () => null,
     ScrollView: pass,
-    Text: () => null,
+    Text: ({ children }: { children?: unknown }) => {
+      state.texts.push(children);
+      return null;
+    },
     View: pass,
   };
 });
@@ -37,7 +43,7 @@ vi.mock("expo-router", async () => {
     useLocalSearchParams: () => state.params,
   };
 });
-vi.mock("@ptracker/shared/i18n", () => ({ useLang: () => ({ t: {} }) }));
+vi.mock("@ptracker/shared/i18n", () => ({ useLang: () => ({ t: { updateFailed: "Update failed" } }) }));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => state.auth }));
 vi.mock("@/lib/widget-refresh", () => ({ refreshWidget: vi.fn() }));
 vi.mock("@/components/tab-screen", async () => {
@@ -50,7 +56,12 @@ vi.mock("@/components/month-header", () => ({
     return null;
   },
 }));
-vi.mock("@/components/month-list", () => ({ MonthList: () => null }));
+vi.mock("@/components/month-list", () => ({
+  MonthList: (props: NonNullable<typeof state.list>) => {
+    state.list = props;
+    return null;
+  },
+}));
 vi.mock("@/components/payments-calendar", () => ({
   PaymentsCalendar: (props: NonNullable<typeof state.calendar>) => {
     state.calendar = props;
@@ -111,6 +122,7 @@ beforeEach(() => {
   state.params = { month: "2026-03", tap: "n1" };
   state.header = null;
   state.calendar = null;
+  state.list = null;
 });
 
 afterEach(async () => {
@@ -173,5 +185,163 @@ describe("Payments load", () => {
     } finally {
       state.auth.api.get = get;
     }
+  });
+});
+
+describe("Payments mark paid", () => {
+  const loan: Payment = {
+    id: "p-1",
+    team_id: null,
+    user_id: "u1",
+    name: "Loan",
+    amount: 100,
+    currency: "TRY",
+    start_date: "2026-01-15",
+    day_of_month: 15,
+    total_installments: 12,
+    paid_installments: 2,
+    created_at: "",
+  };
+  const original = { ...state.auth.api };
+  const get = vi.fn(async (url: string) => (url === "/api/payments?filter=all" ? [loan] : []));
+  const paymentFetches = () => get.mock.calls.filter(([url]) => url === "/api/payments?filter=all").length;
+
+  function list() {
+    if (!state.list) throw new Error("MonthList not rendered");
+    return state.list;
+  }
+
+  const march = () => list().occurrences.find((o) => o.sourceId === "p-1")!;
+
+  beforeEach(() => {
+    get.mockClear();
+    vi.mocked(refreshWidget).mockClear();
+    Object.assign(state.auth.api, { get });
+  });
+
+  afterEach(() => {
+    Object.assign(state.auth.api, original);
+  });
+
+  it("shows the tick before the request resolves and keeps the server's count without refetching", async () => {
+    let resolve: (v: unknown) => void = () => undefined;
+    const patch = vi.fn(() => new Promise((r) => (resolve = r)));
+    Object.assign(state.auth.api, { patch });
+    await render();
+    expect(march().isPaid).toBe(false);
+
+    let pending: Promise<void> = Promise.resolve();
+    await act(async () => {
+      pending = list().onTogglePaid(march());
+    });
+    expect(patch).toHaveBeenCalledWith("/api/payments/p-1", { paid_installments: 3 });
+    expect(march().isPaid).toBe(true);
+
+    await act(async () => {
+      resolve({ ...loan, paid_installments: 5 });
+      await pending;
+    });
+    await act(async () => header().onNext());
+    expect(list().occurrences.find((o) => o.sourceId === "p-1")).toMatchObject({ installmentIndex: 3, isPaid: true });
+    expect(refreshWidget).toHaveBeenCalledTimes(2);
+    expect(paymentFetches()).toBe(1);
+  });
+
+  it("refetches and drops the tick when the request fails", async () => {
+    const patch = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    Object.assign(state.auth.api, { patch });
+    await render();
+
+    await act(async () => {
+      await list().onTogglePaid(march());
+    });
+    await flush();
+
+    expect(paymentFetches()).toBe(2);
+    expect(march().isPaid).toBe(false);
+  });
+
+  it("keeps the failure message on screen after the reload succeeds", async () => {
+    const patch = vi.fn(async () => {
+      throw new Error("Forbidden");
+    });
+    Object.assign(state.auth.api, { patch });
+    await render();
+
+    await act(async () => {
+      await list().onTogglePaid(march());
+    });
+    state.texts = [];
+    await render();
+
+    expect(state.texts).toContain("Forbidden");
+  });
+
+  it("undoes the tick when the reload fails too", async () => {
+    const patch = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    Object.assign(state.auth.api, { patch });
+    await render();
+    get.mockImplementation(async () => {
+      throw new Error("offline");
+    });
+
+    await act(async () => {
+      await list().onTogglePaid(march());
+    });
+    get.mockImplementation(async (url: string) => (url === "/api/payments?filter=all" ? [loan] : []));
+
+    expect(march().isPaid).toBe(false);
+  });
+
+  it("puts a recurring occurrence's entry and shows it paid before the request resolves", async () => {
+    const rent: RecurringPayment = {
+      id: "r-1",
+      team_id: null,
+      user_id: "u1",
+      name: "Rent",
+      currency: "TRY",
+      day_of_month: 1,
+      start_month: "2026-01-01",
+      end_month: null,
+      created_at: "",
+      entries: [],
+    };
+    const recurringGet = vi.fn(async (url: string) => (url === "/api/recurring?filter=all" ? [rent] : []));
+    let resolve: (v: unknown) => void = () => undefined;
+    const put = vi.fn(() => new Promise((r) => (resolve = r)));
+    Object.assign(state.auth.api, { get: recurringGet, put });
+    await render();
+    const rentDue = () => list().occurrences.find((o) => o.sourceId === "r-1")!;
+    expect(rentDue().isPaid).toBe(false);
+
+    let pending: Promise<void> = Promise.resolve();
+    await act(async () => {
+      pending = list().onTogglePaid(rentDue());
+    });
+    expect(put).toHaveBeenCalledWith("/api/recurring/r-1/entry", { period: "2026-03-01", is_paid: true });
+    expect(rentDue().isPaid).toBe(true);
+
+    await act(async () => {
+      resolve(null);
+      await pending;
+    });
+  });
+
+  it("shows the generic failure message when the request rejects with a non-Error", async () => {
+    const patch = vi.fn(() => Promise.reject("nope"));
+    Object.assign(state.auth.api, { patch });
+    await render();
+
+    await act(async () => {
+      await list().onTogglePaid(march());
+    });
+    state.texts = [];
+    await render();
+
+    expect(state.texts).toContain("Update failed");
   });
 });

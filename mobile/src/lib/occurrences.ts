@@ -1,26 +1,6 @@
 import type { Occurrence } from "@ptracker/shared/types";
 
-export interface MarkPaidRequest {
-  url: string;
-  method: "PATCH" | "PUT";
-  body: Record<string, unknown>;
-}
-
-// Builds the API request that toggles an occurrence's paid state.
-// Installments advance/rewind the parent payment's paid_installments count;
-// recurring entries flip the per-period is_paid flag.
-export function markPaidRequest(o: Occurrence): MarkPaidRequest {
-  if (o.kind === "installment") {
-    const idx = o.installmentIndex ?? 0;
-    const paid_installments = o.isPaid ? idx : idx + 1;
-    return { url: `/api/payments/${o.sourceId}`, method: "PATCH", body: { paid_installments } };
-  }
-  return {
-    url: `/api/recurring/${o.sourceId}/entry`,
-    method: "PUT",
-    body: { period: o.period, is_paid: !o.isPaid },
-  };
-}
+export { markPaidRequest, type MarkPaidRequest } from "@ptracker/shared/mark-paid";
 
 // A stable React key — unique across a payment's installment lines, a recurring
 // payment's periods, and multi-currency lines that share a due date.
