@@ -43,7 +43,11 @@ export async function sendWebPush(
   const body = JSON.stringify(payload);
   for (const s of subscriptions) {
     try {
-      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, body);
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, body, {
+        // A "due tomorrow" reminder is stale after a day.
+        TTL: 86400,
+        timeout: 10000,
+      });
       result.sent += 1;
     } catch (e) {
       const status = (e as { statusCode?: number } | null)?.statusCode;

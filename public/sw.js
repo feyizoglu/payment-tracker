@@ -20,9 +20,9 @@ self.addEventListener("notificationclick", (event) => {
   const target = new URL(event.notification.data?.url || "/dashboard", self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
-      const open = windows.find((w) => w.url === target);
-      if (open) return open.focus();
-      return self.clients.openWindow(target);
+      const open = windows.find((w) => w.url === target) || windows[0];
+      if (!open) return self.clients.openWindow(target);
+      return open.url === target ? open.focus() : open.navigate(target).then((w) => (w || open).focus());
     })
   );
 });

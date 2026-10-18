@@ -61,7 +61,13 @@ export default function CalendarView({ payments, recurrings = [], userMap = {}, 
   const { lang, t } = useLang();
   const locale = lang === "tr" ? dateFnsTr : enUS;
   const [currentDate, setCurrentDate] = useState(() => initialDate ?? new Date());
-  const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
+  // Opened on another month (e.g. from a reminder): select that month's first day, not
+  // today, so the day panel stays inside the visible month.
+  const [selectedDay, setSelectedDay] = useState<Date | null>(() => {
+    const today = new Date();
+    if (!initialDate || (initialDate.getFullYear() === today.getFullYear() && initialDate.getMonth() === today.getMonth())) return today;
+    return new Date(initialDate.getFullYear(), initialDate.getMonth(), 1);
+  });
   const [loading, setLoading] = useState<string | null>(null);
   const [editing, setEditing] = useState<Occurrence | null>(null);
 

@@ -8,7 +8,7 @@ const ORIGIN = "https://paytrack.example";
 
 type Handler = (event: unknown) => void;
 
-function loadWorker(windows: { url: string; focus: () => unknown }[] = []) {
+function loadWorker(windows: { url: string; focus: () => unknown; navigate?: (url: string) => Promise<unknown> }[] = []) {
   const handlers: Record<string, Handler> = {};
   const showNotification = vi.fn().mockResolvedValue(undefined);
   const openWindow = vi.fn().mockResolvedValue(undefined);
@@ -108,16 +108,18 @@ describe("sw.js notificationclick handler", () => {
     expect(openWindow).not.toHaveBeenCalled();
   });
 
-  it("opens the absolute target when no window is on it", async () => {
+  it("reuses an open window on another page by navigating it to the target", async () => {
     const focus = vi.fn();
-    const { handlers, openWindow } = loadWorker([{ url: `${ORIGIN}/dashboard`, focus }]);
+    const navigate = vi.fn(async () => null);
+    const { handlers, openWindow } = loadWorker([{ url: `${ORIGIN}/dashboard`, focus, navigate }]);
     const { event, waitUntil } = click("/dashboard?month=2026-11");
 
     handlers.notificationclick(event);
     await waitUntil.mock.calls[0][0];
 
-    expect(focus).not.toHaveBeenCalled();
-    expect(openWindow).toHaveBeenCalledWith(`${ORIGIN}/dashboard?month=2026-11`);
+    expect(navigate).toHaveBeenCalledWith(`${ORIGIN}/dashboard?month=2026-11`);
+    expect(focus).toHaveBeenCalled();
+    expect(openWindow).not.toHaveBeenCalled();
   });
 
   it("targets /dashboard when the notification has no url", async () => {

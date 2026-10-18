@@ -42,7 +42,8 @@ describe("sendWebPush", () => {
     expect(webpush.setVapidDetails).toHaveBeenCalledWith("mailto:owner@example.com", "pub", "priv");
     expect(webpush.sendNotification).toHaveBeenCalledWith(
       { endpoint: "https://push.example/a", keys: { p256dh: "p-key", auth: "a-key" } },
-      JSON.stringify(payload)
+      JSON.stringify(payload),
+      { TTL: 86400, timeout: 10000 }
     );
   });
 

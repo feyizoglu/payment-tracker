@@ -21,6 +21,21 @@ function isIosBrowserTab(): boolean {
   return ios && !standalone;
 }
 
+// The server row is keyed by endpoint and owned by whoever posted it last, so posting
+// the browser's subscription again hands it to the account signed in now.
+async function saveSubscription(subscription: PushSubscription): Promise<boolean> {
+  try {
+    const res = await fetch("/api/web-push", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(subscription.toJSON()),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 function pushSupported(): boolean {
   return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
@@ -47,6 +62,7 @@ export default function PushToggle() {
           updateViaCache: "none",
         });
         const subscription = await registration.pushManager.getSubscription();
+        if (subscription) await saveSubscription(subscription);
         if (!cancelled) setState(subscription ? "on" : "off");
       } catch {
         // Leave the bell hidden when the service worker cannot be registered.
@@ -63,7 +79,7 @@ export default function PushToggle() {
   async function subscribe() {
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
-      setMessage(t.remindersBlocked);
+      if (permission === "denied") setMessage(t.remindersBlocked);
       return;
     }
     const registration = await navigator.serviceWorker.ready;
@@ -71,14 +87,9 @@ export default function PushToggle() {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
-    const res = await fetch("/api/web-push", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(subscription.toJSON()),
-    });
-    if (!res.ok) {
+    if (!(await saveSubscription(subscription))) {
       await subscription.unsubscribe();
-      throw new Error(`subscribe failed: ${res.status}`);
+      throw new Error("subscribe failed");
     }
     setState("on");
   }
