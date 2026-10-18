@@ -124,4 +124,31 @@ describe("CalendarView tick", () => {
     expect(tick().disabled).toBe(false);
     expect(onUpdated).not.toHaveBeenCalled();
   });
+
+  it("re-enables the tick when onTogglePaid rejects", async () => {
+    const onTogglePaid = vi.fn<(o: Occurrence) => Promise<void>>(() => Promise.reject(new Error("offline")));
+    root = createRoot(container());
+    await act(async () =>
+      root?.render(
+        createElement(
+          LanguageProvider,
+          { initialLang: "en" },
+          createElement(CalendarView, {
+            payments: [loan],
+            onUpdated: vi.fn(),
+            onTogglePaid,
+            initialDate: new Date(2026, 10, 1),
+          })
+        )
+      )
+    );
+
+    await act(async () => {
+      await expect((tick().onClick as () => Promise<void>)()).rejects.toThrow("offline");
+    });
+    await flush();
+
+    expect(onTogglePaid).toHaveBeenCalledTimes(1);
+    expect(tick().disabled).toBe(false);
+  });
 });

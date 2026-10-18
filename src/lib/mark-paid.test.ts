@@ -188,4 +188,25 @@ describe("planMarkPaid rollback", () => {
     expect(apply(planMarkPaid(installment()).rollback, lists.payments, []).payments).toEqual(lists.payments);
     expect(apply(planMarkPaid(monthly()).rollback, [], lists.recurrings).recurrings).toEqual(lists.recurrings);
   });
+
+  it("puts back the original paid count when the optimistic edit ran twice", () => {
+    const plan = planMarkPaid(installment());
+    const once = apply(plan.optimistic, [payment()], []).payments;
+    const twice = apply(plan.optimistic, once, []).payments;
+    expect(apply(plan.rollback, twice, []).payments[0].paid_installments).toBe(2);
+  });
+
+  it("restores the original recurring entry when the optimistic edit ran twice", () => {
+    const plan = planMarkPaid(monthly());
+    const once = apply(plan.optimistic, [], [recurring([entry()])]).recurrings;
+    const twice = apply(plan.optimistic, [], once).recurrings;
+    expect(apply(plan.rollback, [], twice).recurrings[0].entries).toEqual([entry()]);
+  });
+
+  it("removes the placeholder entry when the optimistic edit ran twice", () => {
+    const plan = planMarkPaid(monthly());
+    const once = apply(plan.optimistic, [], [recurring([])]).recurrings;
+    const twice = apply(plan.optimistic, [], once).recurrings;
+    expect(apply(plan.rollback, [], twice).recurrings[0].entries).toEqual([]);
+  });
 });

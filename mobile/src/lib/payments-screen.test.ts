@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRequire } from "node:module";
 import { act, createElement } from "react";
-import type { Occurrence, Payment } from "@ptracker/shared/types";
+import type { Occurrence, Payment, RecurringPayment } from "@ptracker/shared/types";
 
 const state = vi.hoisted(() => ({
   texts: [] as unknown[],
@@ -43,7 +43,7 @@ vi.mock("expo-router", async () => {
     useLocalSearchParams: () => state.params,
   };
 });
-vi.mock("@ptracker/shared/i18n", () => ({ useLang: () => ({ t: {} }) }));
+vi.mock("@ptracker/shared/i18n", () => ({ useLang: () => ({ t: { updateFailed: "Update failed" } }) }));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => state.auth }));
 vi.mock("@/lib/widget-refresh", () => ({ refreshWidget: vi.fn() }));
 vi.mock("@/components/tab-screen", async () => {
@@ -295,5 +295,53 @@ describe("Payments mark paid", () => {
     get.mockImplementation(async (url: string) => (url === "/api/payments?filter=all" ? [loan] : []));
 
     expect(march().isPaid).toBe(false);
+  });
+
+  it("puts a recurring occurrence's entry and shows it paid before the request resolves", async () => {
+    const rent: RecurringPayment = {
+      id: "r-1",
+      team_id: null,
+      user_id: "u1",
+      name: "Rent",
+      currency: "TRY",
+      day_of_month: 1,
+      start_month: "2026-01-01",
+      end_month: null,
+      created_at: "",
+      entries: [],
+    };
+    const recurringGet = vi.fn(async (url: string) => (url === "/api/recurring?filter=all" ? [rent] : []));
+    let resolve: (v: unknown) => void = () => undefined;
+    const put = vi.fn(() => new Promise((r) => (resolve = r)));
+    Object.assign(state.auth.api, { get: recurringGet, put });
+    await render();
+    const rentDue = () => list().occurrences.find((o) => o.sourceId === "r-1")!;
+    expect(rentDue().isPaid).toBe(false);
+
+    let pending: Promise<void> = Promise.resolve();
+    await act(async () => {
+      pending = list().onTogglePaid(rentDue());
+    });
+    expect(put).toHaveBeenCalledWith("/api/recurring/r-1/entry", { period: "2026-03-01", is_paid: true });
+    expect(rentDue().isPaid).toBe(true);
+
+    await act(async () => {
+      resolve(null);
+      await pending;
+    });
+  });
+
+  it("shows the generic failure message when the request rejects with a non-Error", async () => {
+    const patch = vi.fn(() => Promise.reject("nope"));
+    Object.assign(state.auth.api, { patch });
+    await render();
+
+    await act(async () => {
+      await list().onTogglePaid(march());
+    });
+    state.texts = [];
+    await render();
+
+    expect(state.texts).toContain("Update failed");
   });
 });
