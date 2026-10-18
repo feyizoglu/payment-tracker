@@ -30,4 +30,16 @@ describe("@/lib/i18n → shared/i18n wiring", () => {
     expect(shim.translationsFor("en").events).toBe("Events");
     expect(shim.translationsFor("tr").events).toBe("Etkinlikler");
   });
+
+  it("has the reminder strings in both languages", () => {
+    const keys = ["enableReminders", "disableReminders", "remindersBlocked", "remindersFailed", "iosInstallHint"] as const;
+    for (const lang of ["en", "tr"] as const) {
+      const t = shim.translationsFor(lang);
+      for (const key of keys) {
+        expect(typeof t[key]).toBe("string");
+        expect(t[key].length).toBeGreaterThan(0);
+      }
+    }
+    expect(shim.translationsFor("tr").remindersFailed).not.toBe(shim.translationsFor("en").remindersFailed);
+  });
 });

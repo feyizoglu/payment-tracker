@@ -1,8 +1,8 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState, useCallback, useMemo } from "react";
 import { Occurrence, Payment, RecurringPayment, Team } from "@/types";
 import { sumByCurrency } from "@/lib/reports";
 import PaymentForm from "@/components/PaymentForm";
@@ -13,6 +13,9 @@ import { myColorFromTeams } from "@/lib/teams";
 import TeamPanel from "@/components/TeamPanel";
 import DateRangeReport from "@/components/DateRangeReport";
 import PayUntil from "@/components/PayUntil";
+import PushToggle from "@/components/PushToggle";
+import { signOutWithPushCleanup } from "@/lib/web-push-client";
+import { parseMonthParam } from "@/lib/month-param";
 import Link from "next/link";
 import {
   CreditCard,
@@ -29,10 +32,27 @@ import { getOccurrencesForMonth, recurringOccurrenceForMonth, getCurrencySymbol 
 
 type View = "monthly" | "all";
 
-export default function Dashboard() {
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <Dashboard />
+    </Suspense>
+  );
+}
+
+function Dashboard() {
   const { data: session, status } = useSession();
   const { lang, setLang, t } = useLang();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [recurrings, setRecurrings] = useState<RecurringPayment[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -42,7 +62,7 @@ export default function Dashboard() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showTeamsPanel, setShowTeamsPanel] = useState(false);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<Date | null>(null);
-  const [calendarDate, setCalendarDate] = useState(new Date());
+  const [calendarDate, setCalendarDate] = useState(() => parseMonthParam(searchParams.get("month")) ?? new Date());
   const [showDateRange, setShowDateRange] = useState(false);
   const [myColor, setMyColor] = useState<string | null>(null);
 
@@ -111,11 +131,7 @@ export default function Dashboard() {
   }, [session, teams, myColor]);
 
   if (status === "loading" || status === "unauthenticated") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   // Apply filter locally
@@ -202,6 +218,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+            <PushToggle />
             {/* Language toggle */}
             <button
               onClick={() => setLang(lang === "en" ? "tr" : "en")}
@@ -245,7 +262,7 @@ export default function Dashboard() {
                     <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
                   </div>
                   <button
-                    onClick={() => signOut({ callbackUrl: "/" })}
+                    onClick={() => void signOutWithPushCleanup()}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition"
                   >
                     <LogOut className="w-4 h-4" />
@@ -349,6 +366,7 @@ export default function Dashboard() {
               onUpdated={() => { fetchPayments(); fetchRecurrings(); }}
               onDaySelected={setSelectedCalendarDay}
               onMonthChange={setCalendarDate}
+              initialDate={calendarDate}
             />
             <PayUntil payments={filteredPayments} recurrings={filteredRecurrings} />
           </>

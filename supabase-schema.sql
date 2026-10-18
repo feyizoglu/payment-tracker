@@ -327,3 +327,16 @@ $$;
 
 revoke all on function event_expense_insert(uuid, uuid, text, bigint, text, uuid, date, jsonb) from public, anon, authenticated;
 revoke all on function event_expense_replace(uuid, text, bigint, text, uuid, date, jsonb) from public, anon, authenticated;
+
+-- Web push subscriptions for the installed web app. RLS on with no policies:
+-- service role only.
+create table if not exists web_push_subscriptions (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  endpoint text unique not null,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz default now()
+);
+
+alter table web_push_subscriptions enable row level security;

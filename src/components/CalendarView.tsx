@@ -30,6 +30,7 @@ interface Props {
   onUpdated: () => void;
   onDaySelected?: (date: Date | null) => void;
   onMonthChange?: (date: Date) => void;
+  initialDate?: Date;
 }
 
 const PALETTE = [
@@ -56,11 +57,17 @@ function fmt(n: number, locale: string, decimals = 0): string {
   });
 }
 
-export default function CalendarView({ payments, recurrings = [], userMap = {}, onUpdated, onDaySelected, onMonthChange }: Props) {
+export default function CalendarView({ payments, recurrings = [], userMap = {}, onUpdated, onDaySelected, onMonthChange, initialDate }: Props) {
   const { lang, t } = useLang();
   const locale = lang === "tr" ? dateFnsTr : enUS;
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
+  const [currentDate, setCurrentDate] = useState(() => initialDate ?? new Date());
+  // Opened on another month (e.g. from a reminder): select that month's first day, not
+  // today, so the day panel stays inside the visible month.
+  const [selectedDay, setSelectedDay] = useState<Date | null>(() => {
+    const today = new Date();
+    if (!initialDate || (initialDate.getFullYear() === today.getFullYear() && initialDate.getMonth() === today.getMonth())) return today;
+    return new Date(initialDate.getFullYear(), initialDate.getMonth(), 1);
+  });
   const [loading, setLoading] = useState<string | null>(null);
   const [editing, setEditing] = useState<Occurrence | null>(null);
 

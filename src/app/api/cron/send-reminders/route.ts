@@ -5,6 +5,7 @@ import { Payment, RecurringPayment, User } from "@/types";
 import { Resend } from "resend";
 import { addDays, format } from "date-fns";
 import { sendExpoPush, type PushMessage } from "@/lib/push";
+import { sendWebPush, type WebPushResult } from "@/lib/web-push";
 
 export const dynamic = "force-dynamic";
 
@@ -93,6 +94,21 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const pushTitle = "Ödeme Hatırlatıcısı";
+  const tomorrowMonth = format(tomorrow, "yyyy-MM");
+  const pushBody = (items: DueItem[]) => {
+    const lines = items.map((item) => {
+      const tutar =
+        item.amount == null
+          ? ""
+          : ` — ${getCurrencySymbol(item.currency)}${new Intl.NumberFormat("tr-TR", {
+              minimumFractionDigits: 2,
+            }).format(item.amount)}`;
+      return `${item.paymentName}${tutar}`;
+    });
+    return `Yarın (${tomorrowStr}) vadesi dolan: ${lines.join(", ")}`;
+  };
+
   // Push notifications to registered devices (in addition to email)
   let pushSummary = { sent: 0, invalidTokens: [] as string[], errors: [] as string[] };
   const dueUserIds = [...dueByUser.keys()];
@@ -112,20 +128,11 @@ export async function GET(req: NextRequest) {
     for (const device of devices ?? []) {
       const due = dueByUser.get(device.user_id);
       if (!due) continue;
-      const lines = due.items.map((item) => {
-        const tutar =
-          item.amount == null
-            ? ""
-            : ` — ${getCurrencySymbol(item.currency)}${new Intl.NumberFormat("tr-TR", {
-                minimumFractionDigits: 2,
-              }).format(item.amount)}`;
-        return `${item.paymentName}${tutar}`;
-      });
       messages.push({
         to: device.expo_push_token,
-        title: "Ödeme Hatırlatıcısı",
-        body: `Yarın (${tomorrowStr}) vadesi dolan: ${lines.join(", ")}`,
-        data: { month: format(tomorrow, "yyyy-MM") },
+        title: pushTitle,
+        body: pushBody(due.items),
+        data: { month: tomorrowMonth },
       });
     }
 
@@ -144,6 +151,48 @@ export async function GET(req: NextRequest) {
       if (pruneError) {
         // Surface a failed prune so dead tokens aren't silently re-sent every run.
         pushSummary.errors.push(`dead-token prune failed: ${pruneError.message}`);
+      }
+    }
+  }
+
+  const webPushSummary: WebPushResult = { sent: 0, expiredEndpoints: [], errors: [] };
+  if (dueUserIds.length > 0) {
+    const { data: subscriptions, error: subscriptionsError } = await db
+      .from("web_push_subscriptions")
+      .select("user_id, endpoint, p256dh, auth")
+      .in("user_id", dueUserIds);
+
+    if (subscriptionsError) {
+      webPushSummary.errors.push(`web push subscriptions query failed: ${subscriptionsError.message}`);
+    }
+
+    const byUser = new Map<string, { endpoint: string; p256dh: string; auth: string }[]>();
+    for (const sub of subscriptions ?? []) {
+      if (!dueByUser.has(sub.user_id)) continue;
+      if (!byUser.has(sub.user_id)) byUser.set(sub.user_id, []);
+      byUser.get(sub.user_id)!.push({ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth });
+    }
+
+    for (const [userId, subs] of byUser) {
+      const result = await sendWebPush(subs, {
+        title: pushTitle,
+        body: pushBody(dueByUser.get(userId)!.items),
+        url: `/dashboard?month=${tomorrowMonth}`,
+      });
+      webPushSummary.sent += result.sent;
+      webPushSummary.expiredEndpoints.push(...result.expiredEndpoints);
+      for (const e of result.errors) {
+        if (!webPushSummary.errors.includes(e)) webPushSummary.errors.push(e);
+      }
+    }
+
+    if (webPushSummary.expiredEndpoints.length > 0) {
+      const { error: pruneError } = await db
+        .from("web_push_subscriptions")
+        .delete()
+        .in("endpoint", webPushSummary.expiredEndpoints);
+      if (pruneError) {
+        webPushSummary.errors.push(`expired web push prune failed: ${pruneError.message}`);
       }
     }
   }
@@ -201,5 +250,6 @@ export async function GET(req: NextRequest) {
     sent: results.length,
     results,
     push: pushSummary,
+    webPush: webPushSummary,
   });
 }
