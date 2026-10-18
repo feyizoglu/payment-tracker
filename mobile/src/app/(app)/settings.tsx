@@ -1,8 +1,9 @@
 import { useLang, type Lang } from "@ptracker/shared/i18n";
 import { COLOR_OPTIONS, isTeamOwner, memberDisplayName, myColorFromTeams } from "@ptracker/shared/teams";
+import { parseThemePref, type ThemePref } from "@ptracker/shared/theme";
 import type { Team } from "@ptracker/shared/types";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 
 import { PrimaryButton } from "@/components/ui/primary-button";
@@ -10,6 +11,7 @@ import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { TextField } from "@/components/ui/text-field";
 import { TabScreen } from "@/components/tab-screen";
 import { useAuth } from "@/lib/auth-context";
+import { applyTheme, getStoredTheme, setStoredTheme } from "@/lib/theme-storage";
 import {
   createTeamBody,
   invitePath,
@@ -43,6 +45,17 @@ export default function Settings() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
   const [color, setColor] = useState<string | null>(null);
+  const [theme, setTheme] = useState<ThemePref>("system");
+
+  useEffect(() => {
+    getStoredTheme().then(setTheme);
+  }, []);
+
+  function chooseTheme(next: ThemePref) {
+    setTheme(next);
+    applyTheme(next);
+    void setStoredTheme(next);
+  }
 
   const load = useCallback(async () => {
     setError(null);
@@ -167,6 +180,18 @@ export default function Settings() {
               { value: "en", label: "English" },
             ]}
             onChange={(next) => setLang(next as Lang)}
+          />
+        </Section>
+
+        <Section title={t.theme}>
+          <SegmentedToggle
+            value={theme}
+            options={[
+              { value: "system", label: t.themeSystem },
+              { value: "light", label: t.themeLight },
+              { value: "dark", label: t.themeDark },
+            ]}
+            onChange={(next) => chooseTheme(parseThemePref(next))}
           />
         </Section>
 

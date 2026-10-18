@@ -38,7 +38,7 @@ export default function PayUntil({ payments, recurrings = [] }: Props) {
   }, [payments, recurrings, endDate]);
 
   return (
-    <div className="mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+    <div className="mt-4 bg-surface rounded-2xl border border-gray-100 shadow-sm p-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
@@ -50,7 +50,7 @@ export default function PayUntil({ payments, recurrings = [] }: Props) {
           value={endDate}
           min={localDateStr(today)}
           onChange={(e) => setEndDate(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-purple-400"
+          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400"
         />
       </div>
 
@@ -61,7 +61,7 @@ export default function PayUntil({ payments, recurrings = [] }: Props) {
             {Object.entries(byCurrency).map(([cur, amt]) => (
               <div key={cur} className="bg-purple-50 rounded-xl px-4 py-2.5 flex-1 min-w-[110px]">
                 <p className="text-xs text-purple-500 font-medium mb-0.5">{cur}</p>
-                <p className="text-xl font-bold text-purple-700">
+                <p className="text-xl font-bold text-purple-700 dark:text-purple-400">
                   {getCurrencySymbol(cur)}{fmt(amt, t.numberLocale)}
                 </p>
               </div>

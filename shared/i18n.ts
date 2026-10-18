@@ -251,6 +251,11 @@ const translations = {
     remindersBlocked: "Notifications are blocked. Allow them in your browser settings.",
     remindersFailed: "Could not change reminder notifications. Try again.",
     iosInstallHint: "To get reminders, tap Share and then \"Add to Home Screen\", and open PayTrack from there.",
+    // Theme
+    theme: "Theme",
+    themeSystem: "System",
+    themeLight: "Light",
+    themeDark: "Dark",
   },
   tr: {
     // Landing
@@ -489,6 +494,11 @@ const translations = {
     remindersBlocked: "Bildirimler engelli. Tarayıcı ayarlarından izin ver.",
     remindersFailed: "Hatırlatma bildirimleri değiştirilemedi. Tekrar dene.",
     iosInstallHint: "Hatırlatma almak için Paylaş'a, ardından \"Ana Ekrana Ekle\"ye dokun ve PayTrack'i oradan aç.",
+    // Theme
+    theme: "Tema",
+    themeSystem: "Sistem",
+    themeLight: "Açık",
+    themeDark: "Koyu",
   },
 };
 

@@ -41,6 +41,7 @@ import {
 import { myColorFromTeams } from "@/lib/teams";
 import TeamPanel from "@/components/TeamPanel";
 import PushToggle from "@/components/PushToggle";
+import ThemePicker from "@/components/ThemePicker";
 import { signOutWithPushCleanup } from "@/lib/web-push-client";
 
 // Constants and pure logic now live in @/lib/economy (= shared/economy.ts), shared with
@@ -165,11 +166,11 @@ export default function Economy() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
+      <header className="bg-surface border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-y-1 py-2 lg:py-0 lg:h-14">
           <div className="contents lg:flex lg:items-center lg:gap-4">
             <div className="flex items-center gap-2">
-              <CreditCard className="w-6 h-6 text-blue-600" />
+              <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               <span className="font-bold text-gray-900">PayTrack</span>
             </div>
             <nav className="order-last w-full flex items-center gap-1 lg:order-none lg:w-auto">
@@ -179,7 +180,7 @@ export default function Economy() {
               >
                 {t.dashboard}
               </Link>
-              <span className="px-3 py-1.5 rounded-lg text-sm text-green-700 bg-green-50 font-semibold">
+              <span className="px-3 py-1.5 rounded-lg text-sm text-green-700 dark:text-green-400 bg-green-50 font-semibold">
                 {t.economy}
               </span>
               <Link
@@ -216,7 +217,7 @@ export default function Economy() {
                 {session?.user?.image ? (
                   <img src={session.user.image} alt="" className="w-7 h-7 rounded-full" />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs">
+                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-xs">
                     {session?.user?.name?.[0]?.toUpperCase() ?? "U"}
                   </div>
                 )}
@@ -227,11 +228,12 @@ export default function Economy() {
               </button>
 
               {showUserMenu && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-lg border border-gray-100 py-1 z-50">
                   <div className="px-3 py-2 border-b border-gray-100">
                     <p className="text-xs font-medium text-gray-900 truncate">{session?.user?.name}</p>
                     <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
                   </div>
+                  <ThemePicker />
                   <button
                     onClick={() => void signOutWithPushCleanup()}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition"
@@ -250,8 +252,8 @@ export default function Economy() {
         {/* Total + Controls */}
         <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-6">
           <div className="flex-1 bg-green-50 rounded-xl p-4">
-            <p className="text-xs font-medium text-green-700 opacity-70 mb-1">{t.totalAssets}</p>
-            <p className="text-3xl font-bold text-green-700">
+            <p className="text-xs font-medium text-green-700 dark:text-green-400 opacity-70 mb-1">{t.totalAssets}</p>
+            <p className="text-3xl font-bold text-green-700 dark:text-green-400">
               {rates && totalInPreferred !== null
                 ? formatPreferred(totalInPreferred, preferredCurrency, t.numberLocale)
                 : "—"}
@@ -276,7 +278,7 @@ export default function Economy() {
                     className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border ${
                       preferredCurrency === c
                         ? "bg-green-600 text-white border-green-600"
-                        : "bg-white text-gray-600 border-gray-200 hover:border-green-400 hover:text-green-700"
+                        : "bg-surface text-gray-600 border-gray-200 hover:border-green-400 hover:text-green-700 dark:hover:text-green-300"
                     }`}
                   >
                     {c}
@@ -305,7 +307,7 @@ export default function Economy() {
               </button>
               <button
                 onClick={() => setShowManualGold(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-200 text-sm font-medium text-amber-700 hover:bg-amber-50 transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-200 text-sm font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-50 transition"
               >
                 <Pencil className="w-4 h-4" />
                 {t.enterGoldManually}
@@ -324,7 +326,7 @@ export default function Economy() {
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition border ${
                   activeFilter === f.id
                     ? "bg-green-600 text-white border-green-600"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-green-300 hover:text-green-700"
+                    : "bg-surface text-gray-600 border-gray-200 hover:border-green-300 hover:text-green-700 dark:hover:text-green-300"
                 }`}
               >
                 {f.label}
@@ -398,7 +400,7 @@ export default function Economy() {
 
       {showTeamsPanel && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+          <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-500" />
@@ -483,12 +485,12 @@ function BankGroup({
   const bankTotal = assetTotalIn(assets, preferredCurrency, rates);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-surface rounded-xl border border-gray-100 shadow-sm overflow-hidden">
       {/* Bank header */}
       <div className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-gray-50 transition"
         onClick={() => setExpanded((v) => !v)}>
         <div className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center shrink-0">
-          <Landmark className="w-4 h-4 text-green-600" />
+          <Landmark className="w-4 h-4 text-green-600 dark:text-green-400" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate">{bankName}</p>
@@ -496,13 +498,13 @@ function BankGroup({
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {bankTotal !== null && (
-            <span className="text-sm font-bold text-green-700">
+            <span className="text-sm font-bold text-green-700 dark:text-green-400">
               {formatPreferred(bankTotal, preferredCurrency, t.numberLocale)}
             </span>
           )}
           <button
             onClick={(e) => { e.stopPropagation(); onAddToBank(); }}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 dark:hover:text-green-300 hover:bg-green-50 transition"
             title={t.addAsset}
           >
             <Plus className="w-4 h-4" />
@@ -597,7 +599,7 @@ function AssetRow({
             <span className="text-xs font-medium text-gray-700 truncate">
               {owner?.name ?? owner?.email ?? "—"}
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium border border-amber-100">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:text-amber-400 font-medium border border-amber-100">
               {getCurrencyLabel(asset.currency, t)}
             </span>
           </div>
@@ -688,10 +690,10 @@ function EditAssetModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+      <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Pencil className="w-5 h-5 text-green-600" />
+            <Pencil className="w-5 h-5 text-green-600 dark:text-green-400" />
             {t.editAsset}
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
@@ -826,10 +828,10 @@ function AddAssetForm({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Landmark className="w-5 h-5 text-green-600" />
+            <Landmark className="w-5 h-5 text-green-600 dark:text-green-400" />
             {t.addAssetTitle}
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
@@ -863,7 +865,7 @@ function AddAssetForm({
                   className={`px-3 py-1.5 rounded-xl text-sm font-semibold border transition ${
                     currency === c
                       ? "bg-green-600 text-white border-green-600"
-                      : "bg-white text-gray-600 border-gray-200 hover:border-green-400"
+                      : "bg-surface text-gray-600 border-gray-200 hover:border-green-400"
                   }`}
                 >
                   {c}
@@ -884,11 +886,11 @@ function AddAssetForm({
                   className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm border transition ${
                     currency === g.value
                       ? "bg-amber-500 text-white border-amber-500"
-                      : "bg-white text-gray-700 border-gray-200 hover:border-amber-400"
+                      : "bg-surface text-gray-700 border-gray-200 hover:border-amber-400"
                   }`}
                 >
                   <span className="font-medium">{(t as any)[g.labelKey]}</span>
-                  <span className={`text-xs ${currency === g.value ? "text-amber-100" : "text-gray-400"}`}>
+                  <span className={`text-xs ${currency === g.value ? "text-amber-100 dark:text-white/80" : "text-gray-400"}`}>
                     {g.unit}
                   </span>
                 </button>
@@ -923,7 +925,7 @@ function AddAssetForm({
               <select
                 value={teamId}
                 onChange={(e) => { setTeamId(e.target.value); setTargetUserId(""); }}
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-surface"
               >
                 <option value="">{t.personalOption}</option>
                 {teams.map((team) => (
@@ -940,7 +942,7 @@ function AddAssetForm({
               <select
                 value={targetUserId}
                 onChange={(e) => setTargetUserId(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-surface"
               >
                 <option value="">{t.myself}</option>
                 {otherMembers.map((m) => (
@@ -1018,7 +1020,7 @@ function ManualGoldModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-gray-900 text-base">{t.manualGoldTitle}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">

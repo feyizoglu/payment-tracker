@@ -139,14 +139,14 @@ export default function EventPage() {
           <p className="text-sm text-gray-500">{t.eventNotFound}</p>
         ) : loaded.kind === "error" || !detail ? (
           <div className="flex items-center gap-3">
-            <p className="text-sm text-red-600">{t.loadFailed}</p>
-            <button onClick={load} className="text-sm font-medium text-purple-700 hover:underline">
+            <p className="text-sm text-red-600 dark:text-red-400">{t.loadFailed}</p>
+            <button onClick={load} className="text-sm font-medium text-purple-700 dark:text-purple-400 hover:underline">
               {t.tryAgain}
             </button>
           </div>
         ) : (
           <>
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="bg-surface rounded-2xl border border-gray-100 p-5 flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-bold text-gray-900 truncate">{detail.name}</h1>
@@ -172,7 +172,7 @@ export default function EventPage() {
                   </button>
                   <button
                     onClick={deleteEvent}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 transition"
                   >
                     <Trash2 className="w-4 h-4" />
                     {t.deleteEvent}
@@ -181,11 +181,11 @@ export default function EventPage() {
               )}
             </div>
 
-            {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+            {actionError && <p className="text-sm text-red-600 dark:text-red-400">{actionError}</p>}
 
             <Participants event={detail} myId={myId} editable={isOpen} onChanged={load} />
 
-            <section className="bg-white rounded-2xl border border-gray-100 p-5">
+            <section className="bg-surface rounded-2xl border border-gray-100 p-5">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold text-gray-900">{t.expenses}</h2>
                 {isOpen && editing === null && (
@@ -233,14 +233,14 @@ export default function EventPage() {
                         <div className="flex gap-1">
                           <button
                             onClick={() => setEditing(expense)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-purple-700 hover:bg-purple-50 transition"
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 transition"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => deleteExpense(expense)}
                             aria-label={t.delete}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 transition"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -252,7 +252,7 @@ export default function EventPage() {
               )}
             </section>
 
-            <section className="bg-white rounded-2xl border border-gray-100 p-5">
+            <section className="bg-surface rounded-2xl border border-gray-100 p-5">
               <SettleUp event={detail} isOpen={isOpen} onChanged={load} />
             </section>
           </>

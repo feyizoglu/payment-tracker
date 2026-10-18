@@ -135,7 +135,7 @@ export default function PushToggle() {
         title={label}
         className={`p-1.5 rounded-lg border transition disabled:opacity-50 ${
           on
-            ? "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+            ? "border-blue-200 bg-blue-50 text-blue-600 dark:text-blue-400 hover:bg-blue-100"
             : "border-gray-200 text-gray-500 hover:bg-gray-50"
         }`}
       >
@@ -144,7 +144,7 @@ export default function PushToggle() {
       {message && (
         <div
           role="status"
-          className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-100 p-3 text-xs text-gray-700 z-50"
+          className="absolute right-0 top-full mt-2 w-64 bg-surface rounded-xl shadow-lg border border-gray-100 p-3 text-xs text-gray-700 z-50"
         >
           {message}
         </div>

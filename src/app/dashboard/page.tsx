@@ -14,6 +14,7 @@ import TeamPanel from "@/components/TeamPanel";
 import DateRangeReport from "@/components/DateRangeReport";
 import PayUntil from "@/components/PayUntil";
 import PushToggle from "@/components/PushToggle";
+import ThemePicker from "@/components/ThemePicker";
 import { signOutWithPushCleanup } from "@/lib/web-push-client";
 import { parseMonthParam } from "@/lib/month-param";
 import Link from "next/link";
@@ -191,15 +192,15 @@ function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
+      <header className="bg-surface border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-y-1 py-2 lg:py-0 lg:h-14">
           <div className="contents lg:flex lg:items-center lg:gap-4">
             <div className="flex items-center gap-2">
-              <CreditCard className="w-6 h-6 text-blue-600" />
+              <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               <span className="font-bold text-gray-900">PayTrack</span>
             </div>
             <nav className="order-last w-full flex items-center gap-1 lg:order-none lg:w-auto">
-              <span className="px-3 py-1.5 rounded-lg text-sm text-blue-700 bg-blue-50 font-semibold">
+              <span className="px-3 py-1.5 rounded-lg text-sm text-blue-700 dark:text-blue-400 bg-blue-50 font-semibold">
                 {t.dashboard}
               </span>
               <Link
@@ -245,7 +246,7 @@ function Dashboard() {
                 {session?.user?.image ? (
                   <img src={session.user.image} alt="" className="w-7 h-7 rounded-full" />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs">
+                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-xs">
                     {session?.user?.name?.[0]?.toUpperCase() ?? "U"}
                   </div>
                 )}
@@ -256,11 +257,12 @@ function Dashboard() {
               </button>
 
               {showUserMenu && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-lg border border-gray-100 py-1 z-50">
                   <div className="px-3 py-2 border-b border-gray-100">
                     <p className="text-xs font-medium text-gray-900 truncate">{session?.user?.name}</p>
                     <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
                   </div>
+                  <ThemePicker />
                   <button
                     onClick={() => void signOutWithPushCleanup()}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition"
@@ -308,7 +310,7 @@ function Dashboard() {
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition border ${
                 activeFilter === f.id
                   ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                  : "bg-surface text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 dark:hover:text-blue-300"
               }`}
             >
               {f.label}
@@ -330,7 +332,7 @@ function Dashboard() {
                 onClick={() => setActiveView(v.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                   activeView === v.id
-                    ? "bg-white shadow-sm text-gray-900"
+                    ? "bg-surface shadow-sm text-gray-900"
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
@@ -440,7 +442,7 @@ function Dashboard() {
       {/* Teams panel modal */}
       {showTeamsPanel && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+          <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-500" />
@@ -497,9 +499,9 @@ function StatCard({
   className?: string;
 }) {
   const colors = {
-    blue: "bg-blue-50 text-blue-700",
-    purple: "bg-purple-50 text-purple-700",
-    orange: "bg-orange-50 text-orange-700",
+    blue: "bg-blue-50 text-blue-700 dark:text-blue-400",
+    purple: "bg-purple-50 text-purple-700 dark:text-purple-400",
+    orange: "bg-orange-50 text-orange-700 dark:text-orange-400",
   };
   return (
     <div className={`rounded-xl p-4 ${colors[color]} ${className}`}>

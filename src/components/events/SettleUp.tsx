@@ -95,7 +95,7 @@ export default function SettleUp({
               .map(([pid, v]) => (
                 <div key={pid} className="flex justify-between text-sm">
                   <span>{name(pid)}</span>
-                  <span className={v > 0 ? "text-green-600" : "text-red-600"}>{formatMinor(v, currency, t.numberLocale)}</span>
+                  <span className={v > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{formatMinor(v, currency, t.numberLocale)}</span>
                 </div>
               ))}
           </div>
@@ -141,7 +141,7 @@ export default function SettleUp({
                 <button
                   disabled={busy !== null}
                   onClick={() => undo(s.id)}
-                  className="text-gray-400 hover:text-red-600 disabled:opacity-50">
+                  className="text-gray-400 hover:text-red-600 dark:hover:text-red-300 disabled:opacity-50">
                   {t.undo}
                 </button>
               )}
@@ -149,7 +149,7 @@ export default function SettleUp({
           ))}
         </section>
       ) : null}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }

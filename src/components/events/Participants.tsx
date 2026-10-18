@@ -103,13 +103,13 @@ export default function Participants({
   }
 
   return (
-    <section className="bg-white rounded-2xl border border-gray-100 p-5">
+    <section className="bg-surface rounded-2xl border border-gray-100 p-5">
       <h2 className="font-semibold text-gray-900 mb-3">{t.participants}</h2>
       <div className="flex flex-wrap gap-2">
         {event.participants.map((p) => (
           <span
             key={p.id}
-            className="flex items-center gap-1 pl-3 pr-2 py-1 rounded-full bg-purple-50 text-purple-700 text-sm"
+            className="flex items-center gap-1 pl-3 pr-2 py-1 rounded-full bg-purple-50 text-purple-700 dark:text-purple-400 text-sm"
           >
             {participantLabel(p)}
             {editable && canRemoveParticipant(event, p, myId) && (
@@ -117,7 +117,7 @@ export default function Participants({
                 disabled={busy}
                 onClick={() => remove(p.id, p.user_id === myId)}
                 aria-label={t.delete}
-                className="text-purple-400 hover:text-red-600 disabled:opacity-50"
+                className="text-purple-400 hover:text-red-600 dark:hover:text-red-300 disabled:opacity-50"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -185,7 +185,7 @@ export default function Participants({
         </div>
       )}
 
-      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400 mt-2">{error}</p>}
     </section>
   );
 }

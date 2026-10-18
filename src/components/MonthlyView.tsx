@@ -102,7 +102,7 @@ export default function MonthlyView({ payments, onUpdated }: Props) {
                 className={`flex items-center gap-3 p-3 rounded-xl border transition ${
                   installment.isPaid
                     ? "bg-green-50 border-green-100"
-                    : "bg-white border-gray-100"
+                    : "bg-surface border-gray-100"
                 }`}
               >
                 <button

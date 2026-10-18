@@ -11,6 +11,7 @@ import { LanguageProvider, type Lang } from '@ptracker/shared/i18n';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language-storage';
+import { applyTheme, getStoredTheme } from '@/lib/theme-storage';
 import { monthFromNotificationData } from '@/lib/push';
 
 SplashScreen.preventAutoHideAsync();
@@ -70,14 +71,18 @@ function RootNavigator() {
   );
 }
 
-// The saved language has to be read before the provider mounts: LanguageProvider takes
+// The saved language (and theme) has to be read before the provider mounts: LanguageProvider takes
 // its language as an initial value, so hydrating afterwards would flash the default
 // language first. Turkish is the fallback — the app shipped Turkish-only until now.
 function LanguageGate({ children }: { children: React.ReactNode }) {
   const [lang, setLang] = useState<Lang | null>(null);
 
   useEffect(() => {
-    getStoredLanguage().then((stored) => setLang(stored ?? 'tr'));
+    // The saved theme is applied in the same wait, so a dark choice never flashes light.
+    Promise.all([getStoredLanguage(), getStoredTheme()]).then(([stored, theme]) => {
+      applyTheme(theme);
+      setLang(stored ?? 'tr');
+    });
   }, []);
 
   if (!lang) return <View className="flex-1 bg-surface" />;

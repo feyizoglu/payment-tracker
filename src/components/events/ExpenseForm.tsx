@@ -184,7 +184,7 @@ export default function ExpenseForm({
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border ${
                   mode === m
                     ? "bg-purple-600 text-white border-purple-600"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-700"
+                    : "bg-surface text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
                 }`}
               >
                 {m === "equal" ? t.splitEqual : t.splitExact}
@@ -216,14 +216,14 @@ export default function ExpenseForm({
                 />
               </div>
             ))}
-            <p className={`text-sm font-medium ${remaining === 0 ? "text-green-600" : "text-red-600"}`}>
+            <p className={`text-sm font-medium ${remaining === 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
               {t.remaining}: {Number.isFinite(remaining) ? formatMinor(remaining, currency, t.numberLocale) : "—"}
             </p>
           </div>
         )}
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       <div className="flex justify-end gap-2">
         <button

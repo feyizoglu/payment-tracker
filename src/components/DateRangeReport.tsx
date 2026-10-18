@@ -65,7 +65,7 @@ export default function DateRangeReport({ payments, recurrings = [], userMap = {
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -86,7 +86,7 @@ export default function DateRangeReport({ payments, recurrings = [], userMap = {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="flex-1">
@@ -95,7 +95,7 @@ export default function DateRangeReport({ payments, recurrings = [], userMap = {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -106,15 +106,15 @@ export default function DateRangeReport({ payments, recurrings = [], userMap = {
           <div className="px-5 py-4 border-b border-gray-100 shrink-0 grid grid-cols-3 gap-3">
             <div className="bg-blue-50 rounded-xl p-3 text-center">
               <p className="text-xs text-blue-500 font-medium mb-1">{t.totalDue}</p>
-              <p className="text-base font-bold text-blue-700 break-all">{fmtDue}</p>
+              <p className="text-base font-bold text-blue-700 dark:text-blue-400 break-all">{fmtDue}</p>
             </div>
             <div className="bg-green-50 rounded-xl p-3 text-center">
               <p className="text-xs text-green-500 font-medium mb-1">{t.paid}</p>
-              <p className="text-base font-bold text-green-700 break-all">{fmtPaid}</p>
+              <p className="text-base font-bold text-green-700 dark:text-green-400 break-all">{fmtPaid}</p>
             </div>
             <div className="bg-orange-50 rounded-xl p-3 text-center">
               <p className="text-xs text-orange-500 font-medium mb-1">{t.remaining}</p>
-              <p className="text-base font-bold text-orange-700 break-all">{fmtUnpaid}</p>
+              <p className="text-base font-bold text-orange-700 dark:text-orange-400 break-all">{fmtUnpaid}</p>
             </div>
           </div>
         )}
@@ -135,7 +135,7 @@ export default function DateRangeReport({ payments, recurrings = [], userMap = {
                   <div
                     key={`${entry.sourceId}-${entry.installmentIndex ?? entry.period}-${entry.currency}-${i}`}
                     className={`flex items-center gap-3 p-3 rounded-xl border ${
-                      entry.isPaid ? "bg-green-50 border-green-100 opacity-60" : "bg-white border-gray-100"
+                      entry.isPaid ? "bg-green-50 border-green-100 opacity-60" : "bg-surface border-gray-100"
                     }`}
                     style={{ borderLeftWidth: 3, borderLeftColor: color }}
                   >
@@ -145,7 +145,7 @@ export default function DateRangeReport({ payments, recurrings = [], userMap = {
                           {entry.name}
                         </span>
                         {entry.isPaid && (
-                          <span className="text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full font-medium">
+                          <span className="text-[10px] bg-green-100 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full font-medium">
                             {t.paid}
                           </span>
                         )}
