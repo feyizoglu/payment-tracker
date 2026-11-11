@@ -11,6 +11,7 @@ import {
   parseSavedSetup,
   pickEntry,
   remainingSeconds,
+  TAP_GUARD_MS,
   tallyVotes,
   validateSetup,
   type GameState,
@@ -151,29 +152,57 @@ describe("applyScore", () => {
 });
 
 describe("gameReducer", () => {
+  // Each action lands a full second after the previous one, well clear of the tap guard.
+  let now = 0;
+  const at = () => (now += 1000);
+
   const started = (over: Partial<ImposterSetup> = {}): GameState =>
-    gameReducer(initialGameState(), { type: "start", setup: setup({ category: "animals", ...over }), lang: "tr", rng: zero });
+    gameReducer(initialGameState(), {
+      type: "start",
+      setup: setup({ category: "animals", ...over }),
+      lang: "tr",
+      rng: zero,
+      at: at(),
+    });
 
   function dealAll(state: GameState): GameState {
     let s = state;
     for (let i = 0; i < s.setup.players.length; i++) {
-      s = gameReducer(s, { type: "reveal" });
-      s = gameReducer(s, { type: "next" });
+      s = gameReducer(s, { type: "reveal", at: at() });
+      s = gameReducer(s, { type: "next", at: at() });
     }
     return s;
   }
 
+  const voting = (over: Partial<ImposterSetup> = {}): GameState =>
+    gameReducer(dealAll(started({ voting: true, scoreboard: true, ...over })), { type: "finishDiscussion", at: at() });
+
+  function castVotes(state: GameState, targets: number[]): GameState {
+    let s = state;
+    for (const target of targets) {
+      s = gameReducer(s, { type: "reveal", at: at() });
+      s = gameReducer(s, { type: "vote", target, at: at() });
+    }
+    return s;
+  }
+
+  it("starts with no action recorded", () => {
+    expect(initialGameState().lastActionAt).toBe(0);
+  });
+
   it("ignores start while the setup is invalid", () => {
     const s0 = initialGameState();
-    expect(gameReducer(s0, { type: "start", setup: setup({ players: ["A"] }), lang: "tr", rng: zero })).toBe(s0);
+    expect(gameReducer(s0, { type: "start", setup: setup({ players: ["A"] }), lang: "tr", rng: zero, at: at() })).toBe(s0);
   });
 
   it("starts dealing with trimmed names, zero scores and the first player", () => {
+    const startedAt = at();
     const s = gameReducer(initialGameState(), {
       type: "start",
       setup: setup({ players: [" Ayşe ", "Mehmet", "Can"] }),
       lang: "tr",
       rng: zero,
+      at: startedAt,
     });
     expect(s.phase).toBe("deal");
     expect(s.setup.players).toEqual(["Ayşe", "Mehmet", "Can"]);
@@ -181,13 +210,14 @@ describe("gameReducer", () => {
     expect(s.turn).toBe(0);
     expect(s.revealed).toBe(false);
     expect(s.used).toHaveLength(1);
+    expect(s.lastActionAt).toBe(startedAt);
   });
 
   it("only passes the phone on after the card was shown", () => {
     const s = started();
-    expect(gameReducer(s, { type: "next" })).toBe(s);
-    const shown = gameReducer(s, { type: "reveal" });
-    expect(gameReducer(shown, { type: "next" })).toMatchObject({ turn: 1, revealed: false, phase: "deal" });
+    expect(gameReducer(s, { type: "next", at: at() })).toBe(s);
+    const shown = gameReducer(s, { type: "reveal", at: at() });
+    expect(gameReducer(shown, { type: "next", at: at() })).toMatchObject({ turn: 1, revealed: false, phase: "deal" });
   });
 
   it("moves to discussion after the last card", () => {
@@ -195,35 +225,53 @@ describe("gameReducer", () => {
   });
 
   it("goes straight to the result without voting", () => {
-    const s = gameReducer(dealAll(started()), { type: "finishDiscussion" });
+    const s = gameReducer(dealAll(started()), { type: "finishDiscussion", at: at() });
     expect(s).toMatchObject({ phase: "result", outcome: null });
   });
 
   it("collects one secret vote per player, rejects self-votes, then scores", () => {
     // rng 0 makes player 0 the only imposter.
-    let s = gameReducer(dealAll(started({ voting: true, scoreboard: true })), { type: "finishDiscussion" });
+    let s = voting();
     expect(s.phase).toBe("vote");
-    s = gameReducer(s, { type: "reveal" });
-    expect(gameReducer(s, { type: "vote", target: 0 })).toBe(s); // player 0 voting for self
-    s = gameReducer(s, { type: "vote", target: 1 });
-    for (let voter = 1; voter < 4; voter++) {
-      s = gameReducer(s, { type: "reveal" });
-      s = gameReducer(s, { type: "vote", target: 0 });
-    }
+    s = gameReducer(s, { type: "reveal", at: at() });
+    expect(gameReducer(s, { type: "vote", target: 0, at: at() })).toBe(s); // player 0 voting for self
+    s = gameReducer(s, { type: "vote", target: 1, at: at() });
+    s = castVotes(s, [0, 0, 0]);
     expect(s.phase).toBe("result");
     expect(s.votes).toEqual([1, 0, 0, 0]);
     expect(s.outcome).toEqual({ accused: 0, crewWins: true });
     expect(s.scores).toEqual([0, 1, 1, 1]);
   });
 
+  it("gives the imposters the win when an innocent player is accused", () => {
+    // Player 0 is the imposter; players 0, 2 and 3 accuse player 1.
+    const s = castVotes(voting(), [1, 0, 1, 1]);
+    expect(s.phase).toBe("result");
+    expect(s.outcome).toEqual({ accused: 1, crewWins: false });
+    expect(s.scores).toEqual([2, 0, 0, 0]);
+  });
+
+  it("accuses nobody on a tie", () => {
+    const s = castVotes(voting(), [1, 0, 1, 0]);
+    expect(s.outcome).toEqual({ accused: null, crewWins: false });
+  });
+
+  it("ignores a vote before the ballot is revealed", () => {
+    const s = voting();
+    expect(gameReducer(s, { type: "vote", target: 1, at: at() })).toBe(s);
+  });
+
+  it("ignores a vote for a player who does not exist", () => {
+    const s = gameReducer(voting(), { type: "reveal", at: at() });
+    expect(gameReducer(s, { type: "vote", target: 4, at: at() })).toBe(s);
+    expect(gameReducer(s, { type: "vote", target: -1, at: at() })).toBe(s);
+    expect(gameReducer(s, { type: "vote", target: 1.5, at: at() })).toBe(s);
+  });
+
   it("keeps players and scores for the next round and avoids the same word", () => {
-    let s = gameReducer(dealAll(started({ voting: true, scoreboard: true })), { type: "finishDiscussion" });
-    for (let voter = 0; voter < 4; voter++) {
-      s = gameReducer(s, { type: "reveal" });
-      s = gameReducer(s, { type: "vote", target: voter === 0 ? 1 : 0 });
-    }
+    let s = castVotes(voting(), [1, 0, 0, 0]);
     const firstWord = s.round!.entryId;
-    s = gameReducer(s, { type: "nextRound", lang: "tr", rng: zero });
+    s = gameReducer(s, { type: "nextRound", lang: "tr", rng: zero, at: at() });
     expect(s.phase).toBe("deal");
     expect(s.scores).toEqual([0, 1, 1, 1]);
     expect(s.round!.entryId).not.toBe(firstWord);
@@ -236,6 +284,73 @@ describe("gameReducer", () => {
     expect(s.scores).toEqual([]);
     expect(s.setup.players).toEqual(["Ayşe", "Mehmet", "Can", "Deniz"]);
     expect(s.used).toHaveLength(1);
+    expect(s.lastActionAt).toBe(0);
+  });
+
+  describe("tap guard", () => {
+    const T = 10_000;
+    const dealing = () =>
+      gameReducer(initialGameState(), {
+        type: "start",
+        setup: setup({ category: "animals" }),
+        lang: "tr",
+        rng: zero,
+        at: T,
+      });
+
+    it("ignores a next right after the card was shown", () => {
+      const shown = gameReducer(dealing(), { type: "reveal", at: T + 1000 });
+      expect(shown.lastActionAt).toBe(T + 1000);
+      expect(gameReducer(shown, { type: "next", at: T + 1100 })).toBe(shown);
+      expect(gameReducer(shown, { type: "next", at: T + 1000 + TAP_GUARD_MS - 1 })).toBe(shown);
+      expect(gameReducer(shown, { type: "next", at: T + 1000 + TAP_GUARD_MS })).toMatchObject({
+        turn: 1,
+        revealed: false,
+        lastActionAt: T + 1000 + TAP_GUARD_MS,
+      });
+    });
+
+    it("ignores a reveal right after the phone was passed on", () => {
+      const shown = gameReducer(dealing(), { type: "reveal", at: T + 1000 });
+      const passed = gameReducer(shown, { type: "next", at: T + 2000 });
+      expect(gameReducer(passed, { type: "reveal", at: T + 2100 })).toBe(passed);
+      expect(gameReducer(passed, { type: "reveal", at: T + 2000 + TAP_GUARD_MS })).toMatchObject({
+        turn: 1,
+        revealed: true,
+        lastActionAt: T + 2000 + TAP_GUARD_MS,
+      });
+    });
+
+    it("ignores a reveal right after the game starts", () => {
+      const s = dealing();
+      expect(gameReducer(s, { type: "reveal", at: T + 100 })).toBe(s);
+    });
+
+    it("ignores a vote right after the ballot was opened", () => {
+      const vote = voting();
+      const openedAt = at();
+      const ballot = gameReducer(vote, { type: "reveal", at: openedAt });
+      expect(gameReducer(ballot, { type: "vote", target: 1, at: openedAt + 100 })).toBe(ballot);
+      expect(gameReducer(ballot, { type: "vote", target: 1, at: openedAt + TAP_GUARD_MS })).toMatchObject({
+        votes: [1],
+        turn: 1,
+        lastActionAt: openedAt + TAP_GUARD_MS,
+      });
+    });
+
+    it("records finishDiscussion and nextRound so the following reveal is guarded too", () => {
+      const discuss = dealAll(started({ voting: true }));
+      const finishedAt = at();
+      const ballot = gameReducer(discuss, { type: "finishDiscussion", at: finishedAt });
+      expect(ballot.lastActionAt).toBe(finishedAt);
+      expect(gameReducer(ballot, { type: "reveal", at: finishedAt + 100 })).toBe(ballot);
+
+      const result = castVotes(ballot, [1, 0, 0, 0]);
+      const nextAt = at();
+      const next = gameReducer(result, { type: "nextRound", lang: "tr", rng: zero, at: nextAt });
+      expect(next.lastActionAt).toBe(nextAt);
+      expect(gameReducer(next, { type: "reveal", at: nextAt + 100 })).toBe(next);
+    });
   });
 });
 

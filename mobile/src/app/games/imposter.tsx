@@ -37,7 +37,7 @@ export default function ImposterScreen() {
         onChange={setDraft}
         onStart={() => {
           void setStoredSetup(draft);
-          dispatch({ type: "start", setup: draft, lang, rng: Math.random });
+          dispatch({ type: "start", setup: draft, lang, rng: Math.random, at: Date.now() });
         }}
       />
     ) : (
@@ -46,7 +46,7 @@ export default function ImposterScreen() {
   } else if (round && phase === "deal") {
     const card = round.cards[turn];
     body = (
-      <PassPhone name={names[turn]} revealed={revealed} revealLabel={t.imposterShow} onReveal={() => dispatch({ type: "reveal" })}>
+      <PassPhone name={names[turn]} revealed={revealed} revealLabel={t.imposterShow} onReveal={() => dispatch({ type: "reveal", at: Date.now() })}>
         {card.kind === "word" ? (
           <View className="items-center gap-2 py-8">
             <Text className="text-sm text-gray-500">{t.imposterYourWord}</Text>
@@ -60,7 +60,7 @@ export default function ImposterScreen() {
             </Text>
           </View>
         )}
-        <PrimaryButton label={t.imposterHideNext} onPress={() => dispatch({ type: "next" })} />
+        <PrimaryButton label={t.imposterHideNext} onPress={() => dispatch({ type: "next", at: Date.now() })} />
       </PassPhone>
     );
   } else if (round && phase === "discuss") {
@@ -69,19 +69,19 @@ export default function ImposterScreen() {
         starter={names[round.starter]}
         timerMinutes={setup.timerMinutes}
         voting={setup.voting}
-        onFinish={() => dispatch({ type: "finishDiscussion" })}
+        onFinish={() => dispatch({ type: "finishDiscussion", at: Date.now() })}
       />
     );
   } else if (round && phase === "vote") {
     body = (
-      <PassPhone name={names[turn]} revealed={revealed} revealLabel={t.imposterOpenBallot} onReveal={() => dispatch({ type: "reveal" })}>
+      <PassPhone name={names[turn]} revealed={revealed} revealLabel={t.imposterOpenBallot} onReveal={() => dispatch({ type: "reveal", at: Date.now() })}>
         <Text className="text-center text-xl font-bold text-gray-900">{t.imposterWhoIs}</Text>
         <View className="gap-2">
           {names.map((name, i) =>
             i === turn ? null : (
               <Pressable
                 key={name}
-                onPress={() => dispatch({ type: "vote", target: i })}
+                onPress={() => dispatch({ type: "vote", target: i, at: Date.now() })}
                 className="rounded-lg border border-gray-200 py-3">
                 <Text className="text-center text-base text-gray-900">{name}</Text>
               </Pressable>
@@ -94,7 +94,7 @@ export default function ImposterScreen() {
     body = (
       <ImposterResult
         state={state}
-        onNextRound={() => dispatch({ type: "nextRound", lang, rng: Math.random })}
+        onNextRound={() => dispatch({ type: "nextRound", lang, rng: Math.random, at: Date.now() })}
         onEnd={() => {
           setDraft(state.setup);
           dispatch({ type: "end" });

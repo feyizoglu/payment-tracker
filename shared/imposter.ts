@@ -23,6 +23,7 @@ export const MAX_PLAYERS = 12;
 export const MAX_IMPOSTERS = 3;
 export const MAX_TIMER_MINUTES = 10;
 export const SETUP_STORAGE_KEY = "imposter_setup";
+export const TAP_GUARD_MS = 400;
 
 export const DEFAULT_SETUP: ImposterSetup = {
   players: [],
@@ -196,15 +197,18 @@ export interface GameState {
   /** Word ids played this session, so they do not come back too soon. */
   used: string[];
   outcome: Outcome | null;
+  /** When the last accepted timed action happened, in ms. */
+  lastActionAt: number;
 }
 
+/** `at` is the tap's timestamp in ms (Date.now()). */
 export type GameAction =
-  | { type: "start"; setup: ImposterSetup; lang: Lang; rng: Rng }
-  | { type: "reveal" }
-  | { type: "next" }
-  | { type: "finishDiscussion" }
-  | { type: "vote"; target: number }
-  | { type: "nextRound"; lang: Lang; rng: Rng }
+  | { type: "start"; setup: ImposterSetup; lang: Lang; rng: Rng; at: number }
+  | { type: "reveal"; at: number }
+  | { type: "next"; at: number }
+  | { type: "finishDiscussion"; at: number }
+  | { type: "vote"; target: number; at: number }
+  | { type: "nextRound"; lang: Lang; rng: Rng; at: number }
   | { type: "end" };
 
 export function initialGameState(setup: ImposterSetup = DEFAULT_SETUP): GameState {
@@ -218,7 +222,14 @@ export function initialGameState(setup: ImposterSetup = DEFAULT_SETUP): GameStat
     scores: [],
     used: [],
     outcome: null,
+    lastActionAt: 0,
   };
+}
+
+// The buttons that move a turn on sit where the next screen's buttons appear, so a
+// double tap would otherwise also press the next one, often for the next player.
+function tooSoon(state: GameState, at: number): boolean {
+  return at - state.lastActionAt < TAP_GUARD_MS;
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -238,36 +249,60 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         votes: [],
         outcome: null,
         scores: setup.players.map(() => 0),
+        lastActionAt: action.at,
       };
     }
     case "reveal":
       if (state.phase !== "deal" && state.phase !== "vote") return state;
-      return { ...state, revealed: true };
+      if (tooSoon(state, action.at)) return state;
+      return { ...state, revealed: true, lastActionAt: action.at };
     case "next": {
-      if (state.phase !== "deal" || !state.revealed) return state;
+      if (state.phase !== "deal" || !state.revealed || tooSoon(state, action.at)) return state;
       const turn = state.turn + 1;
-      if (turn < state.setup.players.length) return { ...state, turn, revealed: false };
-      return { ...state, phase: "discuss", turn: 0, revealed: false };
+      if (turn < state.setup.players.length) return { ...state, turn, revealed: false, lastActionAt: action.at };
+      return { ...state, phase: "discuss", turn: 0, revealed: false, lastActionAt: action.at };
     }
     case "finishDiscussion":
       if (state.phase !== "discuss") return state;
-      if (state.setup.voting) return { ...state, phase: "vote", turn: 0, revealed: false, votes: [] };
-      return { ...state, phase: "result", outcome: null };
+      if (state.setup.voting) {
+        return { ...state, phase: "vote", turn: 0, revealed: false, votes: [], lastActionAt: action.at };
+      }
+      return { ...state, phase: "result", outcome: null, lastActionAt: action.at };
     case "vote": {
-      if (state.phase !== "vote" || !state.revealed || !state.round) return state;
+      if (state.phase !== "vote" || !state.revealed || !state.round || tooSoon(state, action.at)) return state;
       const playerCount = state.setup.players.length;
       const { target } = action;
       if (!Number.isInteger(target) || target < 0 || target >= playerCount || target === state.turn) return state;
       const votes = [...state.votes, target];
-      if (votes.length < playerCount) return { ...state, votes, turn: state.turn + 1, revealed: false };
+      if (votes.length < playerCount) {
+        return { ...state, votes, turn: state.turn + 1, revealed: false, lastActionAt: action.at };
+      }
       const { accused, crewWins } = tallyVotes(votes, playerCount, state.round.imposters);
       const scores = state.setup.scoreboard ? applyScore(state.scores, state.round.imposters, crewWins) : state.scores;
-      return { ...state, phase: "result", votes, revealed: false, outcome: { accused, crewWins }, scores };
+      return {
+        ...state,
+        phase: "result",
+        votes,
+        revealed: false,
+        outcome: { accused, crewWins },
+        scores,
+        lastActionAt: action.at,
+      };
     }
     case "nextRound": {
       if (state.phase !== "result") return state;
       const { round, used } = dealRound(state.setup, action.lang, state.used, action.rng);
-      return { ...state, phase: "deal", round, used, turn: 0, revealed: false, votes: [], outcome: null };
+      return {
+        ...state,
+        phase: "deal",
+        round,
+        used,
+        turn: 0,
+        revealed: false,
+        votes: [],
+        outcome: null,
+        lastActionAt: action.at,
+      };
     }
     case "end":
       return { ...initialGameState(state.setup), used: state.used };

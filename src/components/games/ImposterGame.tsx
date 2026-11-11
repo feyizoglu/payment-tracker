@@ -53,7 +53,7 @@ export default function ImposterGame() {
         onChange={setDraft}
         onStart={() => {
           saveSetup(draft);
-          dispatch({ type: "start", setup: draft, lang, rng: Math.random });
+          dispatch({ type: "start", setup: draft, lang, rng: Math.random, at: Date.now() });
         }}
       />
     );
@@ -64,7 +64,7 @@ export default function ImposterGame() {
   if (phase === "deal") {
     const card = round.cards[turn];
     return (
-      <PassPhone name={names[turn]} revealed={revealed} revealLabel={t.imposterShow} onReveal={() => dispatch({ type: "reveal" })}>
+      <PassPhone name={names[turn]} revealed={revealed} revealLabel={t.imposterShow} onReveal={() => dispatch({ type: "reveal", at: Date.now() })}>
         {card.kind === "word" ? (
           <div className="space-y-2 py-6">
             <p className="text-sm text-gray-500">{t.imposterYourWord}</p>
@@ -80,7 +80,7 @@ export default function ImposterGame() {
         )}
         <button
           type="button"
-          onClick={() => dispatch({ type: "next" })}
+          onClick={() => dispatch({ type: "next", at: Date.now() })}
           className="rounded-lg bg-gray-900 px-10 py-3 font-semibold text-white dark:bg-gray-100 dark:text-gray-900"
         >
           {t.imposterHideNext}
@@ -95,14 +95,14 @@ export default function ImposterGame() {
         starter={names[round.starter]}
         timerMinutes={setup.timerMinutes}
         voting={setup.voting}
-        onFinish={() => dispatch({ type: "finishDiscussion" })}
+        onFinish={() => dispatch({ type: "finishDiscussion", at: Date.now() })}
       />
     );
   }
 
   if (phase === "vote") {
     return (
-      <PassPhone name={names[turn]} revealed={revealed} revealLabel={t.imposterOpenBallot} onReveal={() => dispatch({ type: "reveal" })}>
+      <PassPhone name={names[turn]} revealed={revealed} revealLabel={t.imposterOpenBallot} onReveal={() => dispatch({ type: "reveal", at: Date.now() })}>
         <p className="text-xl font-bold text-gray-900">{t.imposterWhoIs}</p>
         <div className="grid grid-cols-2 gap-2">
           {names.map((name, i) =>
@@ -110,7 +110,7 @@ export default function ImposterGame() {
               <button
                 key={name}
                 type="button"
-                onClick={() => dispatch({ type: "vote", target: i })}
+                onClick={() => dispatch({ type: "vote", target: i, at: Date.now() })}
                 className="rounded-lg border border-gray-200 bg-surface py-3 text-gray-900 hover:bg-gray-100"
               >
                 {name}
@@ -125,7 +125,7 @@ export default function ImposterGame() {
   return (
     <ImposterResult
       state={state}
-      onNextRound={() => dispatch({ type: "nextRound", lang, rng: Math.random })}
+      onNextRound={() => dispatch({ type: "nextRound", lang, rng: Math.random, at: Date.now() })}
       onEnd={() => {
         setDraft(state.setup);
         dispatch({ type: "end" });
