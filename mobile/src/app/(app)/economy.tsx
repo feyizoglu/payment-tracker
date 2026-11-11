@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 
 import { BankGroup } from "@/components/bank-group";
+import { EconomyGate } from "@/components/lock/economy-gate";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { TabScreen } from "@/components/tab-screen";
 import { useAuth } from "@/lib/auth-context";
@@ -17,7 +18,7 @@ import {
   setPreferredCurrency,
 } from "@/lib/economy-storage";
 
-export default function Economy() {
+function EconomyContent() {
   const { t } = useLang();
   const { api, user } = useAuth();
 
@@ -195,5 +196,13 @@ export default function Economy() {
         <Text className="text-2xl leading-7 text-brand-fg">+</Text>
       </Pressable>
     </TabScreen>
+  );
+}
+
+export default function Economy() {
+  return (
+    <EconomyGate>
+      <EconomyContent />
+    </EconomyGate>
   );
 }

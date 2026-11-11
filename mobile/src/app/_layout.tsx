@@ -9,6 +9,7 @@ import { ActivityIndicator, useColorScheme, View } from 'react-native';
 import { LanguageProvider, type Lang } from '@ptracker/shared/i18n';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { AppLockProvider, useAppLock } from '@/lib/app-lock-context';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language-storage';
 import { applyTheme, getStoredTheme } from '@/lib/theme-storage';
@@ -21,6 +22,7 @@ SplashScreen.preventAutoHideAsync();
 // conditionally rendering a screen component.
 function RootNavigator() {
   const { ready, isAuthenticated } = useAuth();
+  const { ready: lockReady, lock } = useAppLock();
   const lastNotification = useLastNotificationResponse();
   // The hook keeps returning the last tap for the life of the process; without this a
   // sign-out and sign-in would replay it.
@@ -37,9 +39,20 @@ function RootNavigator() {
     router.navigate(month ? { pathname: '/', params: { month, tap: request.identifier } } : '/');
   }, [ready, isAuthenticated, lastNotification]);
 
+  // Runs after the guards let the tabs back in; navigating from the PIN screen itself could
+  // land before that render, when the tabs are still not a route the stack accepts.
+  const wasGameModeRef = useRef(lock.gameMode);
+  useEffect(() => {
+    if (wasGameModeRef.current && !lock.gameMode && isAuthenticated) {
+      if (router.canDismiss()) router.dismissAll();
+      router.replace('/');
+    }
+    wasGameModeRef.current = lock.gameMode;
+  }, [lock.gameMode, isAuthenticated]);
+
   // While the stored token is being restored, render nothing — the animated
   // splash overlay covers the screen until `ready` flips.
-  if (!ready) {
+  if (!ready || !lockReady) {
     return (
       <View className="flex-1 items-center justify-center bg-surface">
         <ActivityIndicator />
@@ -49,7 +62,7 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={isAuthenticated}>
+      <Stack.Protected guard={isAuthenticated && !lock.gameMode}>
         <Stack.Screen name="(app)" />
         {/* Write flows live at the root, as siblings of the tab group, so they can
             cover the tabs. Each screen draws its own header via <FormScreen>, which
@@ -63,8 +76,13 @@ function RootNavigator() {
         <Stack.Screen name="manual-gold" options={{ presentation: 'modal' }} />
         <Stack.Screen name="event/[id]" />
         <Stack.Screen name="event-expense" options={{ presentation: 'modal' }} />
+      </Stack.Protected>
+      <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="games/index" />
         <Stack.Screen name="games/imposter" />
+      </Stack.Protected>
+      <Stack.Protected guard={isAuthenticated && lock.gameMode}>
+        <Stack.Screen name="app-lock" />
       </Stack.Protected>
       <Stack.Protected guard={!isAuthenticated}>
         <Stack.Screen name="sign-in" />
@@ -96,6 +114,11 @@ function LanguageGate({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AppLockRoot({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  return <AppLockProvider signedIn={isAuthenticated}>{children}</AppLockProvider>;
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
@@ -103,7 +126,9 @@ export default function RootLayout() {
       <LanguageGate>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <AnimatedSplashOverlay />
-          <RootNavigator />
+          <AppLockRoot>
+            <RootNavigator />
+          </AppLockRoot>
         </ThemeProvider>
       </LanguageGate>
     </AuthProvider>
