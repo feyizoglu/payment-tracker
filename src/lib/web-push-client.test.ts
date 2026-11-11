@@ -78,7 +78,7 @@ describe("signOutWithPushCleanup", () => {
       "/api/web-push",
       expect.objectContaining({ method: "DELETE", body: JSON.stringify({ endpoint: ENDPOINT }) })
     );
-    expect(signOut).toHaveBeenCalledWith({ redirect: false });
+    expect(signOut).toHaveBeenCalledWith({ redirect: false, redirectTo: "/" });
     const deleted = vi.mocked(fetch).mock.invocationCallOrder[0];
     const unsubscribed = sub.unsubscribe.mock.invocationCallOrder[0];
     const signedOut = vi.mocked(signOut).mock.invocationCallOrder[0];
@@ -91,7 +91,7 @@ describe("signOutWithPushCleanup", () => {
 
     await expect(signOutWithPushCleanup()).resolves.toBeUndefined();
 
-    expect(signOut).toHaveBeenCalledWith({ redirect: false });
+    expect(signOut).toHaveBeenCalledWith({ redirect: false, redirectTo: "/" });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -103,7 +103,7 @@ describe("signOutWithPushCleanup", () => {
     await expect(signOutWithPushCleanup()).resolves.toBeUndefined();
 
     expect(sub.unsubscribe).toHaveBeenCalledTimes(1);
-    expect(signOut).toHaveBeenCalledWith({ redirect: false });
+    expect(signOut).toHaveBeenCalledWith({ redirect: false, redirectTo: "/" });
   });
 
   it("forgets this device for offline games and the app lock only after signing out, then goes home", async () => {
@@ -132,7 +132,7 @@ describe("signOutWithPushCleanup", () => {
 
   it("keeps the app lock when the server answers with an error page instead of signing out", async () => {
     stubBrowser(async () => undefined);
-    vi.mocked(signOut).mockResolvedValue({ url: "http://localhost:3000/api/auth/error?error=MissingCSRF" } as never);
+    vi.mocked(signOut).mockResolvedValue({ url: "http://localhost:3000/?error=MissingCSRF" } as never);
 
     await expect(signOutWithPushCleanup()).rejects.toThrow();
 

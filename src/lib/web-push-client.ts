@@ -36,8 +36,8 @@ async function unsubscribeThisBrowser(): Promise<void> {
 
 export async function signOutWithPushCleanup(): Promise<void> {
   await unsubscribeThisBrowser();
-  const result = await signOut({ redirect: false });
-  // Auth.js answers a failed CSRF check with 200 and an error page URL instead of signing out.
+  const result = await signOut({ redirect: false, redirectTo: "/" });
+  // Auth.js answers a failed CSRF check with 200 and the sign-in page URL carrying ?error= instead of signing out.
   if (/[?&]error=/.test(result?.url ?? "")) throw new Error("Sign-out failed");
   rememberSignedIn(false);
   clearLock();
