@@ -33,7 +33,14 @@ vi.mock("react-native", () => ({
 vi.mock("expo-router", () => ({ useFocusEffect: () => undefined }));
 vi.mock("@ptracker/shared/i18n", () => ({
   useLang: () => ({
-    t: { pinSaved: "SAVED", pinRemove: "REMOVE", pinChange: "CHANGE", pinInvalid: "INVALID", pinMismatch: "MISMATCH" },
+    t: {
+      pinSaved: "SAVED",
+      pinRemove: "REMOVE",
+      pinChange: "CHANGE",
+      pinInvalid: "INVALID",
+      pinMismatch: "MISMATCH",
+      loadFailed: "LOAD_FAILED",
+    },
   }),
 }));
 vi.mock("@/lib/app-lock-context", () => ({ useAppLock: () => ({ ready: true, lock: s.lock, update: s.update }) }));
@@ -118,7 +125,11 @@ describe("PinSettings economy toggle", () => {
 });
 
 describe("PinSetup submit", () => {
-  const onDone = vi.fn(async () => undefined);
+  const onDone = vi.fn(async (_pin: string) => undefined);
+
+  function saveBusy() {
+    return find(setup(), PrimaryButton)!.props.busy;
+  }
 
   function setup(): Node {
     hooks.index = 0;
@@ -146,5 +157,34 @@ describe("PinSetup submit", () => {
   it("hands over a valid matching PIN", async () => {
     await submit("1234", "1234");
     expect(onDone).toHaveBeenCalledWith("1234");
+  });
+
+  it("keeps Save busy only while the PIN is being stored", async () => {
+    let finish: () => void = () => undefined;
+    onDone.mockReturnValueOnce(
+      new Promise<undefined>((r) => {
+        finish = () => r(undefined);
+      })
+    );
+    const pending = submit("1234", "1234");
+    await Promise.resolve();
+    expect(saveBusy()).toBe(true);
+    finish();
+    expect(await pending).not.toContain("LOAD_FAILED");
+    expect(saveBusy()).toBe(false);
+  });
+
+  it("shows an error and frees Save when storing the PIN fails", async () => {
+    onDone.mockRejectedValueOnce(new Error("keystore"));
+    expect(await submit("1234", "1234")).toContain("LOAD_FAILED");
+    expect(onDone).toHaveBeenCalledWith("1234");
+    expect(saveBusy()).toBe(false);
+  });
+
+  it("clears the error once a later attempt stores the PIN", async () => {
+    onDone.mockRejectedValueOnce(new Error("keystore"));
+    await submit("1234", "1234");
+    expect(await submit("1234", "1234")).not.toContain("LOAD_FAILED");
+    expect(onDone).toHaveBeenCalledTimes(2);
   });
 });

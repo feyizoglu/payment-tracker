@@ -93,6 +93,11 @@ async function type(pin: string) {
   await act(async () => state.input?.onChangeText(pin));
 }
 
+function fakeIntervals() {
+  vi.useRealTimers();
+  vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"], now: NOW });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers({ toFake: ["Date"], now: NOW });
@@ -165,6 +170,24 @@ describe("PinScreen applyReset tick", () => {
   it("clears the lock once the requested reset time has passed", async () => {
     await render({ ...withPin, resetAt: NOW - 1 });
     expect(state.update).toHaveBeenCalledWith(EMPTY_LOCK);
+  });
+
+  it("clears the lock on the one-second tick after the reset time arrives, and not before", async () => {
+    fakeIntervals();
+    await render({ ...withPin, resetAt: NOW + 1500 });
+    await act(async () => vi.advanceTimersByTime(1000));
+    expect(state.update).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTime(1000));
+    expect(state.update).toHaveBeenCalledWith(EMPTY_LOCK);
+  });
+
+  it("stops ticking once the screen is gone", async () => {
+    fakeIntervals();
+    await render({ ...withPin, resetAt: NOW + 1500 });
+    await act(async () => root?.unmount());
+    root = null;
+    vi.advanceTimersByTime(5000);
+    expect(state.update).not.toHaveBeenCalled();
   });
 });
 

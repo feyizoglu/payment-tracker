@@ -108,6 +108,11 @@ function submit(tree: Node) {
   return (find(tree, "form")!.props.onSubmit as (e: unknown) => Promise<void>)({ preventDefault: () => undefined });
 }
 
+function fakeIntervals() {
+  vi.useRealTimers();
+  vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"], now: NOW });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers({ toFake: ["Date"], now: NOW });
@@ -165,6 +170,12 @@ describe("PinScreen clampLockout effect", () => {
     runEffects();
     expect(store.writeLock).toHaveBeenCalledWith(expect.objectContaining({ lockedUntil: NOW + 15 * 60_000 }));
   });
+
+  it("leaves a lockout within 15 minutes alone", () => {
+    render({ ...withPin, failures: 9, lockedUntil: NOW + 10 * 60_000 });
+    runEffects();
+    expect(store.writeLock).not.toHaveBeenCalled();
+  });
 });
 
 describe("PinScreen applyReset tick", () => {
@@ -172,6 +183,33 @@ describe("PinScreen applyReset tick", () => {
     render({ ...withPin, resetAt: NOW - 1 });
     runEffects();
     expect(store.writeLock).toHaveBeenCalledWith(EMPTY_LOCK);
+  });
+
+  it("clears the lock on the one-second tick after the reset time arrives, and not before", () => {
+    fakeIntervals();
+    render({ ...withPin, resetAt: NOW + 1500 });
+    runEffects();
+    vi.advanceTimersByTime(1000);
+    expect(store.writeLock).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
+    expect(store.writeLock).toHaveBeenCalledWith(EMPTY_LOCK);
+  });
+
+  it("stops ticking once the screen is gone", () => {
+    fakeIntervals();
+    render({ ...withPin, resetAt: NOW + 1500 });
+    runEffects();
+    for (const cleanup of hooks.cleanups.splice(0)) cleanup();
+    vi.advanceTimersByTime(5000);
+    expect(store.writeLock).not.toHaveBeenCalled();
+  });
+
+  it("starts no reset timer when no reset was requested", () => {
+    fakeIntervals();
+    render(withPin);
+    runEffects();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(store.writeLock).not.toHaveBeenCalled();
   });
 });
 

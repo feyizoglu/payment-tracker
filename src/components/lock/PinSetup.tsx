@@ -19,8 +19,14 @@ export default function PinSetup({ onDone, submitLabel }: { onDone: (pin: string
     if (!isValidPin(pin)) return setError(t.pinInvalid);
     if (pin !== repeat) return setError(t.pinMismatch);
     setBusy(true);
-    await onDone(pin);
-    setBusy(false);
+    setError(null);
+    try {
+      await onDone(pin);
+    } catch {
+      setError(t.loadFailed);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

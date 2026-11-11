@@ -235,7 +235,8 @@ export function initialGameState(setup: ImposterSetup = DEFAULT_SETUP): GameStat
 // The buttons that move a turn on sit where the next screen's buttons appear, so a
 // double tap would otherwise also press the next one, often for the next player.
 function tooSoon(state: GameState, at: number): boolean {
-  return at - state.lastActionAt < TAP_GUARD_MS;
+  const d = at - state.lastActionAt;
+  return d >= 0 && d < TAP_GUARD_MS;
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {

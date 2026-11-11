@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   pin: null as null | { cancel: { href: string }; onUnlock: (next: unknown) => void },
   pinRenders: 0,
   childRenders: 0,
+  listeners: new Map<string, (e: unknown) => void>(),
 }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => state.path }));
@@ -69,7 +70,14 @@ const withPin: AppLockState = { ...EMPTY_LOCK, pinHash: "h", salt: "s" };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubGlobal("window", { HTMLIFrameElement: class {} });
+  state.listeners = new Map();
+  vi.stubGlobal("window", {
+    HTMLIFrameElement: class {},
+    addEventListener: (type: string, fn: (e: unknown) => void) => state.listeners.set(type, fn),
+    removeEventListener: (type: string, fn: (e: unknown) => void) => {
+      if (state.listeners.get(type) === fn) state.listeners.delete(type);
+    },
+  });
   state.lock = withPin;
   state.pin = null;
   resetCounts();
@@ -149,5 +157,49 @@ describe("AppLockGate key per path", () => {
     await render("/economy");
     expect(state.pinRenders).toBeGreaterThan(0);
     expect(state.childRenders).toBe(0);
+  });
+});
+
+describe("Gate back-forward cache restore", () => {
+  async function unlockEconomy() {
+    state.lock = { ...withPin, economyLock: true };
+    await render("/economy");
+    await unlock({ ...withPin, economyLock: true });
+    expect(state.childRenders).toBeGreaterThan(0);
+    resetCounts();
+  }
+
+  it("asks for the Economy PIN again when the page is restored from the back-forward cache", async () => {
+    await unlockEconomy();
+    await act(async () => state.listeners.get("pageshow")?.({ persisted: true }));
+    expect(state.pinRenders).toBeGreaterThan(0);
+    expect(state.childRenders).toBe(0);
+  });
+
+  it("keeps Economy unlocked on an ordinary pageshow", async () => {
+    await unlockEconomy();
+    await act(async () => state.listeners.get("pageshow")?.({ persisted: false }));
+    expect(state.pinRenders).toBe(0);
+  });
+
+  it("asks again after a restore when Economy was opened by leaving game mode with the PIN", async () => {
+    state.lock = { ...withPin, economyLock: true, gameMode: true };
+    await render("/economy");
+    await unlock({ ...withPin, economyLock: true, gameMode: true });
+    state.lock = { ...withPin, economyLock: true };
+    await render("/economy");
+    expect(state.childRenders).toBeGreaterThan(0);
+    resetCounts();
+    await act(async () => state.listeners.get("pageshow")?.({ persisted: true }));
+    expect(state.pinRenders).toBeGreaterThan(0);
+    expect(state.childRenders).toBe(0);
+  });
+
+  it("stops listening when the gate unmounts", async () => {
+    await render("/economy");
+    expect(state.listeners.has("pageshow")).toBe(true);
+    await act(async () => root?.unmount());
+    root = null;
+    expect(state.listeners.has("pageshow")).toBe(false);
   });
 });

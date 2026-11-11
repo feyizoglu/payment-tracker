@@ -18,14 +18,6 @@ export async function setStoredLock(state: AppLockState): Promise<void> {
   }
 }
 
-export async function clearStoredLock(): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(APP_LOCK_KEY);
-  } catch {
-    // Nothing stored to clear.
-  }
-}
-
 export const sha256Hex: Hash = (text) => Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, text);
 
 export function randomSalt(): string {

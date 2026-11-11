@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ArrowLeft, Loader2, LogOut } from "lucide-react";
@@ -8,7 +8,14 @@ import EventsHeader from "@/components/events/EventsHeader";
 import PinSetup from "@/components/lock/PinSetup";
 import { useLang } from "@/lib/i18n";
 import { prepareGamesOffline } from "@/lib/games-offline";
-import { gamesAccess, isRememberedSignedIn, rememberSignedIn } from "@/lib/games-auth";
+import {
+  checkSession,
+  gamesAccess,
+  isRememberedSignedIn,
+  needsSessionCheck,
+  rememberSignedIn,
+  type SessionCheck,
+} from "@/lib/games-auth";
 import { enterGameMode, hasPin, parseLockState, setPin } from "@/lib/app-lock";
 import { randomSalt, readLockRaw, sha256Hex, useAppLock, writeLock } from "@/lib/app-lock-store";
 
@@ -31,7 +38,9 @@ export default function GamesShell({ title, backHref, children }: { title?: stri
   const { status } = useSession();
   const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
   const remembered = useSyncExternalStore(noSubscribe, isRememberedSignedIn, () => false);
-  const access = gamesAccess(status, online, remembered);
+  const [sessionCheck, setSessionCheck] = useState<SessionCheck>("pending");
+  const checkNeeded = needsSessionCheck(status, online, remembered);
+  const access = gamesAccess(status, online, remembered, sessionCheck);
   const lock = useAppLock();
   const pinReady = lock !== null && hasPin(lock);
 
@@ -54,9 +63,21 @@ export default function GamesShell({ title, backHref, children }: { title?: stri
   }, []);
 
   useEffect(() => {
+    if (!checkNeeded) return;
+    let cancelled = false;
+    void checkSession().then((result) => {
+      if (!cancelled) setSessionCheck(result);
+    });
+    return () => {
+      cancelled = true;
+      setSessionCheck("pending");
+    };
+  }, [checkNeeded]);
+
+  useEffect(() => {
     if (status === "authenticated") rememberSignedIn(true);
-    else if (status === "unauthenticated" && online) rememberSignedIn(false);
-  }, [status, online]);
+    else if (sessionCheck === "none") rememberSignedIn(false);
+  }, [status, sessionCheck]);
 
   useEffect(() => {
     if (access === "signin") router.replace("/");

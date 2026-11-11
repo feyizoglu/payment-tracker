@@ -8,7 +8,9 @@ const state = vi.hoisted(() => ({
   passPhoneRenders: 0,
 }));
 
-vi.mock("@/lib/i18n", () => ({ useLang: () => ({ t: {}, lang: "tr" }) }));
+vi.mock("@/lib/i18n", () => ({
+  useLang: () => ({ t: new Proxy({}, { get: (_, key) => String(key) }), lang: "tr" }),
+}));
 vi.mock("./ImposterSetupForm", () => ({
   default: (props: { value: unknown; onChange: (v: unknown) => void; onStart: () => void }) => {
     state.form = props;

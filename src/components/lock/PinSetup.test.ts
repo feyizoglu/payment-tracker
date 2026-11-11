@@ -18,7 +18,9 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 vi.mock("@/lib/i18n", () => ({
-  useLang: () => ({ t: { pinInvalid: "INVALID", pinMismatch: "MISMATCH", pinNew: "", pinRepeat: "", pinSave: "" } }),
+  useLang: () => ({
+    t: { pinInvalid: "INVALID", pinMismatch: "MISMATCH", loadFailed: "LOAD_FAILED", pinNew: "", pinRepeat: "", pinSave: "" },
+  }),
 }));
 
 import PinSetup from "./PinSetup";
@@ -56,6 +58,10 @@ async function submit(pin: string, repeat: string) {
   return text(render());
 }
 
+function saveDisabled() {
+  return nodes(render()).find((n) => n.type === "button")!.props.disabled;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   hooks.states = [];
@@ -75,5 +81,34 @@ describe("PinSetup submit", () => {
   it("hands over a valid matching PIN", async () => {
     await submit("1234", "1234");
     expect(onDone).toHaveBeenCalledWith("1234");
+  });
+
+  it("keeps Save busy only while the PIN is being stored", async () => {
+    let finish: () => void = () => undefined;
+    onDone.mockReturnValueOnce(
+      new Promise<void>((r) => {
+        finish = r;
+      })
+    );
+    const pending = submit("1234", "1234");
+    await Promise.resolve();
+    expect(saveDisabled()).toBe(true);
+    finish();
+    expect(await pending).not.toContain("LOAD_FAILED");
+    expect(saveDisabled()).toBe(false);
+  });
+
+  it("shows an error and frees Save when storing the PIN fails", async () => {
+    onDone.mockRejectedValueOnce(new Error("no crypto"));
+    expect(await submit("1234", "1234")).toContain("LOAD_FAILED");
+    expect(onDone).toHaveBeenCalledWith("1234");
+    expect(saveDisabled()).toBe(false);
+  });
+
+  it("clears the error once a later attempt stores the PIN", async () => {
+    onDone.mockRejectedValueOnce(new Error("no crypto"));
+    await submit("1234", "1234");
+    expect(await submit("1234", "1234")).not.toContain("LOAD_FAILED");
+    expect(onDone).toHaveBeenCalledTimes(2);
   });
 });

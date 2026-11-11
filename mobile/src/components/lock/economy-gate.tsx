@@ -1,29 +1,23 @@
 import { hasPin } from "@ptracker/shared/app-lock";
 import { useLang } from "@ptracker/shared/i18n";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useState, type ReactNode } from "react";
+import { usePathname } from "expo-router";
+import { useState, type ReactNode } from "react";
 import { ScrollView } from "react-native";
 
 import { TabScreen } from "@/components/tab-screen";
 import { useAppLock } from "@/lib/app-lock-context";
-import { consumeEconomyModal } from "@/lib/economy-unlock";
+import { isEconomyPath } from "@/lib/economy-path";
 import { PinScreen } from "./pin-screen";
 
-// Asks for the PIN on every visit: leaving the tab locks it again.
+// Asks for the PIN on every visit: the unlock ends once the route is outside Economy and its own modals.
 export function EconomyGate({ children }: { children: ReactNode }) {
   const { t } = useLang();
   const { lock, update } = useAppLock();
+  const onEconomy = isEconomyPath(usePathname());
   const [unlocked, setUnlocked] = useState(false);
+  if (unlocked && !onEconomy) setUnlocked(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        if (!consumeEconomyModal()) setUnlocked(false);
-      };
-    }, [])
-  );
-
-  if (!lock.economyLock || !hasPin(lock) || unlocked) return <>{children}</>;
+  if (!lock.economyLock || !hasPin(lock) || (unlocked && onEconomy)) return <>{children}</>;
 
   return (
     <TabScreen>

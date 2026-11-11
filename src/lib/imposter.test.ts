@@ -342,6 +342,15 @@ describe("gameReducer", () => {
       expect(gameReducer(s, { type: "reveal", at: T + 100 })).toBe(s);
     });
 
+    it("accepts an action when the clock moved back after the last one", () => {
+      const s = dealing();
+      expect(gameReducer(s, { type: "reveal", at: T - 60_000 })).toMatchObject({
+        revealed: true,
+        lastActionAt: T - 60_000,
+      });
+      expect(gameReducer(s, { type: "end", at: T - 1 }).phase).toBe("setup");
+    });
+
     it("ignores a vote right after the ballot was opened", () => {
       const vote = voting();
       const openedAt = at();

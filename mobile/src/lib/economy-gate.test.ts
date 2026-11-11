@@ -5,17 +5,13 @@ import { act, createElement } from "react";
 const state = vi.hoisted(() => ({
   lock: { pinHash: "h", salt: "s", economyLock: true } as Record<string, unknown>,
   update: vi.fn(async () => undefined),
-  focus: null as null | (() => () => void),
+  path: "/economy",
   pinProps: null as null | { onUnlock: (next: unknown) => Promise<void> },
   pinRenders: 0,
   childRenders: 0,
 }));
 
-vi.mock("expo-router", () => ({
-  useFocusEffect: (cb: () => () => void) => {
-    state.focus = cb;
-  },
-}));
+vi.mock("expo-router", () => ({ usePathname: () => state.path }));
 vi.mock("react-native", async () => {
   const { Fragment, createElement: h } = await import("react");
   return { ScrollView: ({ children }: { children?: unknown }) => h(Fragment, null, children as never) };
@@ -37,7 +33,6 @@ vi.mock("@/components/lock/pin-screen", () => ({
 }));
 
 import { EconomyGate } from "@/components/lock/economy-gate";
-import { markEconomyModal } from "@/lib/economy-unlock";
 
 interface Root {
   render(node: unknown): void;
@@ -76,16 +71,17 @@ async function unlock(next: unknown) {
   await act(async () => state.pinProps?.onUnlock(next));
 }
 
-async function blur() {
+async function go(path: string) {
+  state.path = path;
   resetCounts();
-  await act(async () => state.focus?.()());
+  await render();
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal("window", { HTMLIFrameElement: class {} });
   state.lock = { pinHash: "h", salt: "s", economyLock: true };
-  state.focus = null;
+  state.path = "/economy";
   state.pinProps = null;
   resetCounts();
 });
@@ -120,22 +116,59 @@ describe("EconomyGate", () => {
   });
 });
 
-describe("EconomyGate focus re-lock", () => {
-  it("locks again when the tab loses focus", async () => {
+describe("EconomyGate re-lock by path", () => {
+  const unlocked = { pinHash: "h", salt: "s", economyLock: true };
+
+  it("locks again after another tab was opened", async () => {
     await render();
-    await unlock({ pinHash: "h", salt: "s", economyLock: true });
-    await blur();
+    await unlock(unlocked);
+    await go("/");
+    expect(state.childRenders).toBe(0);
+    await go("/economy");
     expect(state.pinRenders).toBeGreaterThan(0);
     expect(state.childRenders).toBe(0);
   });
 
-  it("stays unlocked when Economy opened one of its own modals", async () => {
+  it.each(["/asset-form", "/asset/abc", "/manual-gold"])("stays unlocked while its own modal %s is open", async (modal) => {
     await render();
-    await unlock({ pinHash: "h", salt: "s", economyLock: true });
-    markEconomyModal();
-    await blur();
-    await render();
+    await unlock(unlocked);
+    await go(modal);
     expect(state.childRenders).toBeGreaterThan(0);
     expect(state.pinRenders).toBe(0);
+    await go("/economy");
+    expect(state.childRenders).toBeGreaterThan(0);
+    expect(state.pinRenders).toBe(0);
+  });
+
+  it("locks again when a modal is left straight for another screen", async () => {
+    await render();
+    await unlock(unlocked);
+    await go("/asset/abc");
+    await go("/");
+    await go("/economy");
+    expect(state.pinRenders).toBeGreaterThan(0);
+    expect(state.childRenders).toBe(0);
+  });
+
+  it("locks again after the same modal was opened twice and another tab was visited", async () => {
+    await render();
+    await unlock(unlocked);
+    await go("/asset-form");
+    await go("/asset-form");
+    await go("/economy");
+    await go("/events");
+    await go("/economy");
+    expect(state.pinRenders).toBeGreaterThan(0);
+    expect(state.childRenders).toBe(0);
+  });
+
+  it("drops an unlock that finishes after the user left Economy", async () => {
+    await render();
+    state.path = "/";
+    await unlock(unlocked);
+    expect(state.childRenders).toBe(0);
+    await go("/economy");
+    expect(state.pinRenders).toBeGreaterThan(0);
+    expect(state.childRenders).toBe(0);
   });
 });

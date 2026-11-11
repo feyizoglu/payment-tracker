@@ -1,7 +1,7 @@
 import { FIAT_CURRENCIES, assetTotalIn, filterAssets, formatPreferred, groupByBank } from "@ptracker/shared/economy";
 import { useLang } from "@ptracker/shared/i18n";
 import type { Asset, ExchangeRates, FiatCurrency, Team } from "@ptracker/shared/types";
-import { router, useFocusEffect, type Href } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 
@@ -17,12 +17,6 @@ import {
   setCachedRates,
   setPreferredCurrency,
 } from "@/lib/economy-storage";
-import { markEconomyModal } from "@/lib/economy-unlock";
-
-function openOwnModal(href: Href) {
-  markEconomyModal();
-  router.push(href);
-}
 
 function EconomyContent() {
   const { t } = useLang();
@@ -148,7 +142,7 @@ function EconomyContent() {
 
           <View className="flex-row items-center justify-between">
             <Text className="flex-1 text-xs text-amber-700">{banner.goldError ? t.goldError : ""}</Text>
-            <Pressable onPress={() => openOwnModal("/manual-gold")}>
+            <Pressable onPress={() => router.push("/manual-gold")}>
               <Text className="text-amber-700">✎ {t.enterGoldManually}</Text>
             </Pressable>
           </View>
@@ -189,15 +183,15 @@ function EconomyContent() {
               teams={teams}
               accountsLabel={t.accountsCount.replace("{count}", String(group.assets.length))}
               goldErrorLabel={t.goldError}
-              onEdit={(asset) => openOwnModal({ pathname: "/asset/[id]", params: { id: asset.id } })}
-              onAdd={(bankName) => openOwnModal({ pathname: "/asset-form", params: { bankName } })}
+              onEdit={(asset) => router.push({ pathname: "/asset/[id]", params: { id: asset.id } })}
+              onAdd={(bankName) => router.push({ pathname: "/asset-form", params: { bankName } })}
             />
           ))
         )}
       </ScrollView>
 
       <Pressable
-        onPress={() => openOwnModal("/asset-form")}
+        onPress={() => router.push("/asset-form")}
         className="absolute bottom-20 right-5 h-14 w-14 items-center justify-center rounded-full bg-brand shadow-lg">
         <Text className="text-2xl leading-7 text-brand-fg">+</Text>
       </Pressable>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useLang } from "@/lib/i18n";
 import { exitGameMode } from "@/lib/app-lock";
@@ -12,6 +12,14 @@ function Gate({ path, children }: { path: string; children: ReactNode }) {
   const { t } = useLang();
   const lock = useAppLock();
   const [economyUnlocked, setEconomyUnlocked] = useState(false);
+
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setEconomyUnlocked(false);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   if (!lock) return rendersBeforeLockRead(path) ? <>{children}</> : <div className="min-h-screen" />;
   const screen = lockScreenFor(path, lock, economyUnlocked);

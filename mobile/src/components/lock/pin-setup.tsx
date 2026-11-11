@@ -17,8 +17,14 @@ export function PinSetup({ onDone }: { onDone: (pin: string) => Promise<void> })
     if (!isValidPin(pin)) return setError(t.pinInvalid);
     if (pin !== repeat) return setError(t.pinMismatch);
     setBusy(true);
-    await onDone(pin);
-    setBusy(false);
+    setError(null);
+    try {
+      await onDone(pin);
+    } catch {
+      setError(t.loadFailed);
+    } finally {
+      setBusy(false);
+    }
   }
 
   const digits = (v: string) => v.replace(/\D/g, "").slice(0, 6);

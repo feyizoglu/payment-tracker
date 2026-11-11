@@ -2,14 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const getItemAsync = vi.fn();
 const setItemAsync = vi.fn();
-const deleteItemAsync = vi.fn();
 const digestStringAsync = vi.fn();
 const getRandomBytes = vi.fn();
 
 vi.mock("expo-secure-store", () => ({
   getItemAsync: (...a: unknown[]) => getItemAsync(...a),
   setItemAsync: (...a: unknown[]) => setItemAsync(...a),
-  deleteItemAsync: (...a: unknown[]) => deleteItemAsync(...a),
 }));
 
 vi.mock("expo-crypto", () => ({
@@ -19,10 +17,10 @@ vi.mock("expo-crypto", () => ({
 }));
 
 import { APP_LOCK_KEY, EMPTY_LOCK } from "@ptracker/shared/app-lock";
-import { clearStoredLock, getStoredLock, randomSalt, setStoredLock, sha256Hex } from "./app-lock-storage";
+import { getStoredLock, randomSalt, setStoredLock, sha256Hex } from "./app-lock-storage";
 
 beforeEach(() => {
-  for (const fn of [getItemAsync, setItemAsync, deleteItemAsync, digestStringAsync, getRandomBytes]) fn.mockReset();
+  for (const fn of [getItemAsync, setItemAsync, digestStringAsync, getRandomBytes]) fn.mockReset();
 });
 
 describe("app lock storage", () => {
@@ -38,20 +36,15 @@ describe("app lock storage", () => {
     expect(await getStoredLock()).toEqual(EMPTY_LOCK);
   });
 
-  it("writes JSON and clears", async () => {
+  it("writes JSON", async () => {
     setItemAsync.mockResolvedValue(undefined);
-    deleteItemAsync.mockResolvedValue(undefined);
     await setStoredLock(EMPTY_LOCK);
     expect(setItemAsync).toHaveBeenCalledWith(APP_LOCK_KEY, JSON.stringify(EMPTY_LOCK));
-    await clearStoredLock();
-    expect(deleteItemAsync).toHaveBeenCalledWith(APP_LOCK_KEY);
   });
 
-  it("swallows write and delete errors", async () => {
+  it("swallows write errors", async () => {
     setItemAsync.mockRejectedValue(new Error("x"));
-    deleteItemAsync.mockRejectedValue(new Error("x"));
     await expect(setStoredLock(EMPTY_LOCK)).resolves.toBeUndefined();
-    await expect(clearStoredLock()).resolves.toBeUndefined();
   });
 
   it("hashes with SHA-256 and makes a hex salt", async () => {

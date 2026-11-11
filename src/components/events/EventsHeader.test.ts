@@ -4,11 +4,12 @@ import type { ReactElement } from "react";
 const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   signOutWithPushCleanup: vi.fn().mockResolvedValue(undefined),
+  menuOpen: true,
 }));
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
-  return { ...actual, useState: () => [true, vi.fn()] };
+  return { ...actual, useState: () => [mocks.menuOpen, vi.fn()] };
 });
 
 vi.mock("next-auth/react", () => ({
@@ -30,6 +31,7 @@ vi.mock("@/lib/web-push-client", () => ({ signOutWithPushCleanup: mocks.signOutW
 
 import EventsHeader from "./EventsHeader";
 import PushToggle from "@/components/PushToggle";
+import SignOutMenuItem from "@/components/SignOutMenuItem";
 
 type Props = Record<string, unknown> & { children?: unknown };
 type Node = ReactElement<Props>;
@@ -56,6 +58,7 @@ function hasText(node: unknown, text: string): boolean {
 beforeEach(() => {
   mocks.signOut.mockClear();
   mocks.signOutWithPushCleanup.mockClear();
+  mocks.menuOpen = true;
 });
 
 describe("EventsHeader", () => {
@@ -65,14 +68,30 @@ describe("EventsHeader", () => {
     expect(findAll(tree, (el) => el.type === PushToggle)).toHaveLength(1);
   });
 
-  it("signs out through signOutWithPushCleanup", () => {
+  it("offers sign-out through the shared menu item, which handles a failed sign-out itself", () => {
     const tree = EventsHeader();
-    const [signOutButton] = findAll(tree, (el) => el.type === "button" && hasText(el.props.children, "SIGN_OUT"));
 
-    (signOutButton.props.onClick as () => void)();
+    expect(findAll(tree, (el) => el.type === SignOutMenuItem)).toHaveLength(1);
+    expect(findAll(tree, (el) => el.type === "button" && hasText(el.props.children, "SIGN_OUT"))).toHaveLength(0);
+    expect(mocks.signOutWithPushCleanup).not.toHaveBeenCalled();
+    expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
+  it("signs out through signOutWithPushCleanup when the menu item is clicked", async () => {
+    const [item] = findAll(EventsHeader(), (el) => el.type === SignOutMenuItem);
+    const rendered = (item.type as () => unknown)();
+    const [signOutButton] = findAll(rendered, (el) => el.type === "button" && hasText(el.props.children, "SIGN_OUT"));
+
+    await (signOutButton.props.onClick as () => Promise<void>)();
 
     expect(mocks.signOutWithPushCleanup).toHaveBeenCalledTimes(1);
     expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
+  it("keeps sign-out out of the header while the user menu is closed", () => {
+    mocks.menuOpen = false;
+
+    expect(findAll(EventsHeader(), (el) => el.type === SignOutMenuItem)).toHaveLength(0);
   });
 
   it("highlights the nav item of the current section", () => {
