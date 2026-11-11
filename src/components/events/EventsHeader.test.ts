@@ -74,4 +74,17 @@ describe("EventsHeader", () => {
     expect(mocks.signOutWithPushCleanup).toHaveBeenCalledTimes(1);
     expect(mocks.signOut).not.toHaveBeenCalled();
   });
+
+  it("highlights the nav item of the current section", () => {
+    const linkClass = (tree: unknown, href: string) =>
+      findAll(tree, (el) => el.props?.href === href)[0].props.className as string;
+
+    const events = EventsHeader();
+    expect(linkClass(events, "/events")).toContain("font-semibold");
+    expect(linkClass(events, "/games")).not.toContain("font-semibold");
+
+    const games = EventsHeader({ active: "games" });
+    expect(linkClass(games, "/games")).toContain("font-semibold");
+    expect(linkClass(games, "/events")).not.toContain("font-semibold");
+  });
 });

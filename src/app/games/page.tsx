@@ -7,7 +7,7 @@ import { useLang } from "@/lib/i18n";
 export default function GamesPage() {
   const { t } = useLang();
   return (
-    <GamesShell title={t.games} backHref="/dashboard">
+    <GamesShell title={t.games}>
       <a
         href="/games/imposter"
         className="flex items-center gap-4 rounded-xl border border-gray-100 bg-surface p-4 hover:border-purple-200 transition"

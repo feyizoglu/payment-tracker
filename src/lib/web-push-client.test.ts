@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 vi.mock("next-auth/react", () => ({ signOut: vi.fn() }));
 
 import { signOut } from "next-auth/react";
+import { GAMES_SIGNED_IN_KEY } from "./games-auth";
 import {
   deleteWebPushSubscription,
   signOutWithPushCleanup,
@@ -84,5 +85,16 @@ describe("signOutWithPushCleanup", () => {
 
     expect(sub.unsubscribe).toHaveBeenCalledTimes(1);
     expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/" });
+  });
+
+  it("forgets this device for offline games before signing out", async () => {
+    const removeItem = vi.fn();
+    vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem: vi.fn(), removeItem });
+    stubBrowser(async () => undefined);
+
+    await signOutWithPushCleanup();
+
+    expect(removeItem).toHaveBeenCalledWith(GAMES_SIGNED_IN_KEY);
+    expect(removeItem.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(signOut).mock.invocationCallOrder[0]);
   });
 });
