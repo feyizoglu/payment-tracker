@@ -4,6 +4,11 @@ import {
   EMPTY_LOCK,
   MAX_FREE_ATTEMPTS,
   MAX_LOCKOUT_MS,
+  RESET_DELAY_MS,
+  applyReset,
+  cancelReset,
+  requestReset,
+  resetRemaining,
   checkPin,
   clampLockout,
   clearPin,
@@ -161,6 +166,7 @@ describe("parseLockState", () => {
       gameMode: true,
       failures: 0,
       lockedUntil: 0,
+      resetAt: 0,
     });
   });
 
@@ -195,5 +201,54 @@ describe("lockoutMessage", () => {
     expect(lockoutMessage(60_000, t)).toBe("wait 1 min");
     expect(lockoutMessage(60_001, t)).toBe("wait 2 min");
     expect(lockoutMessage(MAX_LOCKOUT_MS, t)).toBe("wait 15 min");
+  });
+});
+
+describe("delayed PIN reset", () => {
+  it("schedules the reset one hour ahead and keeps the lock meanwhile", async () => {
+    const locked = { ...(await withPin()), gameMode: true };
+    const pending = requestReset(locked, 1000);
+    expect(pending.resetAt).toBe(1000 + RESET_DELAY_MS);
+    expect(hasPin(pending)).toBe(true);
+    expect(pending.gameMode).toBe(true);
+    expect(applyReset(pending, 1000 + RESET_DELAY_MS - 1)).toBe(pending);
+    expect(resetRemaining(pending, 1000)).toBe(RESET_DELAY_MS);
+  });
+
+  it("removes the whole lock once the hour has passed", async () => {
+    const pending = requestReset({ ...(await withPin()), gameMode: true, economyLock: true }, 0);
+    expect(applyReset(pending, RESET_DELAY_MS)).toEqual(EMPTY_LOCK);
+  });
+
+  it("does not restart or shorten a pending reset, and needs a PIN to exist", async () => {
+    const pending = requestReset(await withPin(), 0);
+    expect(requestReset(pending, 5000)).toBe(pending);
+    expect(requestReset(EMPTY_LOCK, 0)).toBe(EMPTY_LOCK);
+  });
+
+  it("can be cancelled, and the right PIN cancels it too", async () => {
+    const pending = requestReset(await withPin(), 0);
+    expect(cancelReset(pending).resetAt).toBe(0);
+    const { ok, state } = await checkPin(pending, "1234", 10, fakeHash);
+    expect(ok).toBe(true);
+    expect(state.resetAt).toBe(0);
+  });
+
+  it("survives wrong PINs and a new PIN clears it", async () => {
+    const pending = requestReset(await withPin(), 0);
+    expect((await checkPin(pending, "0000", 10, fakeHash)).state.resetAt).toBe(RESET_DELAY_MS);
+    expect((await setPin(pending, "5678", "aa", fakeHash)).resetAt).toBe(0);
+  });
+
+  it("never waits longer than an hour after the clock moved back", async () => {
+    const pending = requestReset(await withPin(), 10 * RESET_DELAY_MS);
+    expect(resetRemaining(pending, 0)).toBe(RESET_DELAY_MS);
+    expect(applyReset(pending, 0).resetAt).toBe(RESET_DELAY_MS);
+  });
+
+  it("is kept by parseLockState and dropped when invalid", async () => {
+    const pending = requestReset(await withPin(), 0);
+    expect(parseLockState(JSON.stringify(pending)).resetAt).toBe(RESET_DELAY_MS);
+    expect(parseLockState(JSON.stringify({ ...pending, resetAt: "soon" })).resetAt).toBe(0);
   });
 });

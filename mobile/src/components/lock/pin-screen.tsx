@@ -1,5 +1,14 @@
-import { checkPin, clampLockout, lockoutMessage, lockoutRemaining, type AppLockState } from "@ptracker/shared/app-lock";
-import { useLang } from "@ptracker/shared/i18n";
+import {
+  applyReset,
+  cancelReset,
+  checkPin,
+  clampLockout,
+  lockoutMessage,
+  lockoutRemaining,
+  requestReset,
+  type AppLockState,
+} from "@ptracker/shared/app-lock";
+import { localeFor, useLang } from "@ptracker/shared/i18n";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
@@ -7,7 +16,6 @@ import { inputBoxClass } from "@/components/ui/field";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { useAppLock } from "@/lib/app-lock-context";
 import { sha256Hex } from "@/lib/app-lock-storage";
-import { useAuth } from "@/lib/auth-context";
 
 // Checks the PIN and saves the attempt count; `onUnlock` gets the updated state so the
 // caller applies its own change (exit game mode, …) on top.
@@ -24,9 +32,8 @@ export function PinScreen({
   showForgot?: boolean;
   autoFocus?: boolean;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { lock, update } = useAppLock();
-  const { signOut } = useAuth();
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -38,6 +45,17 @@ export function PinScreen({
   useEffect(() => {
     const clamped = clampLockout(lock, Date.now());
     if (clamped !== lock) void update(clamped);
+  }, [lock, update]);
+
+  useEffect(() => {
+    if (lock.resetAt === 0) return;
+    const tick = () => {
+      const next = applyReset(lock, Date.now());
+      if (next !== lock) void update(next);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, [lock, update]);
 
   useEffect(() => {
@@ -68,6 +86,8 @@ export function PinScreen({
     }
   }
 
+  const resetTime = new Date(lock.resetAt).toLocaleTimeString(localeFor(lang), { hour: "2-digit", minute: "2-digit" });
+
   return (
     <View className="gap-5 px-2 py-10">
       <View className="items-center gap-1">
@@ -93,8 +113,17 @@ export function PinScreen({
         <Text className="text-center text-sm text-red-600">{error}</Text>
       ) : null}
       <PrimaryButton label={t.pinUnlock} onPress={submit} disabled={wait > 0 || pin.length < 4 || checking} />
-      {showForgot ? (
-        <Pressable onPress={() => void signOut()} className="py-2">
+      {lock.resetAt > 0 ? (
+        <View className="gap-2 rounded-lg bg-amber-50 p-3">
+          <Text className="text-center text-sm text-amber-700">
+            {t.pinResetPending.replace("{time}", () => resetTime)}
+          </Text>
+          <Pressable onPress={() => void update(cancelReset(lock))} className="py-1">
+            <Text className="text-center text-sm text-gray-700 underline">{t.pinResetCancel}</Text>
+          </Pressable>
+        </View>
+      ) : showForgot ? (
+        <Pressable onPress={() => void update(requestReset(lock, Date.now()))} className="py-2">
           <Text className="text-center text-sm text-gray-500 underline">{t.pinForgot}</Text>
         </Pressable>
       ) : null}

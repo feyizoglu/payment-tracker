@@ -106,13 +106,13 @@ describe("signOutWithPushCleanup", () => {
     expect(signOut).toHaveBeenCalledWith({ redirect: false, redirectTo: "/" });
   });
 
-  it("forgets this device for offline games and the app lock only after signing out, then goes home", async () => {
+  it("forgets this device for offline games only after signing out, keeps the app lock, then goes home", async () => {
     stubBrowser(async () => undefined);
 
     await signOutWithPushCleanup();
 
     expect(removeItem).toHaveBeenCalledWith(GAMES_SIGNED_IN_KEY);
-    expect(removeItem).toHaveBeenCalledWith(APP_LOCK_KEY);
+    expect(removeItem).not.toHaveBeenCalledWith(APP_LOCK_KEY);
     const signedOut = vi.mocked(signOut).mock.invocationCallOrder[0];
     expect(removeItem.mock.invocationCallOrder[0]).toBeGreaterThan(signedOut);
     expect(replace).toHaveBeenCalledWith("/");

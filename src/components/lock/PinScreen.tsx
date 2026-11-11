@@ -2,10 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Lock } from "lucide-react";
-import { useLang } from "@/lib/i18n";
-import { checkPin, clampLockout, lockoutMessage, lockoutRemaining, type AppLockState } from "@/lib/app-lock";
+import { localeFor, useLang } from "@/lib/i18n";
+import {
+  applyReset,
+  cancelReset,
+  checkPin,
+  clampLockout,
+  lockoutMessage,
+  lockoutRemaining,
+  requestReset,
+  type AppLockState,
+} from "@/lib/app-lock";
 import { sha256Hex, writeLock } from "@/lib/app-lock-store";
-import { signOutWithPushCleanup } from "@/lib/web-push-client";
 
 // Checks the PIN against the stored lock and saves the attempt count. `onUnlock` receives
 // the updated state so the caller can apply its own change (exit game mode, …) on top.
@@ -24,10 +32,9 @@ export default function PinScreen({
   showForgot?: boolean;
   cancel?: { href: string; label: string };
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [signOutFailed, setSignOutFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [checking, setChecking] = useState(false);
   const checkingRef = useRef(false);
@@ -37,6 +44,17 @@ export default function PinScreen({
   useEffect(() => {
     const clamped = clampLockout(state, Date.now());
     if (clamped !== state) writeLock(clamped);
+  }, [state]);
+
+  useEffect(() => {
+    if (state.resetAt === 0) return;
+    const tick = () => {
+      const next = applyReset(state, Date.now());
+      if (next !== state) writeLock(next);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, [state]);
 
   useEffect(() => {
@@ -68,10 +86,7 @@ export default function PinScreen({
     }
   }
 
-  function forgot() {
-    setSignOutFailed(false);
-    signOutWithPushCleanup().catch(() => setSignOutFailed(true));
-  }
+  const resetTime = new Date(state.resetAt).toLocaleTimeString(localeFor(lang), { hour: "2-digit", minute: "2-digit" });
 
   return (
     <div className="mx-auto max-w-sm space-y-5 px-4 py-16 text-center">
@@ -115,13 +130,23 @@ export default function PinScreen({
           </a>
         )}
       </form>
-      {showForgot && (
-        <div className="space-y-1">
-          <button type="button" onClick={forgot} className="text-sm text-gray-500 underline">
+      {state.resetAt > 0 ? (
+        <div className="space-y-2 rounded-lg bg-amber-50 p-3">
+          <p className="text-sm text-amber-700">{t.pinResetPending.replace("{time}", () => resetTime)}</p>
+          <button type="button" onClick={() => writeLock(cancelReset(state))} className="text-sm text-gray-700 underline">
+            {t.pinResetCancel}
+          </button>
+        </div>
+      ) : (
+        showForgot && (
+          <button
+            type="button"
+            onClick={() => writeLock(requestReset(state, Date.now()))}
+            className="text-sm text-gray-500 underline"
+          >
             {t.pinForgot}
           </button>
-          {signOutFailed && <p className="text-sm text-red-600">{t.loadFailed}</p>}
-        </div>
+        )
       )}
     </div>
   );

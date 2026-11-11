@@ -15,15 +15,10 @@ const AppLockContext = createContext<AppLockContextValue>({
   update: async () => {},
 });
 
-// Sign-out deletes the stored lock; `signedIn` turning false drops the in-memory copy too.
-export function AppLockProvider({ signedIn, children }: { signedIn: boolean; children: ReactNode }) {
+// The lock belongs to the device, not the session: signing out and back in must not remove it.
+export function AppLockProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [lock, setLock] = useState<AppLockState>(EMPTY_LOCK);
-  const [wasSignedIn, setWasSignedIn] = useState(signedIn);
-  if (wasSignedIn !== signedIn) {
-    setWasSignedIn(signedIn);
-    if (!signedIn) setLock(EMPTY_LOCK);
-  }
 
   useEffect(() => {
     let cancelled = false;

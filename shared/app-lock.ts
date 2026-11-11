@@ -5,6 +5,8 @@ export interface AppLockState {
   gameMode: boolean;
   failures: number;
   lockedUntil: number;
+  /** When a requested PIN reset takes effect; 0 means none is pending. */
+  resetAt: number;
 }
 
 export type Hash = (text: string) => Promise<string>;
@@ -13,6 +15,7 @@ export const APP_LOCK_KEY = "app_lock";
 export const MAX_FREE_ATTEMPTS = 5;
 export const BASE_LOCKOUT_MS = 30_000;
 export const MAX_LOCKOUT_MS = 15 * 60_000;
+export const RESET_DELAY_MS = 60 * 60_000;
 
 export const EMPTY_LOCK: AppLockState = {
   pinHash: null,
@@ -21,6 +24,7 @@ export const EMPTY_LOCK: AppLockState = {
   gameMode: false,
   failures: 0,
   lockedUntil: 0,
+  resetAt: 0,
 };
 
 export function isValidPin(pin: string): boolean {
@@ -33,7 +37,7 @@ export function hasPin(state: AppLockState): boolean {
 
 export async function setPin(state: AppLockState, pin: string, salt: string, hash: Hash): Promise<AppLockState> {
   if (!isValidPin(pin)) return state;
-  return { ...state, pinHash: await hash(salt + pin), salt, failures: 0, lockedUntil: 0 };
+  return { ...state, pinHash: await hash(salt + pin), salt, failures: 0, lockedUntil: 0, resetAt: 0 };
 }
 
 export function clearPin(): AppLockState {
@@ -64,12 +68,34 @@ export async function checkPin(
   state = clampLockout(state, now);
   if (!hasPin(state) || lockoutRemaining(state, now) > 0) return { ok: false, state };
   if ((await hash(state.salt + pin)) === state.pinHash) {
-    return { ok: true, state: { ...state, failures: 0, lockedUntil: 0 } };
+    return { ok: true, state: { ...state, failures: 0, lockedUntil: 0, resetAt: 0 } };
   }
   const failures = state.failures + 1;
   const extra = failures - MAX_FREE_ATTEMPTS;
   const wait = extra < 0 ? 0 : Math.min(MAX_LOCKOUT_MS, BASE_LOCKOUT_MS * 2 ** extra);
   return { ok: false, state: { ...state, failures, lockedUntil: wait > 0 ? now + wait : 0 } };
+}
+
+// Forgetting the PIN must not be a quick way past the lock for whoever holds the phone,
+// so a reset only takes effect after a delay, and the lock stays on until then.
+export function requestReset(state: AppLockState, now: number): AppLockState {
+  if (!hasPin(state) || state.resetAt > 0) return state;
+  return { ...state, resetAt: now + RESET_DELAY_MS };
+}
+
+export function cancelReset(state: AppLockState): AppLockState {
+  return state.resetAt === 0 ? state : { ...state, resetAt: 0 };
+}
+
+export function resetRemaining(state: AppLockState, now: number): number {
+  if (state.resetAt === 0) return 0;
+  return Math.min(RESET_DELAY_MS, Math.max(0, state.resetAt - now));
+}
+
+export function applyReset(state: AppLockState, now: number): AppLockState {
+  if (state.resetAt === 0) return state;
+  if (now >= state.resetAt) return EMPTY_LOCK;
+  return state.resetAt - now > RESET_DELAY_MS ? { ...state, resetAt: now + RESET_DELAY_MS } : state;
 }
 
 export function enterGameMode(state: AppLockState): AppLockState {
@@ -106,5 +132,6 @@ export function parseLockState(raw: string | null): AppLockState {
     gameMode: d.gameMode === true,
     failures: count(d.failures),
     lockedUntil: count(d.lockedUntil),
+    resetAt: count(d.resetAt),
   };
 }

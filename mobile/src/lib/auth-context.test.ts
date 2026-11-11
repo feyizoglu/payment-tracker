@@ -223,7 +223,7 @@ describe("signOut push unregister", () => {
     await mount();
     await signOut();
     expect(clearToken).toHaveBeenCalled();
-    expect(clearStoredLock).toHaveBeenCalled();
+    expect(clearStoredLock).not.toHaveBeenCalled();
     expect(refreshWidget).toHaveBeenCalledTimes(1);
     expect(vi.mocked(refreshWidget).mock.invocationCallOrder[0]).toBeGreaterThan(
       vi.mocked(clearToken).mock.invocationCallOrder[0]

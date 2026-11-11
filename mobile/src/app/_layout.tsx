@@ -114,11 +114,6 @@ function LanguageGate({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AppLockRoot({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  return <AppLockProvider signedIn={isAuthenticated}>{children}</AppLockProvider>;
-}
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
@@ -126,9 +121,9 @@ export default function RootLayout() {
       <LanguageGate>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <AnimatedSplashOverlay />
-          <AppLockRoot>
+          <AppLockProvider>
             <RootNavigator />
-          </AppLockRoot>
+          </AppLockProvider>
         </ThemeProvider>
       </LanguageGate>
     </AuthProvider>

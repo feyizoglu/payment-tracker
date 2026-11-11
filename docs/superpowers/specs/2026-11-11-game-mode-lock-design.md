@@ -62,8 +62,17 @@ counter is saved, so a reload does not reset it.
 
 ## Forgot the PIN
 
-The PIN screen has "Forgot PIN": it signs out and deletes `app_lock` on this device. Getting
-back in needs the owner's Google account. Normal sign-out also deletes `app_lock`.
+Signing out and back in with Google is one tap on the owner's own phone, so neither a
+sign-out nor "Forgot PIN" may remove the lock on the spot.
+
+- "Forgot PIN" schedules a reset one hour ahead (`resetAt`). The lock stays on until then;
+  the PIN screen shows when it will be removed and a "Cancel the reset" action. Entering the
+  right PIN also cancels it. Once the hour has passed, the next PIN screen removes the whole
+  lock (PIN, game mode, Economy option).
+- The lock belongs to the device, not the session: sign-out keeps `app_lock` on both
+  platforms. It is only removed with the current PIN (Remove PIN) or by the delayed reset.
+- Limit: the delay follows the device clock, so moving the clock forward shortens it. That
+  takes leaving the app for the system settings and is outside the threat level above.
 
 ## Architecture
 
