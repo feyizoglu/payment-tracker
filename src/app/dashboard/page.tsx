@@ -15,6 +15,7 @@ import DateRangeReport from "@/components/DateRangeReport";
 import PayUntil from "@/components/PayUntil";
 import PushToggle from "@/components/PushToggle";
 import ThemePicker from "@/components/ThemePicker";
+import PinMenuItem from "@/components/lock/PinMenuItem";
 import { signOutWithPushCleanup } from "@/lib/web-push-client";
 import { parseMonthParam } from "@/lib/month-param";
 import { planMarkPaid, type ListEdit } from "@/lib/mark-paid";
@@ -295,6 +296,7 @@ function Dashboard() {
                     <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
                   </div>
                   <ThemePicker />
+                  <PinMenuItem />
                   <button
                     onClick={() => void signOutWithPushCleanup()}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition"

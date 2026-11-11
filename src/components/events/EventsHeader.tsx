@@ -7,6 +7,7 @@ import { ChevronDown, CreditCard, LogOut } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import PushToggle from "@/components/PushToggle";
 import ThemePicker from "@/components/ThemePicker";
+import PinMenuItem from "@/components/lock/PinMenuItem";
 import { signOutWithPushCleanup } from "@/lib/web-push-client";
 
 const ACTIVE_LINK = "px-3 py-1.5 rounded-lg text-sm text-purple-700 dark:text-purple-400 bg-purple-50 font-semibold";
@@ -83,6 +84,7 @@ export default function EventsHeader({ active = "events" }: { active?: "events" 
                   <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
                 </div>
                 <ThemePicker />
+                <PinMenuItem />
                 <button
                   onClick={() => void signOutWithPushCleanup()}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition"
