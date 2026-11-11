@@ -16,6 +16,8 @@ export interface ImposterSetup {
   timerMinutes: number;
   voting: boolean;
   scoreboard: boolean;
+  /** similar-word mode only: the imposter is told they are the imposter. */
+  imposterKnows: boolean;
 }
 
 export const MIN_PLAYERS = 3;
@@ -33,6 +35,7 @@ export const DEFAULT_SETUP: ImposterSetup = {
   timerMinutes: 0,
   voting: false,
   scoreboard: false,
+  imposterKnows: false,
 };
 
 export const CATEGORY_CHOICES: CategoryChoice[] = ["mixed", ...IMPOSTER_CATEGORIES];
@@ -120,7 +123,9 @@ function pickImposters(playerCount: number, count: number, rng: Rng): number[] {
   return pool.slice(0, count).sort((a, b) => a - b);
 }
 
-export type Card = { kind: "word"; text: string } | { kind: "imposter"; category: ImposterCategory };
+export type Card =
+  | { kind: "word"; text: string }
+  | { kind: "imposter"; category: ImposterCategory; word?: string };
 
 export interface Round {
   entryId: string;
@@ -144,9 +149,10 @@ export function dealRound(
   const imposters = pickImposters(playerCount, setup.imposterCount, rng);
   const cards: Card[] = setup.players.map((_, i) => {
     if (!imposters.includes(i)) return { kind: "word", text: word };
-    return setup.mode === "similar-word"
-      ? { kind: "word", text: pair }
-      : { kind: "imposter", category: picked.category };
+    if (setup.mode === "no-word") return { kind: "imposter", category: picked.category };
+    return setup.imposterKnows
+      ? { kind: "imposter", category: picked.category, word: pair }
+      : { kind: "word", text: pair };
   });
   const starter = pickIndex(playerCount, rng);
   return {
@@ -339,6 +345,7 @@ export function parseSavedSetup(raw: string | null): ImposterSetup {
     timerMinutes: isIntIn(d.timerMinutes, 0, MAX_TIMER_MINUTES) ? d.timerMinutes : 0,
     voting,
     scoreboard: voting && d.scoreboard === true,
+    imposterKnows: d.imposterKnows === true,
   };
 }
 

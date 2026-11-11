@@ -55,9 +55,16 @@ export default function ImposterScreen() {
         ) : (
           <View className="items-center gap-2 py-8">
             <Text className="text-center text-3xl font-bold text-red-600">{t.imposterYouAre}</Text>
-            <Text className="text-gray-500">
-              {t.imposterCategoryHint.replace("{category}", t[CATEGORY_LABEL_KEYS[card.category]])}
-            </Text>
+            {card.word ? (
+              <>
+                <Text className="text-sm text-gray-500">{t.imposterYourWord}</Text>
+                <Text className="text-center text-4xl font-bold text-gray-900">{card.word}</Text>
+              </>
+            ) : (
+              <Text className="text-gray-500">
+                {t.imposterCategoryHint.replace("{category}", t[CATEGORY_LABEL_KEYS[card.category]])}
+              </Text>
+            )}
           </View>
         )}
         <PrimaryButton label={t.imposterHideNext} onPress={() => dispatch({ type: "next", at: Date.now() })} />

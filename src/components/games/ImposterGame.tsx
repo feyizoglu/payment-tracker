@@ -73,9 +73,16 @@ export default function ImposterGame() {
         ) : (
           <div className="space-y-2 py-6">
             <p className="text-3xl font-bold text-red-600">{t.imposterYouAre}</p>
-            <p className="text-gray-500">
-              {t.imposterCategoryHint.replace("{category}", t[CATEGORY_LABEL_KEYS[card.category]])}
-            </p>
+            {card.word ? (
+              <>
+                <p className="text-sm text-gray-500">{t.imposterYourWord}</p>
+                <p className="text-4xl font-bold text-gray-900">{card.word}</p>
+              </>
+            ) : (
+              <p className="text-gray-500">
+                {t.imposterCategoryHint.replace("{category}", t[CATEGORY_LABEL_KEYS[card.category]])}
+              </p>
+            )}
           </div>
         )}
         <button

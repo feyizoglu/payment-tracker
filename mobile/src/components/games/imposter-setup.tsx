@@ -70,6 +70,16 @@ export function ImposterSetupForm({
         onChange={(mode) => set({ mode: mode as ImposterMode })}
       />
 
+      {value.mode === "similar-word" ? (
+        <View className="flex-row items-center justify-between gap-3">
+          <View className="flex-1">
+            <Text className="text-base text-gray-900">{t.imposterKnowsRole}</Text>
+            <Text className="text-xs text-gray-400">{t.imposterKnowsRoleHint}</Text>
+          </View>
+          <Switch value={value.imposterKnows} onValueChange={(imposterKnows) => set({ imposterKnows })} />
+        </View>
+      ) : null}
+
       <SelectField
         label={t.imposterCategory}
         value={value.category}

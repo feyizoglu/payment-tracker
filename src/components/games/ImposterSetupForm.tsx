@@ -74,6 +74,20 @@ export default function ImposterSetupForm({
             </button>
           ))}
         </div>
+        {value.mode === "similar-word" && (
+          <label className="flex items-center justify-between gap-3 pt-1">
+            <span>
+              <span className="block text-gray-900">{t.imposterKnowsRole}</span>
+              <span className="block text-xs text-gray-400">{t.imposterKnowsRoleHint}</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={value.imposterKnows}
+              onChange={(e) => set({ imposterKnows: e.target.checked })}
+              className="h-5 w-5 shrink-0"
+            />
+          </label>
+        )}
       </section>
 
       <section className="grid grid-cols-2 gap-4">

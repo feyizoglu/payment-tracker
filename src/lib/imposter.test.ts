@@ -115,6 +115,22 @@ describe("dealRound", () => {
     expect(round.cards[1]).toEqual({ kind: "word", text: "Cat" });
   });
 
+  it("tells the imposter their role and pair word when imposterKnows is on in similar-word mode", () => {
+    const { round } = dealRound(
+      setup({ category: "animals", mode: "similar-word", imposterKnows: true }),
+      "tr",
+      [],
+      zero
+    );
+    expect(round.cards[0]).toEqual({ kind: "imposter", category: "animals", word: "Köpek" });
+    expect(round.cards[1]).toEqual({ kind: "word", text: "Kedi" });
+  });
+
+  it("ignores imposterKnows in no-word mode", () => {
+    const { round } = dealRound(setup({ category: "animals", imposterKnows: true }), "tr", [], zero);
+    expect(round.cards[0]).toEqual({ kind: "imposter", category: "animals" });
+  });
+
   it("picks the requested number of distinct imposters and a starter in range", () => {
     const five = setup({ players: ["A", "B", "C", "D", "E"], imposterCount: 2 });
     // entry, imposter swap 1, imposter swap 2, starter
@@ -393,6 +409,7 @@ describe("parseSavedSetup", () => {
       timerMinutes: 5,
       voting: true,
       scoreboard: true,
+      imposterKnows: true,
     });
     expect(parseSavedSetup(raw)).toEqual({
       players: ["Ayşe", "Can"],
@@ -402,7 +419,13 @@ describe("parseSavedSetup", () => {
       timerMinutes: 5,
       voting: true,
       scoreboard: true,
+      imposterKnows: true,
     });
+  });
+
+  it("defaults imposterKnows to off", () => {
+    expect(DEFAULT_SETUP.imposterKnows).toBe(false);
+    expect(parseSavedSetup(JSON.stringify({ imposterKnows: "yes" })).imposterKnows).toBe(false);
   });
 
   it("drops the scoreboard when voting is off", () => {
