@@ -10,6 +10,9 @@ vi.mock("next-auth/react", () => ({
 vi.mock("@/lib/i18n", () => ({
   LanguageProvider: ({ children }: { children?: ReactNode }) => createElement(Fragment, null, children),
 }));
+vi.mock("@/components/lock/AppLockGate", () => ({
+  default: ({ children }: { children?: ReactNode }) => createElement(Fragment, null, children),
+}));
 
 import RootLayout from "./layout";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
