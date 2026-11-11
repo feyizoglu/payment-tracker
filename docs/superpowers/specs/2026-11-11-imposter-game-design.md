@@ -11,7 +11,10 @@ player sees the secret word except the imposter(s); the group discusses and trie
 
 - **Web:** a "Games" link in the top nav of every page that has one (`dashboard`, `economy`,
   `events`, `events/[id]` via `EventsHeader`). `/games` lists the games (one card for now);
-  `/games/imposter` is the game. No login, no API call.
+  `/games/imposter` is the game, inside the signed-in area (same header as Events, with
+  Games highlighted). Signed-out visitors are sent to `/`. Offline, a device that was
+  signed in the last time it was online may still play (flag `games_signed_in` in
+  `localStorage`, cleared on sign-out). No API call.
 - **Mobile:** a game-controller icon in the Payments tab header opens the root-level `games`
   screen, which opens `games/imposter`. Both are root `Stack.Screen`s next to the existing
   modal routes, not tabs (Android's bottom bar already holds its maximum of 5).
@@ -27,6 +30,7 @@ player sees the secret word except the imposter(s); the group discusses and trie
 | Discussion timer | off, 1–10 minutes | off |
 | Secret voting | on / off | off |
 | Scoreboard | on / off, only selectable when voting is on | off |
+| Imposter knows their role | on / off, only shown in `similar-word` mode: the imposter sees "You are the imposter" and their pair word | off |
 
 The settings are remembered on the device together with the player list.
 
@@ -103,7 +107,7 @@ Same split as the payment logic (approach A):
     (versioned cache name) and still claims open pages for push.
   - Links between the two games pages are plain `<a>` tags, so an offline navigation is a full
     page load the service worker can answer, not a client-side RSC fetch it cannot.
-  - The games pages do not call `useSession`, so being offline never redirects to sign-in.
+  - Offline sign-in is decided by `gamesAccess()` in `src/lib/games-auth.ts` (see Entry points).
 
 ## Error handling
 
