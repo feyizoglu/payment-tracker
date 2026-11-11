@@ -36,6 +36,7 @@ export function PinSettings() {
       <PinScreen
         title={t.pinCurrent}
         showForgot={false}
+        autoFocus={false}
         onUnlock={async (next) => {
           await update(next);
           setVerified(true);

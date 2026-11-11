@@ -16,11 +16,13 @@ export function PinScreen({
   description,
   onUnlock,
   showForgot = true,
+  autoFocus = true,
 }: {
   title: string;
   description?: string;
   onUnlock: (state: AppLockState) => void | Promise<void>;
   showForgot?: boolean;
+  autoFocus?: boolean;
 }) {
   const { t } = useLang();
   const { lock, update } = useAppLock();
@@ -67,7 +69,7 @@ export function PinScreen({
         secureTextEntry
         maxLength={6}
         editable={wait === 0}
-        autoFocus
+        autoFocus={autoFocus}
       />
       {wait > 0 ? (
         <Text className="text-center text-sm text-amber-700">{t.pinLockedOut.replace("{s}", String(wait))}</Text>

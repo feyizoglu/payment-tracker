@@ -6,6 +6,7 @@ import { ScrollView } from "react-native";
 
 import { TabScreen } from "@/components/tab-screen";
 import { useAppLock } from "@/lib/app-lock-context";
+import { consumeEconomyModal } from "@/lib/economy-unlock";
 import { PinScreen } from "./pin-screen";
 
 // Asks for the PIN on every visit: leaving the tab locks it again.
@@ -16,7 +17,9 @@ export function EconomyGate({ children }: { children: ReactNode }) {
 
   useFocusEffect(
     useCallback(() => {
-      return () => setUnlocked(false);
+      return () => {
+        if (!consumeEconomyModal()) setUnlocked(false);
+      };
     }, [])
   );
 
