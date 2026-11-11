@@ -41,6 +41,12 @@ export default function EventsHeader() {
             >
               {t.events}
             </Link>
+            <Link
+              href="/games"
+              className="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition font-medium"
+            >
+              {t.games}
+            </Link>
           </nav>
         </div>
 
