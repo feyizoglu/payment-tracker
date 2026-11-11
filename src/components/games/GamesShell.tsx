@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ArrowLeft, Loader2, LogOut } from "lucide-react";
@@ -9,8 +9,8 @@ import PinSetup from "@/components/lock/PinSetup";
 import { useLang } from "@/lib/i18n";
 import { prepareGamesOffline } from "@/lib/games-offline";
 import { gamesAccess, isRememberedSignedIn, rememberSignedIn } from "@/lib/games-auth";
-import { enterGameMode, hasPin, setPin } from "@/lib/app-lock";
-import { randomSalt, sha256Hex, useAppLock, writeLock } from "@/lib/app-lock-store";
+import { enterGameMode, hasPin, parseLockState, setPin } from "@/lib/app-lock";
+import { randomSalt, readLockRaw, sha256Hex, useAppLock, writeLock } from "@/lib/app-lock-store";
 
 function subscribeOnline(onChange: () => void) {
   window.addEventListener("online", onChange);
@@ -35,9 +35,23 @@ export default function GamesShell({ title, backHref, children }: { title?: stri
   const lock = useAppLock();
   const pinReady = lock !== null && hasPin(lock);
 
+  // Once per visit: re-entering on every lock change would undo leaving game mode in another tab.
+  const enteredRef = useRef(false);
   useEffect(() => {
-    if (access === "allow" && lock && hasPin(lock) && !lock.gameMode) writeLock(enterGameMode(lock));
+    if (enteredRef.current || access !== "allow" || !lock || !hasPin(lock)) return;
+    enteredRef.current = true;
+    if (!lock.gameMode) writeLock(enterGameMode(lock));
   }, [access, lock]);
+
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (!e.persisted || !enteredRef.current) return;
+      const current = parseLockState(readLockRaw());
+      if (hasPin(current) && !current.gameMode) writeLock(enterGameMode(current));
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   useEffect(() => {
     if (status === "authenticated") rememberSignedIn(true);

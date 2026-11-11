@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useLang } from "@/lib/i18n";
 import { exitGameMode } from "@/lib/app-lock";
-import { lockScreenFor } from "@/lib/app-lock-gate";
+import { lockScreenFor, rendersBeforeLockRead } from "@/lib/app-lock-gate";
 import { useAppLock, writeLock } from "@/lib/app-lock-store";
 import PinScreen from "./PinScreen";
 
@@ -13,7 +13,7 @@ function Gate({ path, children }: { path: string; children: ReactNode }) {
   const lock = useAppLock();
   const [economyUnlocked, setEconomyUnlocked] = useState(false);
 
-  if (!lock) return <>{children}</>;
+  if (!lock) return rendersBeforeLockRead(path) ? <>{children}</> : <div className="min-h-screen" />;
   const screen = lockScreenFor(path, lock, economyUnlocked);
   if (screen === "none") return <>{children}</>;
 
@@ -24,7 +24,10 @@ function Gate({ path, children }: { path: string; children: ReactNode }) {
         title={t.pinGameModeTitle}
         description={t.pinGameModeDesc}
         cancel={{ href: "/games", label: t.pinBackToGames }}
-        onUnlock={(next) => writeLock(exitGameMode(next))}
+        onUnlock={(next) => {
+          setEconomyUnlocked(true);
+          writeLock(exitGameMode(next));
+        }}
       />
     );
   }

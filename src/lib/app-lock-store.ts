@@ -2,6 +2,8 @@ import { useMemo, useSyncExternalStore } from "react";
 import { APP_LOCK_KEY, parseLockState, type AppLockState, type Hash } from "@/lib/app-lock";
 
 const listeners = new Set<() => void>();
+// Set when storage refused a write, so the lock still holds for this page's lifetime.
+let memory: string | null | undefined;
 
 function notify() {
   for (const listener of listeners) listener();
@@ -13,13 +15,16 @@ export function subscribeLock(listener: () => void): () => void {
     if (e.key === APP_LOCK_KEY) listener();
   };
   window.addEventListener("storage", onStorage);
+  window.addEventListener("pageshow", listener);
   return () => {
     listeners.delete(listener);
     window.removeEventListener("storage", onStorage);
+    window.removeEventListener("pageshow", listener);
   };
 }
 
 export function readLockRaw(): string | null {
+  if (memory !== undefined) return memory;
   try {
     return localStorage.getItem(APP_LOCK_KEY);
   } catch {
@@ -28,10 +33,12 @@ export function readLockRaw(): string | null {
 }
 
 export function writeLock(state: AppLockState): void {
+  const raw = JSON.stringify(state);
   try {
-    localStorage.setItem(APP_LOCK_KEY, JSON.stringify(state));
+    localStorage.setItem(APP_LOCK_KEY, raw);
+    memory = undefined;
   } catch {
-    // Storage blocked: the lock only lasts for this page load.
+    memory = raw;
   }
   notify();
 }
@@ -39,8 +46,9 @@ export function writeLock(state: AppLockState): void {
 export function clearLock(): void {
   try {
     localStorage.removeItem(APP_LOCK_KEY);
+    memory = undefined;
   } catch {
-    // Nothing stored to clear.
+    memory = null;
   }
   notify();
 }

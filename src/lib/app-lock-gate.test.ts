@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { EMPTY_LOCK, type AppLockState } from "@/lib/app-lock";
-import { lockScreenFor } from "@/lib/app-lock-gate";
+import { lockScreenFor, rendersBeforeLockRead } from "@/lib/app-lock-gate";
 
 const withPin: AppLockState = { ...EMPTY_LOCK, pinHash: "h", salt: "s" };
 
@@ -26,5 +26,16 @@ describe("lockScreenFor", () => {
     expect(lockScreenFor("/economy", eco, true)).toBe("none");
     expect(lockScreenFor("/dashboard", eco, false)).toBe("none");
     expect(lockScreenFor("/economy", withPin, false)).toBe("none");
+  });
+});
+
+describe("rendersBeforeLockRead", () => {
+  it("only lets sign-in and the games render before the lock is read", () => {
+    expect(rendersBeforeLockRead("/")).toBe(true);
+    expect(rendersBeforeLockRead("/games")).toBe(true);
+    expect(rendersBeforeLockRead("/games/imposter")).toBe(true);
+    expect(rendersBeforeLockRead("/gamesx")).toBe(false);
+    expect(rendersBeforeLockRead("/dashboard")).toBe(false);
+    expect(rendersBeforeLockRead("/economy")).toBe(false);
   });
 });
