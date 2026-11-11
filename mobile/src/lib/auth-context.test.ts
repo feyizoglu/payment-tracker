@@ -12,11 +12,19 @@ vi.mock("expo-device", () => ({
     return device.isDevice;
   },
 }));
-vi.mock("./storage", () => ({
-  getToken: vi.fn(),
-  setToken: vi.fn(async () => undefined),
-  clearToken: vi.fn(async () => undefined),
+vi.mock("expo-secure-store", () => ({
+  getItemAsync: vi.fn(async () => null),
+  setItemAsync: vi.fn(async () => undefined),
+  deleteItemAsync: vi.fn(async () => undefined),
 }));
+vi.mock("./storage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./storage")>();
+  return {
+    getToken: vi.fn(),
+    setToken: vi.fn(async () => undefined),
+    clearToken: vi.fn(actual.clearToken),
+  };
+});
 vi.mock("./config", () => ({ getApiUrl: () => "https://api.test" }));
 vi.mock("./auth", () => ({
   exchangeGoogleIdToken: vi.fn(),
@@ -33,6 +41,8 @@ vi.mock("./push", async (importOriginal) => ({
 }));
 
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import * as SecureStore from "expo-secure-store";
+import { APP_LOCK_KEY } from "@ptracker/shared/app-lock";
 import { AuthProvider, useAuth } from "./auth-context";
 import { exchangeGoogleIdToken, fetchProfile } from "./auth";
 import { registerForPush, type PushOutcome } from "./push";
@@ -225,6 +235,15 @@ describe("signOut push unregister", () => {
     expect(vi.mocked(refreshWidget).mock.invocationCallOrder[0]).toBeGreaterThan(
       vi.mocked(clearToken).mock.invocationCallOrder[0]
     );
+  });
+
+  it("removes only the session token from the secure store, so the app lock survives sign-out", async () => {
+    await mount();
+    await signOut();
+    const deleted = vi.mocked(SecureStore.deleteItemAsync).mock.calls.map(([key]) => key);
+    expect(deleted).toHaveLength(1);
+    expect(deleted).not.toContain(APP_LOCK_KEY);
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
   });
 
   it("DELETEs the registered token with the JWT held at sign-out", async () => {

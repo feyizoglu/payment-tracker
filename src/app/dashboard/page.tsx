@@ -15,14 +15,14 @@ import DateRangeReport from "@/components/DateRangeReport";
 import PayUntil from "@/components/PayUntil";
 import PushToggle from "@/components/PushToggle";
 import ThemePicker from "@/components/ThemePicker";
-import { signOutWithPushCleanup } from "@/lib/web-push-client";
+import PinMenuItem from "@/components/lock/PinMenuItem";
+import SignOutMenuItem from "@/components/SignOutMenuItem";
 import { parseMonthParam } from "@/lib/month-param";
 import { planMarkPaid, type ListEdit } from "@/lib/mark-paid";
 import Link from "next/link";
 import {
   CreditCard,
   Plus,
-  LogOut,
   LayoutGrid,
   Calendar,
   Users,
@@ -241,6 +241,12 @@ function Dashboard() {
               >
                 {t.events}
               </Link>
+              <Link
+                href="/games"
+                className="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition font-medium"
+              >
+                {t.games}
+              </Link>
             </nav>
           </div>
 
@@ -289,13 +295,8 @@ function Dashboard() {
                     <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
                   </div>
                   <ThemePicker />
-                  <button
-                    onClick={() => void signOutWithPushCleanup()}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    {t.signOut}
-                  </button>
+                  <PinMenuItem />
+                  <SignOutMenuItem />
                 </div>
               )}
             </div>

@@ -1,4 +1,5 @@
 import { useLang } from "@ptracker/shared/i18n";
+import { SymbolView } from "expo-symbols";
 import { Pressable, Text, View } from "react-native";
 import { formatMonthYear } from "@/lib/calendar";
 
@@ -11,6 +12,7 @@ export function MonthHeader({
   onPrev,
   onNext,
   onToggleView,
+  onOpenGames,
 }: {
   year: number;
   month: number; // 0-indexed
@@ -18,6 +20,7 @@ export function MonthHeader({
   onPrev: () => void;
   onNext: () => void;
   onToggleView: (v: PaymentsView) => void;
+  onOpenGames?: () => void;
 }) {
   const { t, lang } = useLang();
   return (
@@ -33,14 +36,25 @@ export function MonthHeader({
           <Text className="text-xl text-gray-600">›</Text>
         </Pressable>
       </View>
-      <View className="mt-3 flex-row self-center rounded-lg bg-gray-100 p-0.5">
-        {(["list", "calendar"] as const).map((v) => (
-          <Pressable key={v} onPress={() => onToggleView(v)} className={`rounded-md px-4 py-1 ${view === v ? "bg-surface" : ""}`}>
-            <Text className={view === v ? "font-medium text-gray-900" : "text-gray-500"}>
-              {v === "list" ? t.viewList : t.viewCalendar}
-            </Text>
+      <View className="mt-3 flex-row items-center justify-center">
+        <View className="flex-row rounded-lg bg-gray-100 p-0.5">
+          {(["list", "calendar"] as const).map((v) => (
+            <Pressable key={v} onPress={() => onToggleView(v)} className={`rounded-md px-4 py-1 ${view === v ? "bg-surface" : ""}`}>
+              <Text className={view === v ? "font-medium text-gray-900" : "text-gray-500"}>
+                {v === "list" ? t.viewList : t.viewCalendar}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        {onOpenGames ? (
+          <Pressable onPress={onOpenGames} className="absolute right-0 p-1" accessibilityLabel={t.games}>
+            <SymbolView
+              name={{ ios: "gamecontroller", android: "sports_esports", web: "sports_esports" }}
+              size={22}
+              tintColor="#6b7280"
+            />
           </Pressable>
-        ))}
+        ) : null}
       </View>
     </View>
   );

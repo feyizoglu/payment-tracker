@@ -4,6 +4,7 @@ import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 import { LanguageProvider } from "@/lib/i18n";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import AppLockGate from "@/components/lock/AppLockGate";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -24,7 +25,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className={`${geist.className} bg-gray-50 text-gray-900 min-h-screen`}>
-        <SessionProvider><LanguageProvider>{children}</LanguageProvider></SessionProvider>
+        <SessionProvider><LanguageProvider><AppLockGate>{children}</AppLockGate></LanguageProvider></SessionProvider>
       </body>
     </html>
   );

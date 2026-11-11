@@ -1,4 +1,5 @@
 import { signOut } from "next-auth/react";
+import { rememberSignedIn } from "./games-auth";
 
 export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC ?? "";
 
@@ -34,5 +35,9 @@ async function unsubscribeThisBrowser(): Promise<void> {
 
 export async function signOutWithPushCleanup(): Promise<void> {
   await unsubscribeThisBrowser();
-  await signOut({ callbackUrl: "/" });
+  const result = await signOut({ redirect: false, redirectTo: "/" });
+  // Auth.js answers a failed CSRF check with 200 and the sign-in page URL carrying ?error= instead of signing out.
+  if (/[?&]error=/.test(result?.url ?? "")) throw new Error("Sign-out failed");
+  rememberSignedIn(false);
+  window.location.replace("/");
 }

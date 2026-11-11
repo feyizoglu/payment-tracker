@@ -6,6 +6,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 
+import { PinSettings } from "@/components/lock/pin-settings";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { TextField } from "@/components/ui/text-field";
@@ -193,6 +194,10 @@ export default function Settings() {
             ]}
             onChange={(next) => chooseTheme(parseThemePref(next))}
           />
+        </Section>
+
+        <Section title={t.pinTitle}>
+          <PinSettings />
         </Section>
 
         <Section title={t.myColor}>

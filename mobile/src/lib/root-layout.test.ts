@@ -6,14 +6,32 @@ const state = vi.hoisted(() => ({
   ready: true,
   isAuthenticated: true,
   response: null as unknown,
+  gameMode: false,
+  canDismiss: false,
+  lockReady: true,
+  guards: [] as { guard: boolean; names: string[] }[],
 }));
 
 vi.mock("expo-router", async () => {
   const { Fragment, createElement: h } = await import("react");
   const pass = ({ children }: { children?: unknown }) => h(Fragment, null, children as never);
   return {
-    router: { navigate: vi.fn() },
-    Stack: Object.assign(pass, { Protected: () => null, Screen: () => null }),
+    router: {
+      navigate: vi.fn(),
+      replace: vi.fn(),
+      dismissAll: vi.fn(),
+      canDismiss: () => state.canDismiss,
+    },
+    Stack: Object.assign(pass, {
+      Protected: ({ guard, children }: { guard: boolean; children?: unknown }) => {
+        const names = (Array.isArray(children) ? children : [children]).map(
+          (c) => (c as { props: { name: string } }).props.name
+        );
+        state.guards.push({ guard, names });
+        return null;
+      },
+      Screen: () => null,
+    }),
     ThemeProvider: pass,
     DarkTheme: {},
     DefaultTheme: {},
@@ -39,6 +57,13 @@ vi.mock("@/lib/auth-context", async () => {
   return {
     AuthProvider: ({ children }: { children?: unknown }) => h(Fragment, null, children as never),
     useAuth: () => ({ ready: state.ready, isAuthenticated: state.isAuthenticated }),
+  };
+});
+vi.mock("@/lib/app-lock-context", async () => {
+  const { Fragment, createElement: h } = await import("react");
+  return {
+    AppLockProvider: ({ children }: { children?: unknown }) => h(Fragment, null, children as never),
+    useAppLock: () => ({ ready: state.lockReady, lock: { gameMode: state.gameMode } }),
   };
 });
 vi.mock("@/lib/language-storage", () => ({
@@ -93,6 +118,10 @@ beforeEach(() => {
   state.ready = true;
   state.isAuthenticated = true;
   state.response = null;
+  state.gameMode = false;
+  state.canDismiss = false;
+  state.lockReady = true;
+  state.guards = [];
 });
 
 afterEach(async () => {
@@ -172,5 +201,72 @@ describe("RootLayout theme", () => {
   it("applies the saved theme before the app renders", async () => {
     await render();
     expect(applyTheme).toHaveBeenCalledWith("dark");
+  });
+});
+
+describe("RootNavigator game mode exit", () => {
+  it("returns to Payments with no games left underneath once game mode turns off", async () => {
+    state.gameMode = true;
+    state.canDismiss = true;
+    await render();
+    expect(router.replace).not.toHaveBeenCalled();
+    state.gameMode = false;
+    await render();
+    expect(router.dismissAll).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenCalledWith("/");
+    expect(vi.mocked(router.replace).mock.invocationCallOrder[0]).toBeGreaterThan(
+      vi.mocked(router.dismissAll).mock.invocationCallOrder[0]
+    );
+  });
+
+  it("does not navigate when a sign-out ends game mode", async () => {
+    state.gameMode = true;
+    await render();
+    state.isAuthenticated = false;
+    state.gameMode = false;
+    await render();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("does not navigate when game mode stays off", async () => {
+    await render();
+    await render();
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(router.dismissAll).not.toHaveBeenCalled();
+  });
+});
+
+describe("RootNavigator lockReady", () => {
+  it("renders no protected screens until the stored lock is read", async () => {
+    state.lockReady = false;
+    await render();
+    expect(state.guards).toEqual([]);
+  });
+
+  it("renders the protected screens once the stored lock is read", async () => {
+    await render();
+    expect(state.guards.length).toBeGreaterThan(0);
+  });
+});
+
+describe("RootNavigator Stack.Protected guards", () => {
+  function guardFor(name: string) {
+    const last = state.guards.slice(-4);
+    return last.find((g) => g.names.includes(name))?.guard;
+  }
+
+  it("closes the app and opens the lock screen and games in game mode", async () => {
+    state.gameMode = true;
+    await render();
+    expect(guardFor("(app)")).toBe(false);
+    expect(guardFor("app-lock")).toBe(true);
+    expect(guardFor("games/index")).toBe(true);
+    expect(guardFor("games/imposter")).toBe(true);
+  });
+
+  it("opens the app and closes the lock screen outside game mode", async () => {
+    await render();
+    expect(guardFor("(app)")).toBe(true);
+    expect(guardFor("app-lock")).toBe(false);
   });
 });

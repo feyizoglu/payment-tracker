@@ -8,4 +8,4 @@
 - Oyunlar mümkünse internetsiz oynanabilmeli:
   - **Web:** oyun dosyaları `public/sw.js` ile önbelleğe alınabilir (site artık PWA).
   - **Mobil:** oyunlar uygulamanın içine gömülebilir.
-- Hangi oyunların ekleneceği daha belli değil.
+- İlk oyun Imposter eklendi (web `/games`, mobilde Ödemeler başlığındaki ikon). Sıradaki oyunlar daha belli değil.

@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 vi.mock("next-auth/react", () => ({ signOut: vi.fn() }));
 
 import { signOut } from "next-auth/react";
+import { APP_LOCK_KEY } from "./app-lock";
+import { GAMES_SIGNED_IN_KEY } from "./games-auth";
 import {
   deleteWebPushSubscription,
   signOutWithPushCleanup,
@@ -48,7 +50,25 @@ describe("deleteWebPushSubscription", () => {
 });
 
 describe("signOutWithPushCleanup", () => {
-  it("deletes the endpoint, unsubscribes, then signs out", async () => {
+  let replace: ReturnType<typeof vi.fn>;
+  let removeItem: ReturnType<typeof vi.fn>;
+  let setItem: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    replace = vi.fn();
+    removeItem = vi.fn();
+    setItem = vi.fn();
+    vi.stubGlobal("window", {
+      atob: globalThis.atob,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      location: { replace },
+    });
+    vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem, removeItem });
+    vi.mocked(signOut).mockResolvedValue({ url: "http://localhost:3000/" } as never);
+  });
+
+  it("deletes the endpoint, unsubscribes, then signs out without a redirect", async () => {
     const sub = subscription();
     stubBrowser(async () => ({ pushManager: { getSubscription: async () => sub } }));
 
@@ -58,7 +78,7 @@ describe("signOutWithPushCleanup", () => {
       "/api/web-push",
       expect.objectContaining({ method: "DELETE", body: JSON.stringify({ endpoint: ENDPOINT }) })
     );
-    expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/" });
+    expect(signOut).toHaveBeenCalledWith({ redirect: false, redirectTo: "/" });
     const deleted = vi.mocked(fetch).mock.invocationCallOrder[0];
     const unsubscribed = sub.unsubscribe.mock.invocationCallOrder[0];
     const signedOut = vi.mocked(signOut).mock.invocationCallOrder[0];
@@ -71,7 +91,7 @@ describe("signOutWithPushCleanup", () => {
 
     await expect(signOutWithPushCleanup()).resolves.toBeUndefined();
 
-    expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/" });
+    expect(signOut).toHaveBeenCalledWith({ redirect: false, redirectTo: "/" });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -83,6 +103,40 @@ describe("signOutWithPushCleanup", () => {
     await expect(signOutWithPushCleanup()).resolves.toBeUndefined();
 
     expect(sub.unsubscribe).toHaveBeenCalledTimes(1);
-    expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/" });
+    expect(signOut).toHaveBeenCalledWith({ redirect: false, redirectTo: "/" });
+  });
+
+  it("forgets this device for offline games only after signing out, keeps the app lock, then goes home", async () => {
+    stubBrowser(async () => undefined);
+
+    await signOutWithPushCleanup();
+
+    expect(removeItem).toHaveBeenCalledWith(GAMES_SIGNED_IN_KEY);
+    expect(removeItem).not.toHaveBeenCalledWith(APP_LOCK_KEY);
+    const signedOut = vi.mocked(signOut).mock.invocationCallOrder[0];
+    expect(removeItem.mock.invocationCallOrder[0]).toBeGreaterThan(signedOut);
+    expect(replace).toHaveBeenCalledWith("/");
+    expect(replace.mock.invocationCallOrder[0]).toBeGreaterThan(removeItem.mock.invocationCallOrder.at(-1)!);
+  });
+
+  it("keeps the app lock and the games flag when signOut rejects", async () => {
+    stubBrowser(async () => undefined);
+    vi.mocked(signOut).mockRejectedValue(new TypeError("Failed to fetch"));
+
+    await expect(signOutWithPushCleanup()).rejects.toThrow("Failed to fetch");
+
+    expect(removeItem).not.toHaveBeenCalled();
+    expect(setItem).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps the app lock when the server answers with an error page instead of signing out", async () => {
+    stubBrowser(async () => undefined);
+    vi.mocked(signOut).mockResolvedValue({ url: "http://localhost:3000/?error=MissingCSRF" } as never);
+
+    await expect(signOutWithPushCleanup()).rejects.toThrow();
+
+    expect(removeItem).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 });
