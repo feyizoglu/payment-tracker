@@ -5,11 +5,13 @@ import {
   MAX_FREE_ATTEMPTS,
   MAX_LOCKOUT_MS,
   checkPin,
+  clampLockout,
   clearPin,
   enterGameMode,
   exitGameMode,
   hasPin,
   isValidPin,
+  lockoutMessage,
   lockoutRemaining,
   parseLockState,
   setEconomyLock,
@@ -102,6 +104,17 @@ describe("checkPin", () => {
     expect(state.lockedUntil).toBe(0);
   });
 
+  it("treats a lockout further away than the maximum as the maximum (clock moved back)", async () => {
+    const now = 1_000_000;
+    const skewed = { ...(await withPin()), failures: MAX_FREE_ATTEMPTS, lockedUntil: now + 10 * 60 * 60_000 };
+    expect(lockoutRemaining(skewed, now)).toBe(MAX_LOCKOUT_MS);
+    const refused = await checkPin(skewed, "1234", now, fakeHash);
+    expect(refused.ok).toBe(false);
+    expect(refused.state.lockedUntil).toBe(now + MAX_LOCKOUT_MS);
+    const later = await checkPin(refused.state, "1234", now + MAX_LOCKOUT_MS, fakeHash);
+    expect(later.ok).toBe(true);
+  });
+
   it("fails without a PIN set", async () => {
     expect((await checkPin(EMPTY_LOCK, "1234", 0, fakeHash)).ok).toBe(false);
   });
@@ -153,5 +166,34 @@ describe("parseLockState", () => {
 
   it("drops the flags when there is no PIN", () => {
     expect(parseLockState(JSON.stringify({ economyLock: true, gameMode: true }))).toEqual(EMPTY_LOCK);
+  });
+});
+
+describe("clampLockout", () => {
+  it("pulls a lockout beyond the maximum back to now + maximum", async () => {
+    const s = { ...(await withPin()), lockedUntil: 10 * MAX_LOCKOUT_MS };
+    expect(clampLockout(s, 0).lockedUntil).toBe(MAX_LOCKOUT_MS);
+  });
+
+  it("returns the same state when the lockout is within the maximum", async () => {
+    const s = { ...(await withPin()), lockedUntil: MAX_LOCKOUT_MS };
+    expect(clampLockout(s, 0)).toBe(s);
+    const none = await withPin();
+    expect(clampLockout(none, 5)).toBe(none);
+  });
+});
+
+describe("lockoutMessage", () => {
+  const t = { pinLockedOut: "wait {s} s", pinLockedOutMin: "wait {m} min" };
+
+  it("shows seconds under a minute, rounded up", () => {
+    expect(lockoutMessage(29_001, t)).toBe("wait 30 s");
+    expect(lockoutMessage(59_000, t)).toBe("wait 59 s");
+  });
+
+  it("shows minutes, rounded up, from 60 s", () => {
+    expect(lockoutMessage(60_000, t)).toBe("wait 1 min");
+    expect(lockoutMessage(60_001, t)).toBe("wait 2 min");
+    expect(lockoutMessage(MAX_LOCKOUT_MS, t)).toBe("wait 15 min");
   });
 });

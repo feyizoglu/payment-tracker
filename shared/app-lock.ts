@@ -40,8 +40,19 @@ export function clearPin(): AppLockState {
   return EMPTY_LOCK;
 }
 
+// A clock moved backwards must not turn a lockout into hours.
 export function lockoutRemaining(state: AppLockState, now: number): number {
-  return Math.max(0, state.lockedUntil - now);
+  return Math.min(MAX_LOCKOUT_MS, Math.max(0, state.lockedUntil - now));
+}
+
+export function clampLockout(state: AppLockState, now: number): AppLockState {
+  return state.lockedUntil - now > MAX_LOCKOUT_MS ? { ...state, lockedUntil: now + MAX_LOCKOUT_MS } : state;
+}
+
+export function lockoutMessage(waitMs: number, t: { pinLockedOut: string; pinLockedOutMin: string }): string {
+  const seconds = Math.ceil(waitMs / 1000);
+  if (seconds >= 60) return t.pinLockedOutMin.replace("{m}", String(Math.ceil(seconds / 60)));
+  return t.pinLockedOut.replace("{s}", String(seconds));
 }
 
 export async function checkPin(
@@ -50,6 +61,7 @@ export async function checkPin(
   now: number,
   hash: Hash
 ): Promise<{ ok: boolean; state: AppLockState }> {
+  state = clampLockout(state, now);
   if (!hasPin(state) || lockoutRemaining(state, now) > 0) return { ok: false, state };
   if ((await hash(state.salt + pin)) === state.pinHash) {
     return { ok: true, state: { ...state, failures: 0, lockedUntil: 0 } };

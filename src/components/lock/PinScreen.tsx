@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Lock } from "lucide-react";
 import { useLang } from "@/lib/i18n";
-import { checkPin, lockoutRemaining, type AppLockState } from "@/lib/app-lock";
+import { checkPin, clampLockout, lockoutMessage, lockoutRemaining, type AppLockState } from "@/lib/app-lock";
 import { sha256Hex, writeLock } from "@/lib/app-lock-store";
 import { signOutWithPushCleanup } from "@/lib/web-push-client";
 
@@ -29,7 +29,15 @@ export default function PinScreen({
   const [error, setError] = useState<string | null>(null);
   const [signOutFailed, setSignOutFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const wait = Math.ceil(lockoutRemaining(state, now) / 1000);
+  const [checking, setChecking] = useState(false);
+  const checkingRef = useRef(false);
+  const remaining = lockoutRemaining(state, now);
+  const wait = Math.ceil(remaining / 1000);
+
+  useEffect(() => {
+    const clamped = clampLockout(state, Date.now());
+    if (clamped !== state) writeLock(clamped);
+  }, [state]);
 
   useEffect(() => {
     if (state.lockedUntil <= Date.now()) return;
@@ -39,17 +47,25 @@ export default function PinScreen({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const at = Date.now();
-    setNow(at);
-    const result = await checkPin(state, pin, at, sha256Hex);
-    setPin("");
-    if (result.ok) {
-      setError(null);
-      onUnlock(result.state);
-      return;
+    if (checkingRef.current) return;
+    checkingRef.current = true;
+    setChecking(true);
+    try {
+      const at = Date.now();
+      setNow(at);
+      const result = await checkPin(state, pin, at, sha256Hex);
+      setPin("");
+      if (result.ok) {
+        setError(null);
+        onUnlock(result.state);
+        return;
+      }
+      writeLock(result.state);
+      setError(t.pinWrong);
+    } finally {
+      checkingRef.current = false;
+      setChecking(false);
     }
-    writeLock(result.state);
-    setError(t.pinWrong);
   }
 
   function forgot() {
@@ -79,13 +95,13 @@ export default function PinScreen({
           className="w-full rounded-lg border border-gray-200 bg-surface px-3 py-2 text-center text-lg tracking-widest text-gray-900 disabled:opacity-50"
         />
         {wait > 0 ? (
-          <p className="text-sm text-amber-700">{t.pinLockedOut.replace("{s}", String(wait))}</p>
+          <p className="text-sm text-amber-700">{lockoutMessage(remaining, t)}</p>
         ) : (
           error && <p className="text-sm text-red-600">{error}</p>
         )}
         <button
           type="submit"
-          disabled={wait > 0 || pin.length < 4}
+          disabled={wait > 0 || pin.length < 4 || checking}
           className="w-full rounded-lg bg-blue-600 py-2.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
         >
           {t.pinUnlock}

@@ -1,6 +1,6 @@
-import { checkPin, lockoutRemaining, type AppLockState } from "@ptracker/shared/app-lock";
+import { checkPin, clampLockout, lockoutMessage, lockoutRemaining, type AppLockState } from "@ptracker/shared/app-lock";
 import { useLang } from "@ptracker/shared/i18n";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import { inputBoxClass } from "@/components/ui/field";
@@ -30,7 +30,15 @@ export function PinScreen({
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const wait = Math.ceil(lockoutRemaining(lock, now) / 1000);
+  const [checking, setChecking] = useState(false);
+  const checkingRef = useRef(false);
+  const remaining = lockoutRemaining(lock, now);
+  const wait = Math.ceil(remaining / 1000);
+
+  useEffect(() => {
+    const clamped = clampLockout(lock, Date.now());
+    if (clamped !== lock) void update(clamped);
+  }, [lock, update]);
 
   useEffect(() => {
     if (lock.lockedUntil <= Date.now()) return;
@@ -39,17 +47,25 @@ export function PinScreen({
   }, [lock.lockedUntil]);
 
   async function submit() {
-    const at = Date.now();
-    setNow(at);
-    const result = await checkPin(lock, pin, at, sha256Hex);
-    setPin("");
-    if (result.ok) {
-      setError(null);
-      await onUnlock(result.state);
-      return;
+    if (checkingRef.current) return;
+    checkingRef.current = true;
+    setChecking(true);
+    try {
+      const at = Date.now();
+      setNow(at);
+      const result = await checkPin(lock, pin, at, sha256Hex);
+      setPin("");
+      if (result.ok) {
+        setError(null);
+        await onUnlock(result.state);
+        return;
+      }
+      await update(result.state);
+      setError(t.pinWrong);
+    } finally {
+      checkingRef.current = false;
+      setChecking(false);
     }
-    await update(result.state);
-    setError(t.pinWrong);
   }
 
   return (
@@ -72,11 +88,11 @@ export function PinScreen({
         autoFocus={autoFocus}
       />
       {wait > 0 ? (
-        <Text className="text-center text-sm text-amber-700">{t.pinLockedOut.replace("{s}", String(wait))}</Text>
+        <Text className="text-center text-sm text-amber-700">{lockoutMessage(remaining, t)}</Text>
       ) : error ? (
         <Text className="text-center text-sm text-red-600">{error}</Text>
       ) : null}
-      <PrimaryButton label={t.pinUnlock} onPress={submit} disabled={wait > 0 || pin.length < 4} />
+      <PrimaryButton label={t.pinUnlock} onPress={submit} disabled={wait > 0 || pin.length < 4 || checking} />
       {showForgot ? (
         <Pressable onPress={() => void signOut()} className="py-2">
           <Text className="text-center text-sm text-gray-500 underline">{t.pinForgot}</Text>
