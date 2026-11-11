@@ -89,13 +89,18 @@ Same split as the payment logic (approach A):
   `eas update` (no native change).
 - **Web:** `public/sw.js` today only handles push and is registered only by `PushToggle`.
   Changes:
-  - The games pages register `/sw.js` themselves (same options as `PushToggle`).
-  - `sw.js` gets a `fetch` handler limited to same-origin GET requests:
+  - The games pages register `/sw.js` themselves (same options as `PushToggle`), in
+    production builds only.
+  - The page owns every cache write: on each games page load it fetches both games pages,
+    collects the `/_next/static/*` URLs named in their HTML, stores them all, and only then
+    stores the HTML and prunes entries no longer referenced. Any failure leaves the previous
+    cache untouched, so cached HTML never points at a missing chunk.
+  - `sw.js` only reads the cache, for same-origin GET requests:
     - navigations to `/games` and `/games/imposter`: network first, cached copy when offline;
-    - `/_next/static/*`: cache first (file names are content-hashed);
+    - `/_next/static/*`: cached copy if present, otherwise the network;
     - everything else: not touched.
-  - `install` precaches `/games` and `/games/imposter`; `activate` deletes caches from older
-    versions (versioned cache name).
+  - `install` only activates the new worker; `activate` deletes caches from older versions
+    (versioned cache name) and still claims open pages for push.
   - Links between the two games pages are plain `<a>` tags, so an offline navigation is a full
     page load the service worker can answer, not a client-side RSC fetch it cannot.
   - The games pages do not call `useSession`, so being offline never redirects to sign-in.
