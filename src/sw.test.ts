@@ -8,22 +8,38 @@ const ORIGIN = "https://paytrack.example";
 
 type Handler = (event: unknown) => void;
 
-function loadWorker(windows: { url: string; focus: () => unknown; navigate?: (url: string) => Promise<unknown> }[] = []) {
+type CacheMock = { addAll: ReturnType<typeof vi.fn>; put: ReturnType<typeof vi.fn> };
+
+function loadWorker(
+  windows: { url: string; focus: () => unknown; navigate?: (url: string) => Promise<unknown> }[] = [],
+  net: { fetch?: (req: unknown) => Promise<unknown>; match?: (key: unknown) => Promise<unknown>; keys?: string[] } = {}
+) {
   const handlers: Record<string, Handler> = {};
   const showNotification = vi.fn().mockResolvedValue(undefined);
   const openWindow = vi.fn().mockResolvedValue(undefined);
   const matchAll = vi.fn().mockResolvedValue(windows);
   const claim = vi.fn().mockResolvedValue(undefined);
+  const skipWaiting = vi.fn().mockResolvedValue(undefined);
+  const cache: CacheMock = { addAll: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined) };
+  const caches = {
+    open: vi.fn().mockResolvedValue(cache),
+    match: vi.fn(net.match ?? (() => Promise.resolve(undefined))),
+    keys: vi.fn().mockResolvedValue(net.keys ?? []),
+    delete: vi.fn().mockResolvedValue(true),
+  };
+  const fetch = vi.fn(net.fetch ?? (() => Promise.reject(new Error("offline"))));
   const self = {
     addEventListener: (type: string, handler: Handler) => {
       handlers[type] = handler;
     },
+    skipWaiting,
     registration: { showNotification },
     location: { origin: ORIGIN },
     clients: { matchAll, openWindow, claim },
   };
-  vm.runInNewContext(source, { self, URL });
-  return { handlers, showNotification, openWindow, matchAll, claim };
+  const ResponseStub = { error: () => ({ type: "error" }) };
+  vm.runInNewContext(source, { self, URL, caches, fetch, Response: ResponseStub });
+  return { handlers, showNotification, openWindow, matchAll, claim, skipWaiting, cache, caches, fetch };
 }
 
 describe("sw.js push handler", () => {
@@ -154,5 +170,89 @@ describe("sw.js lifecycle and uncontrolled tabs", () => {
     handlers.notificationclick({ notification: { close, data: { url: "/dashboard?month=2026-11" } }, waitUntil });
     await waitUntil.mock.calls[0][0];
     expect(openWindow).toHaveBeenCalledWith(`${ORIGIN}/dashboard?month=2026-11`);
+  });
+});
+
+describe("sw.js games offline cache", () => {
+  const ok = (body: string) => ({ ok: true, body, clone: () => ({ ok: true, body }) });
+
+  function fetchEvent(url: string, init: { method?: string; mode?: string } = {}) {
+    let responded: Promise<unknown> | undefined;
+    const waits: Promise<unknown>[] = [];
+    return {
+      event: {
+        request: { url, method: init.method ?? "GET", mode: init.mode ?? "no-cors" },
+        respondWith: (p: Promise<unknown>) => {
+          responded = p;
+        },
+        waitUntil: (p: Promise<unknown>) => {
+          waits.push(p);
+        },
+      },
+      responded: () => responded,
+      settled: () => Promise.all(waits),
+    };
+  }
+
+  it("precaches the games pages on install and activates at once", async () => {
+    const { handlers, cache, skipWaiting } = loadWorker();
+    let wait: Promise<unknown> = Promise.resolve();
+    handlers.install({ waitUntil: (p: Promise<unknown>) => (wait = p) });
+    await wait;
+    expect(cache.addAll).toHaveBeenCalledWith(["/games", "/games/imposter"]);
+    expect(skipWaiting).toHaveBeenCalled();
+  });
+
+  it("deletes old games caches on activate", async () => {
+    const { handlers, caches } = loadWorker([], { keys: ["games-v0", "games-v1", "other"] });
+    let wait: Promise<unknown> = Promise.resolve();
+    handlers.activate({ waitUntil: (p: Promise<unknown>) => (wait = p) });
+    await wait;
+    expect(caches.delete).toHaveBeenCalledWith("games-v0");
+    expect(caches.delete).not.toHaveBeenCalledWith("games-v1");
+    expect(caches.delete).not.toHaveBeenCalledWith("other");
+  });
+
+  it("serves a games page from the network and refreshes the cache", async () => {
+    const page = ok("<html>");
+    const { handlers, cache } = loadWorker([], { fetch: () => Promise.resolve(page) });
+    const e = fetchEvent(`${ORIGIN}/games/imposter`, { mode: "navigate" });
+    handlers.fetch(e.event);
+    expect(await e.responded()).toBe(page);
+    await e.settled();
+    expect(cache.put).toHaveBeenCalledWith("/games/imposter", { ok: true, body: "<html>" });
+  });
+
+  it("falls back to the cached games page when offline", async () => {
+    const cached = { body: "cached" };
+    const { handlers } = loadWorker([], { match: (key) => Promise.resolve(key === "/games" ? cached : undefined) });
+    const e = fetchEvent(`${ORIGIN}/games`, { mode: "navigate" });
+    handlers.fetch(e.event);
+    expect(await e.responded()).toBe(cached);
+  });
+
+  it("serves static assets cache-first and stores misses", async () => {
+    const asset = ok("js");
+    const { handlers, cache, fetch } = loadWorker([], { fetch: () => Promise.resolve(asset) });
+    const e = fetchEvent(`${ORIGIN}/_next/static/chunks/app.js`);
+    handlers.fetch(e.event);
+    expect(await e.responded()).toBe(asset);
+    await e.settled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(cache.put).toHaveBeenCalled();
+  });
+
+  it("leaves API calls, other pages, other origins and non-GET requests alone", () => {
+    const { handlers } = loadWorker();
+    for (const [url, init] of [
+      [`${ORIGIN}/api/payments`, {}],
+      [`${ORIGIN}/dashboard`, { mode: "navigate" }],
+      ["https://cdn.example/_next/static/x.js", {}],
+      [`${ORIGIN}/games`, { method: "POST", mode: "navigate" }],
+    ] as const) {
+      const e = fetchEvent(url, init);
+      handlers.fetch(e.event);
+      expect(e.responded()).toBeUndefined();
+    }
   });
 });
