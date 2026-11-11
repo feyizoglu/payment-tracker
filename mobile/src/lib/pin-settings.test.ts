@@ -188,3 +188,16 @@ describe("PinSetup submit", () => {
     expect(onDone).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("PinSettings change", () => {
+  it("stores the salted hash of the changed PIN and shows the controls again", async () => {
+    (find(await verified(), Pressable, "CHANGE")!.props.onPress as () => void)();
+    const setup = settings();
+    expect(setup.type).toBe(PinSetup);
+    await (setup.props.onDone as (pin: string) => Promise<void>)("5678");
+    expect(s.update).toHaveBeenCalledWith(expect.objectContaining({ pinHash: "h(salt5678)", salt: "salt" }));
+    const tree = settings();
+    expect(find(tree, PinSetup)).toBeUndefined();
+    expect(find(tree, Pressable, "CHANGE")).toBeDefined();
+  });
+});

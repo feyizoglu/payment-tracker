@@ -211,3 +211,28 @@ describe("PinScreen cancel reset", () => {
     expect(state.update).toHaveBeenCalledWith({ ...withPin, resetAt: 0 });
   });
 });
+
+describe("PinScreen lockout UI", () => {
+  const input = () => state.input as unknown as { editable: boolean };
+  const button = () => state.button as unknown as { disabled: boolean };
+  const lockoutShown = () => state.texts.some((s) => /^\d+$/.test(s));
+
+  it("blocks entry and shows the wait while locked out", async () => {
+    await render({ ...withPin, lockedUntil: NOW + 30_000 });
+    await type("1234");
+    expect(input().editable).toBe(false);
+    expect(button().disabled).toBe(true);
+    expect(state.texts).toContain("30");
+  });
+
+  it("enables entry again once the lockout interval has passed", async () => {
+    fakeIntervals();
+    await render({ ...withPin, lockedUntil: NOW + 30_000 });
+    await act(async () => vi.advanceTimersByTime(31_000));
+    state.texts = [];
+    await type("1234");
+    expect(input().editable).toBe(true);
+    expect(button().disabled).toBe(false);
+    expect(lockoutShown()).toBe(false);
+  });
+});

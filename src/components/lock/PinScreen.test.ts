@@ -231,3 +231,26 @@ describe("PinScreen cancel reset", () => {
     expect(store.writeLock).toHaveBeenCalledWith({ ...withPin, resetAt: 0 });
   });
 });
+
+describe("PinScreen lockout UI", () => {
+  const lockout = (tree: Node) => nodes(tree).find((n) => n.type === "p" && String(n.props.className).includes("amber"));
+
+  it("disables the input and Unlock and shows the wait while locked out", () => {
+    const tree = typePin({ ...withPin, lockedUntil: NOW + 30_000 }, "1234");
+    expect(find(tree, "input")!.props.disabled).toBe(true);
+    expect(find(tree, "button", "UNLOCK")!.props.disabled).toBe(true);
+    expect(text(lockout(tree))).toBe("30");
+  });
+
+  it("enables the input and Unlock again once the lockout has passed", () => {
+    fakeIntervals();
+    const lock = { ...withPin, lockedUntil: NOW + 30_000 };
+    render(lock);
+    runEffects();
+    vi.advanceTimersByTime(31_000);
+    const tree = typePin(lock, "1234");
+    expect(find(tree, "input")!.props.disabled).toBe(false);
+    expect(find(tree, "button", "UNLOCK")!.props.disabled).toBe(false);
+    expect(lockout(tree)).toBeUndefined();
+  });
+});

@@ -345,3 +345,12 @@ describe("Payments mark paid", () => {
     expect(state.texts).toContain("Update failed");
   });
 });
+
+describe("Payments onOpenGames", () => {
+  it("opens the games list from the month header", async () => {
+    const { router } = await import("expo-router");
+    await render();
+    (header() as unknown as { onOpenGames: () => void }).onOpenGames();
+    expect(router.push).toHaveBeenCalledWith("/games");
+  });
+});

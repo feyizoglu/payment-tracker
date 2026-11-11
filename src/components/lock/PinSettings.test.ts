@@ -127,3 +127,16 @@ describe("PinSettings economy toggle", () => {
     expect(store.writeLock).toHaveBeenCalledWith({ ...withPin, economyLock: true });
   });
 });
+
+describe("PinSettings change", () => {
+  it("stores the new PIN and keeps the other settings", async () => {
+    store.lock = { ...withPin, economyLock: true, gameMode: true };
+    (find(verified(), "button", "CHANGE")!.props.onClick as () => void)();
+    const setup = render();
+    expect(setup.type).toBe(PinSetup);
+    await (setup.props.onDone as (pin: string) => Promise<void>)("5678");
+    expect(store.writeLock).toHaveBeenCalledWith(
+      expect.objectContaining({ pinHash: "h(salt5678)", salt: "salt", economyLock: true, gameMode: true })
+    );
+  });
+});
