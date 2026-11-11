@@ -1,4 +1,5 @@
 import { signOut } from "next-auth/react";
+import { clearLock } from "./app-lock-store";
 import { rememberSignedIn } from "./games-auth";
 
 export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC ?? "";
@@ -36,5 +37,6 @@ async function unsubscribeThisBrowser(): Promise<void> {
 export async function signOutWithPushCleanup(): Promise<void> {
   await unsubscribeThisBrowser();
   rememberSignedIn(false);
+  clearLock();
   await signOut({ callbackUrl: "/" });
 }

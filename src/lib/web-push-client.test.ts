@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 vi.mock("next-auth/react", () => ({ signOut: vi.fn() }));
 
 import { signOut } from "next-auth/react";
+import { APP_LOCK_KEY } from "./app-lock";
 import { GAMES_SIGNED_IN_KEY } from "./games-auth";
 import {
   deleteWebPushSubscription,
@@ -96,5 +97,17 @@ describe("signOutWithPushCleanup", () => {
 
     expect(removeItem).toHaveBeenCalledWith(GAMES_SIGNED_IN_KEY);
     expect(removeItem.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(signOut).mock.invocationCallOrder[0]);
+  });
+
+  it("deletes the app lock before signing out", async () => {
+    const removeItem = vi.fn();
+    vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem: vi.fn(), removeItem });
+    vi.stubGlobal("window", { addEventListener: vi.fn(), removeEventListener: vi.fn(), atob: globalThis.atob });
+    stubBrowser(async () => undefined);
+
+    await signOutWithPushCleanup();
+
+    expect(removeItem).toHaveBeenCalledWith(APP_LOCK_KEY);
+    expect(removeItem.mock.invocationCallOrder.at(-1)!).toBeLessThan(vi.mocked(signOut).mock.invocationCallOrder[0]);
   });
 });
