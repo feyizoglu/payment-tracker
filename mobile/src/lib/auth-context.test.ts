@@ -17,6 +17,7 @@ vi.mock("./storage", () => ({
   setToken: vi.fn(async () => undefined),
   clearToken: vi.fn(async () => undefined),
 }));
+vi.mock("./app-lock-storage", () => ({ clearStoredLock: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("./config", () => ({ getApiUrl: () => "https://api.test" }));
 vi.mock("./auth", () => ({
   exchangeGoogleIdToken: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock("./push", async (importOriginal) => ({
 
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { AuthProvider, useAuth } from "./auth-context";
+import { clearStoredLock } from "./app-lock-storage";
 import { exchangeGoogleIdToken, fetchProfile } from "./auth";
 import { registerForPush, type PushOutcome } from "./push";
 import { getNativePushToken } from "./push-native";
@@ -221,6 +223,7 @@ describe("signOut push unregister", () => {
     await mount();
     await signOut();
     expect(clearToken).toHaveBeenCalled();
+    expect(clearStoredLock).toHaveBeenCalled();
     expect(refreshWidget).toHaveBeenCalledTimes(1);
     expect(vi.mocked(refreshWidget).mock.invocationCallOrder[0]).toBeGreaterThan(
       vi.mocked(clearToken).mock.invocationCallOrder[0]

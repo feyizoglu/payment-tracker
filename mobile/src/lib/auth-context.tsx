@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import * as Device from "expo-device";
 import { createApiClient, type ApiClient } from "./api";
+import { clearStoredLock } from "./app-lock-storage";
 import { exchangeGoogleIdToken, fetchProfile, type MobileAuthResponse } from "./auth";
 import { getApiUrl } from "./config";
 import { registerForPush, unregisterFromPush } from "./push";
@@ -62,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const jwt = jwtRef.current;
     pushTokenRef.current = null;
     await clearToken();
+    await clearStoredLock();
     setTok(null);
     setUser(null);
     refreshWidget();
