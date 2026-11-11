@@ -235,7 +235,7 @@ export const IMPOSTER_WORDS: Record<ImposterCategory, WordEntry[]> = {
     ["Tenis", "Masa tenisi", "Tennis", "Table tennis"],
     ["Yüzme", "Dalış", "Swimming", "Diving"],
     ["Koşu", "Yürüyüş", "Running", "Walking"],
-    ["Bisiklet", "Motosiklet yarışı", "Cycling", "Motorcycle racing"],
+    ["Bisiklet yarışı", "Motosiklet yarışı", "Cycling", "Motorcycle racing"],
     ["Boks", "Güreş", "Boxing", "Wrestling"],
     ["Judo", "Karate", "Judo", "Karate"],
     ["Kayak", "Snowboard", "Skiing", "Snowboarding"],

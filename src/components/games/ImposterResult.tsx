@@ -16,13 +16,14 @@ export default function ImposterResult({
   const { round, outcome, setup, scores } = state;
   if (!round) return null;
   const names = setup.players;
+  const accused = outcome?.accused ?? null;
 
   return (
     <div className="space-y-5 text-center">
       {outcome && (
         <div className="space-y-1">
           <p className="text-sm text-gray-500">
-            {outcome.accused === null ? t.imposterTie : t.imposterAccused.replace("{name}", names[outcome.accused])}
+            {accused === null ? t.imposterTie : t.imposterAccused.replace("{name}", () => names[accused])}
           </p>
           <p className={`text-2xl font-bold ${outcome.crewWins ? "text-green-600" : "text-red-600"}`}>
             {outcome.crewWins ? t.imposterCrewWins : t.imposterImpostersWin}

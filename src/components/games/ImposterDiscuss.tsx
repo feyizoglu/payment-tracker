@@ -27,7 +27,7 @@ export default function ImposterDiscuss({
 
   return (
     <div className="space-y-6 py-6 text-center">
-      <p className="text-2xl font-bold text-gray-900">{t.imposterStarts.replace("{name}", starter)}</p>
+      <p className="text-2xl font-bold text-gray-900">{t.imposterStarts.replace("{name}", () => starter)}</p>
       {timerMinutes > 0 && (
         <p className={`text-5xl font-mono ${left === 0 ? "text-red-600" : "text-gray-900"}`}>
           {left === 0 ? t.imposterTimeUp : formatCountdown(left)}

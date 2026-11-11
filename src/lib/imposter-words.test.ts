@@ -29,4 +29,14 @@ describe("imposter word list", () => {
       }
     }
   });
+
+  it("has no word in more than one category per language", () => {
+    for (const lang of ["tr", "en"] as const) {
+      const words = IMPOSTER_CATEGORIES.flatMap((category) =>
+        IMPOSTER_WORDS[category].map((e) => e[lang].word.toLocaleLowerCase())
+      );
+      const repeated = words.filter((word, i) => words.indexOf(word) !== i);
+      expect(repeated).toEqual([]);
+    }
+  });
 });

@@ -17,13 +17,14 @@ export function ImposterResult({
   const { round, outcome, setup, scores } = state;
   if (!round) return null;
   const names = setup.players;
+  const accused = outcome?.accused ?? null;
 
   return (
     <View className="gap-5">
       {outcome ? (
         <View className="items-center gap-1">
           <Text className="text-sm text-gray-500">
-            {outcome.accused === null ? t.imposterTie : t.imposterAccused.replace("{name}", names[outcome.accused])}
+            {accused === null ? t.imposterTie : t.imposterAccused.replace("{name}", () => names[accused])}
           </Text>
           <Text className={`text-2xl font-bold ${outcome.crewWins ? "text-green-600" : "text-red-600"}`}>
             {outcome.crewWins ? t.imposterCrewWins : t.imposterImpostersWin}

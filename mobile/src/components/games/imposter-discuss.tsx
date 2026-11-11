@@ -36,7 +36,7 @@ export function ImposterDiscuss({
 
   return (
     <View className="items-center gap-6 py-10">
-      <Text className="text-center text-2xl font-bold text-gray-900">{t.imposterStarts.replace("{name}", starter)}</Text>
+      <Text className="text-center text-2xl font-bold text-gray-900">{t.imposterStarts.replace("{name}", () => starter)}</Text>
       {timerMinutes > 0 ? (
         <Text className={`text-5xl font-semibold ${left === 0 ? "text-red-600" : "text-gray-900"}`}>
           {left === 0 ? t.imposterTimeUp : formatCountdown(left)}

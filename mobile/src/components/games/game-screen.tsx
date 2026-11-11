@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import type { ReactNode } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useLang } from "@ptracker/shared/i18n";
@@ -10,9 +10,12 @@ export function GameScreen({ title, children }: { title: string; children: React
   const { t } = useLang();
   const { top, bottom } = useSafeAreaInsets();
   return (
-    <View className="flex-1 bg-surface" style={{ paddingTop: top }}>
+    <KeyboardAvoidingView
+      className="flex-1 bg-surface"
+      style={{ paddingTop: top }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View className="flex-row items-center border-b border-gray-100 px-4 py-3">
-        <Pressable onPress={() => router.back()} className="pr-3">
+        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} className="pr-3">
           <Text className="text-sm text-gray-500">‹ {t.back}</Text>
         </Pressable>
         <Text className="flex-1 text-center text-base font-semibold text-gray-900">{title}</Text>
@@ -25,6 +28,6 @@ export function GameScreen({ title, children }: { title: string; children: React
         keyboardShouldPersistTaps="handled">
         {children}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

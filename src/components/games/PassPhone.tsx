@@ -22,7 +22,7 @@ export default function PassPhone({
   if (revealed) return <div className="space-y-6 text-center">{children}</div>;
   return (
     <div className="space-y-6 py-10 text-center">
-      <p className="text-2xl font-bold text-gray-900">{t.imposterPassTo.replace("{name}", name)}</p>
+      <p className="text-2xl font-bold text-gray-900">{t.imposterPassTo.replace("{name}", () => name)}</p>
       <p className="text-sm text-gray-500">{t.imposterPassHint}</p>
       <button
         type="button"
