@@ -155,6 +155,7 @@ export default function Payments() {
         onPrev={() => shiftMonth(-1)}
         onNext={() => shiftMonth(1)}
         onToggleView={setView}
+        onOpenGames={() => router.push("/games")}
       />
       {error ? (
         <View className="bg-red-50 p-4">
