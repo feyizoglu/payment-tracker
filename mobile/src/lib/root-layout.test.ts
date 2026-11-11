@@ -8,6 +8,8 @@ const state = vi.hoisted(() => ({
   response: null as unknown,
   gameMode: false,
   canDismiss: false,
+  lockReady: true,
+  guards: [] as { guard: boolean; names: string[] }[],
 }));
 
 vi.mock("expo-router", async () => {
@@ -20,7 +22,16 @@ vi.mock("expo-router", async () => {
       dismissAll: vi.fn(),
       canDismiss: () => state.canDismiss,
     },
-    Stack: Object.assign(pass, { Protected: () => null, Screen: () => null }),
+    Stack: Object.assign(pass, {
+      Protected: ({ guard, children }: { guard: boolean; children?: unknown }) => {
+        const names = (Array.isArray(children) ? children : [children]).map(
+          (c) => (c as { props: { name: string } }).props.name
+        );
+        state.guards.push({ guard, names });
+        return null;
+      },
+      Screen: () => null,
+    }),
     ThemeProvider: pass,
     DarkTheme: {},
     DefaultTheme: {},
@@ -52,7 +63,7 @@ vi.mock("@/lib/app-lock-context", async () => {
   const { Fragment, createElement: h } = await import("react");
   return {
     AppLockProvider: ({ children }: { children?: unknown }) => h(Fragment, null, children as never),
-    useAppLock: () => ({ ready: true, lock: { gameMode: state.gameMode } }),
+    useAppLock: () => ({ ready: state.lockReady, lock: { gameMode: state.gameMode } }),
   };
 });
 vi.mock("@/lib/language-storage", () => ({
@@ -109,6 +120,8 @@ beforeEach(() => {
   state.response = null;
   state.gameMode = false;
   state.canDismiss = false;
+  state.lockReady = true;
+  state.guards = [];
 });
 
 afterEach(async () => {
@@ -220,5 +233,40 @@ describe("RootNavigator game mode exit", () => {
     await render();
     expect(router.replace).not.toHaveBeenCalled();
     expect(router.dismissAll).not.toHaveBeenCalled();
+  });
+});
+
+describe("RootNavigator lockReady", () => {
+  it("renders no protected screens until the stored lock is read", async () => {
+    state.lockReady = false;
+    await render();
+    expect(state.guards).toEqual([]);
+  });
+
+  it("renders the protected screens once the stored lock is read", async () => {
+    await render();
+    expect(state.guards.length).toBeGreaterThan(0);
+  });
+});
+
+describe("RootNavigator Stack.Protected guards", () => {
+  function guardFor(name: string) {
+    const last = state.guards.slice(-4);
+    return last.find((g) => g.names.includes(name))?.guard;
+  }
+
+  it("closes the app and opens the lock screen and games in game mode", async () => {
+    state.gameMode = true;
+    await render();
+    expect(guardFor("(app)")).toBe(false);
+    expect(guardFor("app-lock")).toBe(true);
+    expect(guardFor("games/index")).toBe(true);
+    expect(guardFor("games/imposter")).toBe(true);
+  });
+
+  it("opens the app and closes the lock screen outside game mode", async () => {
+    await render();
+    expect(guardFor("(app)")).toBe(true);
+    expect(guardFor("app-lock")).toBe(false);
   });
 });

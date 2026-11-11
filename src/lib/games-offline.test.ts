@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { GAMES_CACHE, GAMES_PAGES, staticAssetsIn, syncGamesCache } from "@/lib/games-offline";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { GAMES_CACHE, GAMES_PAGES, prepareGamesOffline, staticAssetsIn, syncGamesCache } from "@/lib/games-offline";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -96,5 +96,37 @@ describe("syncGamesCache", () => {
     expect(cache.add).toHaveBeenCalledTimes(assets.length);
     expect(cache.put).not.toHaveBeenCalled();
     expect(cache.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe("prepareGamesOffline", () => {
+  function stubBrowser(register: () => Promise<unknown>) {
+    const open = vi.fn(async () => ({ add: vi.fn(), put: vi.fn(), keys: vi.fn(async () => []), delete: vi.fn() }));
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubGlobal("navigator", { serviceWorker: { register: vi.fn(register) } });
+    vi.stubGlobal("caches", { open });
+    vi.stubGlobal("window", { caches: { open } });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 503 })));
+    return { register: (navigator as unknown as { serviceWorker: { register: () => void } }).serviceWorker.register, open };
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("registers the service worker and opens the games cache in production", async () => {
+    const { register, open } = stubBrowser(async () => ({}));
+    await prepareGamesOffline();
+    expect(register).toHaveBeenCalledWith("/sw.js", { scope: "/", updateViaCache: "none" });
+    expect(open).toHaveBeenCalledWith("games-v1");
+  });
+
+  it("resolves without opening the cache when registration fails", async () => {
+    const { open } = stubBrowser(async () => {
+      throw new Error("blocked");
+    });
+    await expect(prepareGamesOffline()).resolves.toBeUndefined();
+    expect(open).not.toHaveBeenCalled();
   });
 });
