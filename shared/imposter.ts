@@ -175,3 +175,141 @@ export function applyScore(scores: number[], imposters: number[], crewWins: bool
     return isImposter ? score + 2 : score;
   });
 }
+
+export type Phase = "setup" | "deal" | "discuss" | "vote" | "result";
+
+export interface Outcome {
+  accused: number | null;
+  crewWins: boolean;
+}
+
+export interface GameState {
+  phase: Phase;
+  setup: ImposterSetup;
+  round: Round | null;
+  /** Whose turn it is to hold the phone, in deal and vote. */
+  turn: number;
+  /** Whether that player's card (deal) or ballot (vote) is showing. */
+  revealed: boolean;
+  votes: number[];
+  scores: number[];
+  /** Word ids played this session, so they do not come back too soon. */
+  used: string[];
+  outcome: Outcome | null;
+}
+
+export type GameAction =
+  | { type: "start"; setup: ImposterSetup; lang: Lang; rng: Rng }
+  | { type: "reveal" }
+  | { type: "next" }
+  | { type: "finishDiscussion" }
+  | { type: "vote"; target: number }
+  | { type: "nextRound"; lang: Lang; rng: Rng }
+  | { type: "end" };
+
+export function initialGameState(setup: ImposterSetup = DEFAULT_SETUP): GameState {
+  return {
+    phase: "setup",
+    setup,
+    round: null,
+    turn: 0,
+    revealed: false,
+    votes: [],
+    scores: [],
+    used: [],
+    outcome: null,
+  };
+}
+
+export function gameReducer(state: GameState, action: GameAction): GameState {
+  switch (action.type) {
+    case "start": {
+      if (state.phase !== "setup" || validateSetup(action.setup).length > 0) return state;
+      const setup = { ...action.setup, players: action.setup.players.map((p) => p.trim()) };
+      const { round, used } = dealRound(setup, action.lang, state.used, action.rng);
+      return {
+        ...state,
+        phase: "deal",
+        setup,
+        round,
+        used,
+        turn: 0,
+        revealed: false,
+        votes: [],
+        outcome: null,
+        scores: setup.players.map(() => 0),
+      };
+    }
+    case "reveal":
+      if (state.phase !== "deal" && state.phase !== "vote") return state;
+      return { ...state, revealed: true };
+    case "next": {
+      if (state.phase !== "deal" || !state.revealed) return state;
+      const turn = state.turn + 1;
+      if (turn < state.setup.players.length) return { ...state, turn, revealed: false };
+      return { ...state, phase: "discuss", turn: 0, revealed: false };
+    }
+    case "finishDiscussion":
+      if (state.phase !== "discuss") return state;
+      if (state.setup.voting) return { ...state, phase: "vote", turn: 0, revealed: false, votes: [] };
+      return { ...state, phase: "result", outcome: null };
+    case "vote": {
+      if (state.phase !== "vote" || !state.revealed || !state.round) return state;
+      const playerCount = state.setup.players.length;
+      const { target } = action;
+      if (!Number.isInteger(target) || target < 0 || target >= playerCount || target === state.turn) return state;
+      const votes = [...state.votes, target];
+      if (votes.length < playerCount) return { ...state, votes, turn: state.turn + 1, revealed: false };
+      const { accused, crewWins } = tallyVotes(votes, playerCount, state.round.imposters);
+      const scores = state.setup.scoreboard ? applyScore(state.scores, state.round.imposters, crewWins) : state.scores;
+      return { ...state, phase: "result", votes, revealed: false, outcome: { accused, crewWins }, scores };
+    }
+    case "nextRound": {
+      if (state.phase !== "result") return state;
+      const { round, used } = dealRound(state.setup, action.lang, state.used, action.rng);
+      return { ...state, phase: "deal", round, used, turn: 0, revealed: false, votes: [], outcome: null };
+    }
+    case "end":
+      return { ...initialGameState(state.setup), used: state.used };
+  }
+}
+
+function isIntIn(value: unknown, min: number, max: number): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
+}
+
+// Saved settings come from device storage, which may hold an older shape or garbage:
+// keep each field only if it is valid on its own.
+export function parseSavedSetup(raw: string | null): ImposterSetup {
+  if (!raw) return DEFAULT_SETUP;
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return DEFAULT_SETUP;
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) return DEFAULT_SETUP;
+  const d = data as Record<string, unknown>;
+  const players = Array.isArray(d.players)
+    ? d.players.filter((p): p is string => typeof p === "string").slice(0, MAX_PLAYERS)
+    : [];
+  const category = CATEGORY_CHOICES.includes(d.category as CategoryChoice) ? (d.category as CategoryChoice) : "mixed";
+  const voting = d.voting === true;
+  return {
+    players,
+    mode: d.mode === "similar-word" ? "similar-word" : "no-word",
+    category,
+    imposterCount: isIntIn(d.imposterCount, 1, MAX_IMPOSTERS) ? d.imposterCount : 1,
+    timerMinutes: isIntIn(d.timerMinutes, 0, MAX_TIMER_MINUTES) ? d.timerMinutes : 0,
+    voting,
+    scoreboard: voting && d.scoreboard === true,
+  };
+}
+
+export function remainingSeconds(endsAt: number, now: number): number {
+  return Math.max(0, Math.ceil((endsAt - now) / 1000));
+}
+
+export function formatCountdown(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}

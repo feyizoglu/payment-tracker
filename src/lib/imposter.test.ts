@@ -4,10 +4,16 @@ import {
   IMPOSTER_WORDS,
   applyScore,
   dealRound,
+  formatCountdown,
+  gameReducer,
+  initialGameState,
   maxImposters,
+  parseSavedSetup,
   pickEntry,
+  remainingSeconds,
   tallyVotes,
   validateSetup,
+  type GameState,
   type ImposterSetup,
 } from "@/lib/imposter";
 
@@ -141,5 +147,141 @@ describe("applyScore", () => {
 
   it("gives every imposter +2 when the imposters win", () => {
     expect(applyScore([1, 1, 0, 1], [0, 2], false)).toEqual([3, 1, 2, 1]);
+  });
+});
+
+describe("gameReducer", () => {
+  const started = (over: Partial<ImposterSetup> = {}): GameState =>
+    gameReducer(initialGameState(), { type: "start", setup: setup({ category: "animals", ...over }), lang: "tr", rng: zero });
+
+  function dealAll(state: GameState): GameState {
+    let s = state;
+    for (let i = 0; i < s.setup.players.length; i++) {
+      s = gameReducer(s, { type: "reveal" });
+      s = gameReducer(s, { type: "next" });
+    }
+    return s;
+  }
+
+  it("ignores start while the setup is invalid", () => {
+    const s0 = initialGameState();
+    expect(gameReducer(s0, { type: "start", setup: setup({ players: ["A"] }), lang: "tr", rng: zero })).toBe(s0);
+  });
+
+  it("starts dealing with trimmed names, zero scores and the first player", () => {
+    const s = gameReducer(initialGameState(), {
+      type: "start",
+      setup: setup({ players: [" Ayşe ", "Mehmet", "Can"] }),
+      lang: "tr",
+      rng: zero,
+    });
+    expect(s.phase).toBe("deal");
+    expect(s.setup.players).toEqual(["Ayşe", "Mehmet", "Can"]);
+    expect(s.scores).toEqual([0, 0, 0]);
+    expect(s.turn).toBe(0);
+    expect(s.revealed).toBe(false);
+    expect(s.used).toHaveLength(1);
+  });
+
+  it("only passes the phone on after the card was shown", () => {
+    const s = started();
+    expect(gameReducer(s, { type: "next" })).toBe(s);
+    const shown = gameReducer(s, { type: "reveal" });
+    expect(gameReducer(shown, { type: "next" })).toMatchObject({ turn: 1, revealed: false, phase: "deal" });
+  });
+
+  it("moves to discussion after the last card", () => {
+    expect(dealAll(started()).phase).toBe("discuss");
+  });
+
+  it("goes straight to the result without voting", () => {
+    const s = gameReducer(dealAll(started()), { type: "finishDiscussion" });
+    expect(s).toMatchObject({ phase: "result", outcome: null });
+  });
+
+  it("collects one secret vote per player, rejects self-votes, then scores", () => {
+    // rng 0 makes player 0 the only imposter.
+    let s = gameReducer(dealAll(started({ voting: true, scoreboard: true })), { type: "finishDiscussion" });
+    expect(s.phase).toBe("vote");
+    s = gameReducer(s, { type: "reveal" });
+    expect(gameReducer(s, { type: "vote", target: 0 })).toBe(s); // player 0 voting for self
+    s = gameReducer(s, { type: "vote", target: 1 });
+    for (let voter = 1; voter < 4; voter++) {
+      s = gameReducer(s, { type: "reveal" });
+      s = gameReducer(s, { type: "vote", target: 0 });
+    }
+    expect(s.phase).toBe("result");
+    expect(s.votes).toEqual([1, 0, 0, 0]);
+    expect(s.outcome).toEqual({ accused: 0, crewWins: true });
+    expect(s.scores).toEqual([0, 1, 1, 1]);
+  });
+
+  it("keeps players and scores for the next round and avoids the same word", () => {
+    let s = gameReducer(dealAll(started({ voting: true, scoreboard: true })), { type: "finishDiscussion" });
+    for (let voter = 0; voter < 4; voter++) {
+      s = gameReducer(s, { type: "reveal" });
+      s = gameReducer(s, { type: "vote", target: voter === 0 ? 1 : 0 });
+    }
+    const firstWord = s.round!.entryId;
+    s = gameReducer(s, { type: "nextRound", lang: "tr", rng: zero });
+    expect(s.phase).toBe("deal");
+    expect(s.scores).toEqual([0, 1, 1, 1]);
+    expect(s.round!.entryId).not.toBe(firstWord);
+    expect(s.outcome).toBeNull();
+  });
+
+  it("ends back at setup, clearing scores but keeping the setup and used words", () => {
+    const s = gameReducer(started(), { type: "end" });
+    expect(s.phase).toBe("setup");
+    expect(s.scores).toEqual([]);
+    expect(s.setup.players).toEqual(["Ayşe", "Mehmet", "Can", "Deniz"]);
+    expect(s.used).toHaveLength(1);
+  });
+});
+
+describe("parseSavedSetup", () => {
+  it("returns the defaults for missing or broken data", () => {
+    expect(parseSavedSetup(null)).toEqual(DEFAULT_SETUP);
+    expect(parseSavedSetup("{not json")).toEqual(DEFAULT_SETUP);
+    expect(parseSavedSetup("42")).toEqual(DEFAULT_SETUP);
+  });
+
+  it("keeps valid fields and replaces invalid ones", () => {
+    const raw = JSON.stringify({
+      players: ["Ayşe", 7, "Can"],
+      mode: "similar-word",
+      category: "space",
+      imposterCount: 9,
+      timerMinutes: 5,
+      voting: true,
+      scoreboard: true,
+    });
+    expect(parseSavedSetup(raw)).toEqual({
+      players: ["Ayşe", "Can"],
+      mode: "similar-word",
+      category: "mixed",
+      imposterCount: 1,
+      timerMinutes: 5,
+      voting: true,
+      scoreboard: true,
+    });
+  });
+
+  it("drops the scoreboard when voting is off", () => {
+    expect(parseSavedSetup(JSON.stringify({ voting: false, scoreboard: true })).scoreboard).toBe(false);
+  });
+});
+
+describe("countdown helpers", () => {
+  it("rounds remaining time up to whole seconds and never goes negative", () => {
+    expect(remainingSeconds(10_000, 0)).toBe(10);
+    expect(remainingSeconds(10_000, 9_001)).toBe(1);
+    expect(remainingSeconds(10_000, 12_000)).toBe(0);
+  });
+
+  it("formats m:ss", () => {
+    expect(formatCountdown(600)).toBe("10:00");
+    expect(formatCountdown(65)).toBe("1:05");
+    expect(formatCountdown(0)).toBe("0:00");
   });
 });
