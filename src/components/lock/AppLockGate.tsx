@@ -23,6 +23,7 @@ function Gate({ path, children }: { path: string; children: ReactNode }) {
         state={lock}
         title={t.pinGameModeTitle}
         description={t.pinGameModeDesc}
+        cancel={{ href: "/games", label: t.pinBackToGames }}
         onUnlock={(next) => writeLock(exitGameMode(next))}
       />
     );
@@ -32,6 +33,7 @@ function Gate({ path, children }: { path: string; children: ReactNode }) {
     <PinScreen
       state={lock}
       title={t.pinEconomyTitle}
+      cancel={{ href: "/dashboard", label: t.cancel }}
       onUnlock={(next) => {
         writeLock(next);
         setEconomyUnlocked(true);

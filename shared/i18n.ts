@@ -339,6 +339,7 @@ const translations = {
     pinNotSet: "No PIN set on this device",
     pinSaved: "PIN saved",
     gameModeExit: "Exit game mode",
+    pinBackToGames: "Back to games",
   },
   tr: {
     // Landing
@@ -665,6 +666,7 @@ const translations = {
     pinNotSet: "Bu cihazda PIN belirlenmedi",
     pinSaved: "PIN kaydedildi",
     gameModeExit: "Oyun modundan çık",
+    pinBackToGames: "Oyunlara dön",
   },
 };
 

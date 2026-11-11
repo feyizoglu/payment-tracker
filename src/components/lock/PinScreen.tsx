@@ -15,12 +15,14 @@ export default function PinScreen({
   description,
   onUnlock,
   showForgot = true,
+  cancel,
 }: {
   state: AppLockState;
   title: string;
   description?: string;
   onUnlock: (state: AppLockState) => void;
   showForgot?: boolean;
+  cancel?: { href: string; label: string };
 }) {
   const { t } = useLang();
   const [pin, setPin] = useState("");
@@ -82,6 +84,14 @@ export default function PinScreen({
         >
           {t.pinUnlock}
         </button>
+        {cancel && (
+          <a
+            href={cancel.href}
+            className="block w-full rounded-lg border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+          >
+            {cancel.label}
+          </a>
+        )}
       </form>
       {showForgot && (
         <button type="button" onClick={() => void signOutWithPushCleanup()} className="text-sm text-gray-500 underline">
