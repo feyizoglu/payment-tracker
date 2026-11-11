@@ -27,6 +27,7 @@ export default function PinScreen({
   const { t } = useLang();
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [signOutFailed, setSignOutFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const wait = Math.ceil(lockoutRemaining(state, now) / 1000);
 
@@ -49,6 +50,11 @@ export default function PinScreen({
     }
     writeLock(result.state);
     setError(t.pinWrong);
+  }
+
+  function forgot() {
+    setSignOutFailed(false);
+    signOutWithPushCleanup().catch(() => setSignOutFailed(true));
   }
 
   return (
@@ -94,9 +100,12 @@ export default function PinScreen({
         )}
       </form>
       {showForgot && (
-        <button type="button" onClick={() => void signOutWithPushCleanup()} className="text-sm text-gray-500 underline">
-          {t.pinForgot}
-        </button>
+        <div className="space-y-1">
+          <button type="button" onClick={forgot} className="text-sm text-gray-500 underline">
+            {t.pinForgot}
+          </button>
+          {signOutFailed && <p className="text-sm text-red-600">{t.loadFailed}</p>}
+        </div>
       )}
     </div>
   );
