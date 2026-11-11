@@ -128,7 +128,7 @@ export default function ImposterGame() {
       onNextRound={() => dispatch({ type: "nextRound", lang, rng: Math.random, at: Date.now() })}
       onEnd={() => {
         setDraft(state.setup);
-        dispatch({ type: "end" });
+        dispatch({ type: "end", at: Date.now() });
       }}
     />
   );

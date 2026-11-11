@@ -209,7 +209,7 @@ export type GameAction =
   | { type: "finishDiscussion"; at: number }
   | { type: "vote"; target: number; at: number }
   | { type: "nextRound"; lang: Lang; rng: Rng; at: number }
-  | { type: "end" };
+  | { type: "end"; at: number };
 
 export function initialGameState(setup: ImposterSetup = DEFAULT_SETUP): GameState {
   return {
@@ -263,7 +263,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, phase: "discuss", turn: 0, revealed: false, lastActionAt: action.at };
     }
     case "finishDiscussion":
-      if (state.phase !== "discuss") return state;
+      if (state.phase !== "discuss" || tooSoon(state, action.at)) return state;
       if (state.setup.voting) {
         return { ...state, phase: "vote", turn: 0, revealed: false, votes: [], lastActionAt: action.at };
       }
@@ -290,7 +290,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
     case "nextRound": {
-      if (state.phase !== "result") return state;
+      if (state.phase !== "result" || tooSoon(state, action.at)) return state;
       const { round, used } = dealRound(state.setup, action.lang, state.used, action.rng);
       return {
         ...state,
@@ -305,6 +305,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
     case "end":
+      if (tooSoon(state, action.at)) return state;
       return { ...initialGameState(state.setup), used: state.used };
   }
 }

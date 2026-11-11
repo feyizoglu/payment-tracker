@@ -279,7 +279,7 @@ describe("gameReducer", () => {
   });
 
   it("ends back at setup, clearing scores but keeping the setup and used words", () => {
-    const s = gameReducer(started(), { type: "end" });
+    const s = gameReducer(started(), { type: "end", at: at() });
     expect(s.phase).toBe("setup");
     expect(s.scores).toEqual([]);
     expect(s.setup.players).toEqual(["Ayşe", "Mehmet", "Can", "Deniz"]);
@@ -350,6 +350,29 @@ describe("gameReducer", () => {
       const next = gameReducer(result, { type: "nextRound", lang: "tr", rng: zero, at: nextAt });
       expect(next.lastActionAt).toBe(nextAt);
       expect(gameReducer(next, { type: "reveal", at: nextAt + 100 })).toBe(next);
+    });
+
+    it("ignores finishing the discussion right after the last card was passed on", () => {
+      const s = started();
+      let dealt = s;
+      for (let i = 0; i < 4; i++) {
+        dealt = gameReducer(dealt, { type: "reveal", at: at() });
+        dealt = gameReducer(dealt, { type: "next", at: at() });
+      }
+      const lastNextAt = dealt.lastActionAt;
+      expect(dealt.phase).toBe("discuss");
+      expect(gameReducer(dealt, { type: "finishDiscussion", at: lastNextAt + 100 })).toBe(dealt);
+      expect(gameReducer(dealt, { type: "finishDiscussion", at: lastNextAt + TAP_GUARD_MS }).phase).toBe("result");
+    });
+
+    it("ignores next round and end right after the last vote", () => {
+      const result = castVotes(voting(), [1, 0, 0, 0]);
+      const votedAt = result.lastActionAt;
+      expect(result.phase).toBe("result");
+      expect(gameReducer(result, { type: "nextRound", lang: "tr", rng: zero, at: votedAt + 100 })).toBe(result);
+      expect(gameReducer(result, { type: "end", at: votedAt + 100 })).toBe(result);
+      expect(gameReducer(result, { type: "nextRound", lang: "tr", rng: zero, at: votedAt + TAP_GUARD_MS }).phase).toBe("deal");
+      expect(gameReducer(result, { type: "end", at: votedAt + TAP_GUARD_MS }).phase).toBe("setup");
     });
   });
 });
