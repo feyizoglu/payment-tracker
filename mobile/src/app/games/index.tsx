@@ -1,34 +1,15 @@
-import { enterGameMode, hasPin, setPin } from "@ptracker/shared/app-lock";
 import { router } from "expo-router";
-import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useLang } from "@ptracker/shared/i18n";
+import { GamesPinSetup, useEnterGameModeOnce } from "@/components/games/game-mode-entry";
 import { GameScreen } from "@/components/games/game-screen";
-import { PinSetup } from "@/components/lock/pin-setup";
-import { useAppLock } from "@/lib/app-lock-context";
-import { randomSalt, sha256Hex } from "@/lib/app-lock-storage";
 
 export default function GamesScreen() {
   const { t } = useLang();
-  const { lock, update } = useAppLock();
+  const pinReady = useEnterGameModeOnce();
 
-  // Once per visit: this screen stays mounted under the exit screen, and re-entering on
-  // every lock change would undo leaving game mode.
-  useEffect(() => {
-    if (hasPin(lock) && !lock.gameMode) void update(enterGameMode(lock));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (!hasPin(lock)) {
-    return (
-      <GameScreen title={t.games}>
-        <Text className="text-center text-xl font-bold text-gray-900">{t.pinSetTitle}</Text>
-        <Text className="text-center text-sm text-gray-500">{t.pinSetDesc}</Text>
-        <PinSetup onDone={async (pin) => update(enterGameMode(await setPin(lock, pin, randomSalt(), sha256Hex)))} />
-      </GameScreen>
-    );
-  }
+  if (!pinReady) return <GamesPinSetup title={t.games} />;
 
   return (
     <GameScreen title={t.games}>

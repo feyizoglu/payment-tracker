@@ -1,6 +1,7 @@
 import { clearPin, hasPin, setEconomyLock, setPin, type AppLockState } from "@ptracker/shared/app-lock";
 import { useLang } from "@ptracker/shared/i18n";
-import { useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
 
 import { useAppLock } from "@/lib/app-lock-context";
@@ -14,6 +15,17 @@ export function PinSettings() {
   const [verified, setVerified] = useState(false);
   const [changing, setChanging] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Native tabs stay mounted, so a PIN check would otherwise outlive the visit.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setVerified(false);
+        setChanging(false);
+        setNotice(null);
+      };
+    }, [])
+  );
 
   async function save(current: AppLockState, pin: string) {
     await update(await setPin(current, pin, randomSalt(), sha256Hex));

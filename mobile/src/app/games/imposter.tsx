@@ -8,6 +8,7 @@ import {
   initialGameState,
   type ImposterSetup,
 } from "@ptracker/shared/imposter";
+import { GamesPinSetup, useEnterGameModeOnce } from "@/components/games/game-mode-entry";
 import { GameScreen } from "@/components/games/game-screen";
 import { ImposterDiscuss } from "@/components/games/imposter-discuss";
 import { ImposterResult } from "@/components/games/imposter-result";
@@ -20,10 +21,13 @@ export default function ImposterScreen() {
   const { t, lang } = useLang();
   const [state, dispatch] = useReducer(gameReducer, undefined, () => initialGameState());
   const [draft, setDraft] = useState<ImposterSetup | null>(null);
+  const pinReady = useEnterGameModeOnce();
 
   useEffect(() => {
     getStoredSetup().then(setDraft);
   }, []);
+
+  if (!pinReady) return <GamesPinSetup title={t.imposterTitle} />;
 
   const { phase, setup, round, turn, revealed } = state;
   const names = setup.players;
