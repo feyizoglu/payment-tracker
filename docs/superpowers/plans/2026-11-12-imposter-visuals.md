@@ -13,7 +13,8 @@
 ## Read this first
 
 - **Branch:** `feature/imposter-visuals`. Commit after every task. Stage files by explicit path, never `git add .` or `-A`. Do not push; the owner asks for that.
-- **Precondition for Task 17 only:** PR #11 (`fix/mobile-duplicate-react`) must be merged to `main` and `main` merged into this branch (`git merge origin/main`). Without it an update published from this machine crashes on launch. Tasks 1–16 do not depend on it.
+- **Precondition for anything that reaches the phone (the Task 11 checkpoint and Task 17):** PR #11 (`fix/mobile-duplicate-react`) must be merged to `main` and `main` merged into this branch (`git merge origin/main`). Without it an update published from this machine crashes on launch. The code and tests of Tasks 1–16 do not depend on it.
+- **Order:** Tasks 1–2, then Task 11 with its device checkpoint, then the rest. The mobile dark look rests on one mechanism (NativeWind `vars()`); the checkpoint proves it on the phone before Tasks 12–15 are built on it. Web Tasks 3–10 can run while waiting for the checkpoint.
 - **How component tests work here.** The test environment is `node`, there is no DOM and no renderer. A test calls the component as a function and walks the returned element tree. Consequences:
   - A child component is **not** expanded: the tree contains the element with its props. Test each component by calling it directly.
   - Hooks only work when the test mocks them (`useState`, `useEffect`, …) with the index-based mock shown in the tests below. Components without state are tested with no hook mock.
@@ -2347,18 +2348,16 @@ describe("GameButton", () => {
 
 In `mobile/src/lib/game-screens.test.ts`:
 
-1. In the `vi.mock("react-native", …)` object add `StatusBar: () => null,` (keep the list alphabetical: after `ScrollView`).
-
-2. Below the `vi.mock("react-native-safe-area-context", …)` line add:
+1. Below the `vi.mock("react-native-safe-area-context", …)` line add:
 
 ```ts
 vi.mock("@/lib/game-theme", () => ({ gameDarkVars: { dark: true } }));
 ```
 
-3. Change the `react-native` import line to:
+2. Change the `react-native` import line to:
 
 ```ts
-import { KeyboardAvoidingView, Pressable, ScrollView, StatusBar, View } from "react-native";
+import { KeyboardAvoidingView, Pressable, ScrollView, View } from "react-native";
 ```
 
 and add below the other imports:
@@ -2368,7 +2367,7 @@ import { GAME_THEME } from "@ptracker/shared/imposter";
 import { gameDarkVars } from "@/lib/game-theme";
 ```
 
-4. Add at the end of the file:
+3. Add at the end of the file:
 
 ```ts
 describe("GameScreen tone and body", () => {
@@ -2380,15 +2379,13 @@ describe("GameScreen tone and body", () => {
     const tree = screen();
     expect(tree.type).toBe(KeyboardAvoidingView);
     expect(String(tree.props.className)).toContain("bg-surface");
-    expect(nodes(tree).some((n) => n.type === StatusBar)).toBe(false);
     expect(nodes(tree).some((n) => n.props.style === gameDarkVars)).toBe(false);
   });
 
-  it("draws the game tone on the fixed dark background with the dark palette and a light status bar", () => {
+  it("draws the game tone on the fixed dark background with the dark palette", () => {
     const tree = screen({ tone: "game" });
     expect(String(tree.props.className)).not.toContain("bg-surface");
     expect(styles(tree)).toContainEqual({ backgroundColor: GAME_THEME.bg });
-    expect(nodes(tree).find((n) => n.type === StatusBar)!.props.barStyle).toBe("light-content");
     const themed = nodes(tree).find((n) => n.type === View && n.props.style === gameDarkVars)!;
     expect(text(themed)).toContain("BODY");
   });
@@ -2490,7 +2487,7 @@ Replace the whole of `mobile/src/components/games/game-screen.tsx` with:
 ```tsx
 import { router, usePathname } from "expo-router";
 import type { ReactNode } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useLang } from "@ptracker/shared/i18n";
@@ -2499,7 +2496,8 @@ import { useAppLock } from "@/lib/app-lock-context";
 import { gameDarkVars } from "@/lib/game-theme";
 
 // Header with a back action + body, shared by the games screens.
-// - `tone="game"`: the fixed dark game look, whatever the app theme is.
+// - `tone="game"`: the fixed dark game look, whatever the app theme is. The status bar is
+//   left alone: the game stays mounted under the PIN screen, which follows the app theme.
 // - `color`: fills the body with a player's colour.
 // - `scroll={false}`: a plain body. A held card inside a ScrollView loses the press as soon
 //   as the finger drifts.
@@ -2566,7 +2564,6 @@ export function GameScreen({
       className={game ? "flex-1" : "flex-1 bg-surface"}
       style={[{ paddingTop: top }, game ? { backgroundColor: GAME_THEME.bg } : null]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      {game ? <StatusBar barStyle="light-content" /> : null}
       {game ? (
         <View className="flex-1" style={gameDarkVars}>
           {content}
@@ -2579,17 +2576,75 @@ export function GameScreen({
 }
 ```
 
-- [ ] **Step 4: Run them to verify they pass**
+Then turn the tone on for the imposter screen, so the checkpoint below has something to look at. In `mobile/src/app/games/imposter.tsx` change the last line of the component:
 
-Run: `npx vitest run src/lib/game-theme.test.ts src/lib/game-button.test.ts src/lib/game-screens.test.ts`
-Expected: PASS — 2 + 2 + (existing 8 + 4 new) tests.
+```tsx
+  return <GameScreen title={t.imposterTitle}>{body}</GameScreen>;
+```
+
+to:
+
+```tsx
+  return (
+    <GameScreen title={t.imposterTitle} tone="game">
+      {body}
+    </GameScreen>
+  );
+```
+
+(Task 15 replaces this file; it keeps `tone="game"`.)
+
+- [ ] **Step 4: Run the whole mobile suite**
+
+`game-screen.tsx` now imports `@/lib/game-theme`, which imports `nativewind`. Any test that loads the real `game-screen` must mock `@/lib/game-theme`. Find them:
+
+Run: `grep -ln "game-screen\|game-mode-entry\|app/games\|app/app-lock" src/lib/*.test.ts`
+
+For each file listed that does **not** contain `vi.mock("@/components/games/game-screen"`, add this line next to its other mocks:
+
+```ts
+vi.mock("@/lib/game-theme", () => ({ gameDarkVars: { dark: true } }));
+```
+
+(Today that is only `game-screens.test.ts`, already done above; `game-mode-entry.test.ts` and `imposter-screen.test.ts` mock `game-screen` itself.)
+
+Run: `npx vitest run`
+Expected: PASS, every mobile test file — `game-theme` 2, `game-button` 2, `game-screens` 8 existing + 4 new.
+
+Run: `npx tsc --noEmit`
+Expected: no errors.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/game-theme.ts src/lib/game-theme.test.ts src/lib/game-button.test.ts src/lib/game-screens.test.ts src/components/games/game-button.tsx src/components/games/game-screen.tsx
+git add src/lib/game-theme.ts src/lib/game-theme.test.ts src/lib/game-button.test.ts src/lib/game-screens.test.ts src/components/games/game-button.tsx src/components/games/game-screen.tsx src/app/games/imposter.tsx
 git commit -m "feat(mobile): add the dark game tone, player-coloured body and game button"
 ```
+
+- [ ] **Step 6: Checkpoint — prove the dark palette on the phone (needs the owner's OK)**
+
+Everything mobile after this task assumes that the `vars()` wrapper turns the themed classes inside it dark while the app is in the **light** theme. No test here can show that; only the device can. Do not start Tasks 12–15 before this passes.
+
+1. PR #11 must be on this branch (see "Read this first"). Run the bundle check of Task 17 Step 2; expected `['']`.
+2. Ask the owner whether this branch may be published to the `preview` channel for a look. Publishing is their call. On a yes, from `mobile/`:
+
+```bash
+npx eas-cli update --channel preview --environment preview --platform android --message "Checkpoint: imposter game tone" --non-interactive
+```
+
+3. With the phone on USB and the app theme set to light, restart the app twice (the commands of Task 17 Step 4), open Games → Imposter and capture the screen. The games screens hold no financial data:
+
+```bash
+adb exec-out screencap -p > /tmp/imposter-checkpoint.png
+```
+
+4. Expected on the setup form: a dark background, light labels, the mode toggle and the dashed "Add player" button readable. Open the category field: note whether its list is dark or follows the app theme (either is acceptable; record it for the owner).
+
+5. If the text is dark on the dark background, `vars()` is not reaching the children. Switch to a class-scoped palette instead and repeat the checkpoint:
+   - in `mobile/tailwind.css`, after the `@media (prefers-color-scheme: dark)` block, add a `.game-dark { … }` rule holding the same 24 declarations as that block;
+   - in `game-screen.tsx` replace `<View className="flex-1" style={gameDarkVars}>` with `<View className="flex-1 game-dark">` and drop the `gameDarkVars` import;
+   - delete `game-theme.ts`, replace `game-theme.test.ts` with a test that reads `tailwind.css` and asserts the `.game-dark` block has the same declarations as the dark media block, and in `game-screens.test.ts` assert the wrapper's `className` contains `game-dark` instead of comparing `style`.
+   If that does not work either, stop and report: the mobile screens then need literal colours throughout, which changes Tasks 14 and 15.
 
 ---
 
@@ -4219,9 +4274,9 @@ Expected: the build completes; `/games` and `/games/imposter` are listed.
 Run: `cd mobile && npx vitest run && npx tsc --noEmit`
 Expected: all pass, no type errors.
 
-- [ ] **Step 5: Look at the web game in a browser**
+- [ ] **Step 5: Look at the web game in a browser (the owner's step)**
 
-Run (repo root): `AUTH_TRUST_HOST=true npx next start` and open `http://localhost:3000/games/imposter` signed in. Check in both the light and the dark app theme:
+The page needs a signed-in session, which only the owner can provide. Start the server for them (repo root): `AUTH_TRUST_HOST=true npx next start`, give them `http://localhost:3000/games/imposter`, and ask them to check in both the light and the dark app theme:
 - the three steps, the dots, Back / Next, an error on a step with a problem;
 - player cards and category tiles are coloured; text on them is dark and readable;
 - with a mouse: the card has Show / Hide, no holding;
@@ -4266,13 +4321,9 @@ python3 -I -c "import json,sys; m=json.load(open(sys.argv[1])); print(sorted(set
 
 Expected: the export finishes and the last command prints `['']`. `['', '/..']` means the web app's React is bundled too: do not publish.
 
-- [ ] **Step 3: Push and open the PR**
+- [ ] **Step 3: Publish this branch to the phone and check it starts**
 
-Use `/push-gate:push` and `/push-gate:create-pr`. Commit any tests the coverage gate generates as their own `test:` commit.
-
-- [ ] **Step 4: Publish to the phone and check it starts**
-
-After the PR is merged and the owner asks for the mobile release, from `mobile/` on `main`:
+The phone is the only place the mobile screens can be seen, so it comes before the PR. When the owner asks for it, from `mobile/` on this branch:
 
 ```bash
 npx eas-cli update --channel preview --environment preview --platform android --message "Imposter: setup wizard, player colours, hold to see" --non-interactive
@@ -4294,13 +4345,16 @@ adb logcat -d -b crash | grep -E "FATAL|JavascriptException" | tail -5
 
 Expected: a process id is printed and the crash log has no lines. Only then tell the owner it is published.
 
-- [ ] **Step 5: Device checklist for the owner**
+- [ ] **Step 4: Device checklist for the owner**
 
 On the phone, in the **light** app theme first (that is where a wrong palette shows), then dark:
 1. Setup: text is readable on the dark background on all three steps, including the mode toggle, the timer field and the switches. If any text is dark on dark, the dark palette is not reaching that control: report which one.
-2. The status bar icons are light on the game screens and back to normal on Payments.
-3. Player cards and category tiles are coloured; "Start with last settings" appears from the second game on.
-4. Deal: the screen is the player's colour; the card shows only while held, also when the finger drifts a little; it closes when the app is sent to the background.
-5. "Next player" is disabled until the card was seen; a very fast press right after "Next player" does not flash the next card.
-6. Vote: the screen is the voter's colour, candidates carry their own colour, a long list (9+ players) scrolls.
-7. Result: names are in their colours.
+2. Player cards and category tiles are coloured; "Start with last settings" appears from the second game on.
+3. Deal: the screen is the player's colour; the card shows only while held, also when the finger drifts a little; it closes when the app is sent to the background.
+4. "Next player" is disabled until the card was seen; a very fast press right after "Next player" does not flash the next card.
+5. Vote: the screen is the voter's colour, candidates carry their own colour, a long list (9+ players) scrolls.
+6. Result: names are in their colours.
+
+- [ ] **Step 5: Push and open the PR**
+
+After the owner has gone through the checklist. Use `/push-gate:push` and `/push-gate:create-pr`. Commit any tests the coverage gate generates as their own `test:` commit. Merging is a separate request; after the merge, publish once more from `main` (the command of Step 3) so the channel matches `main`.
