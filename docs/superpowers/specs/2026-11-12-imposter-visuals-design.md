@@ -14,7 +14,7 @@ held down. The design is our own; no existing app's look is copied.
 |---|---|
 | Platforms | Web and mobile get the same flow and colours |
 | Setup | Three steps plus a "start with last settings" shortcut |
-| Reveal | Hold to see, release to hide; can be repeated |
+| Reveal | Hold to see, release to hide; can be repeated. On desktop web a Show / Hide button instead |
 | Colour | Each player has their own colour for the whole game |
 | Role and colour | The card never changes colour with the role (see Reveal) |
 
@@ -66,8 +66,13 @@ The deal phase keeps its reducer actions (`reveal`, `next`).
 - The card hides when the press is cancelled, when the app goes to the background (mobile
   `AppState`), or when the page is hidden or loses the pointer (web `visibilitychange`,
   `pointercancel`, `pointerleave`).
-- Web: pointer events on the card, with text selection and the long-press context menu
-  disabled on it. Keyboard: holding Space or Enter on the focused card shows it.
+- Web on a touch device: the same hold card, through pointer events, with text selection and
+  the long-press context menu disabled on it.
+- Web on a desktop (a device whose primary pointer is fine and can hover, read with
+  `matchMedia("(hover: hover) and (pointer: fine)")`): no holding. The card has a **Show**
+  button; clicking it shows the content and turns the button into **Hide**. The first Show
+  dispatches `reveal`. The card still hides when the page is hidden, and **Next player** hides
+  it before moving on. Being a real button, it works from the keyboard as it is.
 - **The card and the screen keep the player's colour whatever the role is.** A differently
   coloured imposter card could be seen from across the table and would give the imposter
   away. Only the text differs.
@@ -89,7 +94,7 @@ button in that candidate's colour.
 - `shared/imposter.ts`: `PLAYER_COLORS`, `playerColor`, `CATEGORY_EMOJI`, `SETUP_STEPS`,
   `stepErrors`. Pure, no platform APIs.
 - `shared/i18n.ts`: new keys in `en` and `tr` (step titles, Next, Back, "Start with last
-  settings", "Hold to see").
+  settings", "Hold to see", "Show", "Hide").
 - Web (`src/components/games/`): `ImposterSetupForm` becomes the wizard, split into one
   component per step; `PassPhone` gets the hold card (`HoldCard`); `ImposterDiscuss`,
   `ImposterResult` and the vote view take player colours; `ImposterGame` applies the dark
@@ -112,8 +117,9 @@ animations, any change to rules, scoring, word lists or saved settings format.
 - Web component tests, in the style of the existing ones: Next is disabled with a step error
   and moves on without one; "Start with last settings" appears only for a valid saved setup;
   the hold card shows on pointer down, hides on pointer up, cancel and page hide, and enables
-  Next player after the first press; the card colour is the same for an imposter and a crew
-  card.
+  Next player after the first press; on a desktop pointer the card shows a Show button that
+  toggles to Hide and back, and no hold is needed; the card colour is the same for an
+  imposter and a crew card.
 - Mobile component tests for the same behaviour (`onPressIn` / `onPressOut`, `AppState`).
 - i18n key parity is covered by the existing i18n tests.
 - Mobile: `tsc`, `npx expo export --platform android`, and a check that the exported bundle
