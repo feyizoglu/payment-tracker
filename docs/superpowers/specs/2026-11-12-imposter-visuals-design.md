@@ -34,8 +34,10 @@ One screen with three steps, a row of progress dots on top and Back / Next at th
 `ImposterSetup` and its storage are unchanged; the wizard only changes how it is edited.
 
 1. **Players.** One card per player in that player's colour, with the name field and a remove
-   button, plus "Add player". When the saved setup passes `validateSetup`, a
-   **Start with last settings** button is shown here and starts the round at once.
+   button, plus "Add player". When a game was played on this device before and the settings
+   on screen pass `validateSetup`, a **Start with last settings** button is shown here. It
+   starts the round at once with the settings as they are now, including any name just
+   edited on this step.
 2. **Category.** A grid of large tiles, one per `CATEGORY_CHOICES` entry, each with an emoji
    and the category name: 🎲 mixed, 🐾 animals, 🍕 food, 🧑‍🚒 jobs, 🏝 places, 📦 objects,
    ⚽ sports. The emoji map lives next to `CATEGORY_LABEL_KEYS` in `shared/imposter.ts`.
@@ -63,6 +65,11 @@ The deal phase keeps its reducer actions (`reveal`, `next`).
   on release it hides again.
 - The first press dispatches `reveal`, which enables **Next player**. Later presses only show
   the card again.
+- The card shows only once the reducer accepted the `reveal`. A press inside the tap guard
+  (400 ms after the previous player's Next) is ignored and shows nothing, so "has seen the
+  card" and "may pass the phone on" never disagree.
+- On mobile the deal screen does not scroll: inside a scroll view a drifting finger would
+  end the hold.
 - The card hides when the press is cancelled, when the app goes to the background (mobile
   `AppState`), or when the page is hidden or loses the pointer (web `visibilitychange`,
   `pointercancel`, `pointerleave`).
@@ -85,23 +92,27 @@ button in that candidate's colour.
 - The game screens (setup, deal, discuss, vote, result) use a dark background of their own,
   independent of the app's light or dark theme, so the player colours read the same
   everywhere. The games list and the PIN screens keep the app theme.
-- Discuss, result and scoreboard show each player's name with their colour (a coloured chip
-  or dot). Layout and content stay as they are.
-- No new animations beyond a short fade when the card shows and hides.
+- Discuss shows who starts on that player's colour; result and scoreboard write each name in
+  that player's colour. Layout and content stay as they are.
+- On a player's colour, text and buttons are a fixed dark; on the dark background the
+  existing blue primary button stays.
+- No new animations beyond a short fade when the card shows. It hides at once.
 
 ## Architecture
 
-- `shared/imposter.ts`: `PLAYER_COLORS`, `playerColor`, `CATEGORY_EMOJI`, `SETUP_STEPS`,
-  `stepErrors`. Pure, no platform APIs.
+- `shared/imposter.ts`: `PLAYER_COLORS`, `playerColor`, `GAME_THEME` (the fixed game
+  colours), `CATEGORY_EMOJI`, `SETUP_STEPS`, `stepErrors`. Pure, no platform APIs.
 - `shared/i18n.ts`: new keys in `en` and `tr` (step titles, Next, Back, "Start with last
   settings", "Hold to see", "Show", "Hide").
-- Web (`src/components/games/`): `ImposterSetupForm` becomes the wizard, split into one
-  component per step; `PassPhone` gets the hold card (`HoldCard`); `ImposterDiscuss`,
-  `ImposterResult` and the vote view take player colours; `ImposterGame` applies the dark
-  game background.
+- Web (`src/components/games/`): `ImposterSetupForm` is replaced by `ImposterSetupWizard`
+  with one component per step; a new `DealTurn` holds the hold card and the desktop button,
+  and `PassPhone` stays as the vote gate; `ImposterDiscuss`, `ImposterResult` and the vote
+  view take player colours; a new `GameFrame` draws the dark background by putting the
+  `dark` class on a wrapper, so the themed classes inside take their dark values.
 - Mobile (`mobile/src/components/games/`): the same split: `imposter-setup` becomes the
-  wizard with step components, `pass-phone` gets `hold-card`, the other screens take player
-  colours. `GameScreen` gets a `tone="game"` option for the dark background.
+  wizard with step components, a new `deal-turn` holds the hold card, the other screens take
+  player colours. `GameScreen` gets `tone="game"` (the dark palette through NativeWind
+  `vars()`), `color` (a player's colour for the body) and `scroll={false}`.
 - No new dependencies on either platform, so mobile ships with `eas update`.
 
 ## Out of scope
