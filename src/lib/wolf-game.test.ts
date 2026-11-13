@@ -559,7 +559,9 @@ describe("night: the witch lap", () => {
       note();
       s = step(s, { type: "next", rng: zero });
       note();
-      s = step(s, { type: "choose", target: null });
+      // The witch heals the victim; everyone else picks Nobody.
+      const isWitch = s.roles[s.night!.order[s.night!.visit]] === "witch";
+      s = step(s, { type: "choose", target: isWitch ? 4 : null });
       note();
       s = step(s, { type: "reveal" });
       note();
@@ -568,7 +570,7 @@ describe("night: the witch lap", () => {
     }
     expect(visits).toHaveLength(6);
     for (const visit of visits) expect(visit).toEqual(visits[0]);
-    expect(s.removal?.removed).toEqual([4]);
+    expect([s.removal?.removed, s.potions]).toEqual([[], { heal: false, poison: true }]);
   });
 
   it("heals the victim when the witch chooses them, which uses up the healing potion", () => {
