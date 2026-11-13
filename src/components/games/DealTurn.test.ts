@@ -74,10 +74,16 @@ function text(node: unknown): string {
 const card = (tree: Node) => nodes(tree).find((n) => n.props["data-card"])!;
 const button = (tree: Node, label: string) => nodes(tree).find((n) => n.type === "button" && text(n) === label);
 
-function press(tree: Node) {
+function press(tree: Node, event: Record<string, unknown> = {}) {
   const setPointerCapture = vi.fn();
-  (card(tree).props.onPointerDown as (e: unknown) => void)({ pointerId: 7, currentTarget: { setPointerCapture } });
+  (card(tree).props.onPointerDown as (e: unknown) => void)({ pointerId: 7, currentTarget: { setPointerCapture }, ...event });
   return setPointerCapture;
+}
+
+function keyDown(tree: Node, event: { key: string; repeat?: boolean }) {
+  const preventDefault = vi.fn();
+  (card(tree).props.onKeyDown as (e: unknown) => void)({ repeat: false, ...event, preventDefault });
+  return preventDefault;
 }
 
 beforeEach(() => {
@@ -125,6 +131,24 @@ describe("DealTurn hold card", () => {
     expect(press(render(true))).toHaveBeenCalledWith(7);
   });
 
+  it("ignores a press that is not the main button", () => {
+    const capture = press(render(false), { button: 2 });
+    expect(capture).not.toHaveBeenCalled();
+    expect(onReveal).not.toHaveBeenCalled();
+    expect(text(render(true))).not.toContain("SECRET");
+    press(render(true), { button: 0 });
+    expect(text(render(true))).toContain("SECRET");
+  });
+
+  it("opens the card even when the pointer cannot be captured", () => {
+    const setPointerCapture = () => {
+      throw new Error("InvalidPointerId");
+    };
+    press(render(false), { currentTarget: { setPointerCapture } });
+    expect(onReveal).toHaveBeenCalledTimes(1);
+    expect(text(render(true))).toContain("SECRET");
+  });
+
   it("blocks the long-press menu, text selection and scrolling on the card", () => {
     const { props } = card(render(false));
     const preventDefault = vi.fn();
@@ -151,6 +175,60 @@ describe("DealTurn hold card", () => {
     expect(card(render(true)).props.style).toMatchObject(fixed);
     press(render(true));
     expect(card(render(true)).props.style).toMatchObject(fixed);
+  });
+});
+
+describe("DealTurn hold card from the keyboard", () => {
+  it("can be focused and shows where the focus is", () => {
+    const { props } = card(render(false));
+    expect(props.tabIndex).toBe(0);
+    expect(props.className).toContain("focus-visible:ring-2");
+  });
+
+  it.each(["Enter", " "])("opens on the %j key once the reveal was accepted", (key) => {
+    const preventDefault = keyDown(render(false), { key });
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(onReveal).toHaveBeenCalledTimes(1);
+    expect(text(render(false))).not.toContain("SECRET");
+    expect(text(render(true))).toContain("SECRET");
+  });
+
+  it("closes on the next press of the key", () => {
+    keyDown(render(true), { key: "Enter" });
+    expect(text(render(true))).toContain("SECRET");
+    keyDown(render(true), { key: "Enter" });
+    expect(text(render(true))).not.toContain("SECRET");
+    expect(onReveal).not.toHaveBeenCalled();
+  });
+
+  it("ignores a key that is held down", () => {
+    keyDown(render(false), { key: "Enter", repeat: true });
+    expect(onReveal).not.toHaveBeenCalled();
+    expect(text(render(true))).not.toContain("SECRET");
+    keyDown(render(true), { key: "Enter" });
+    keyDown(render(true), { key: "Enter", repeat: true });
+    expect(text(render(true))).toContain("SECRET");
+  });
+
+  it("ignores every other key", () => {
+    const preventDefault = keyDown(render(false), { key: "Tab" });
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(onReveal).not.toHaveBeenCalled();
+    expect(text(render(true))).not.toContain("SECRET");
+  });
+
+  it("closes when the focus leaves the card", () => {
+    keyDown(render(true), { key: "Enter" });
+    expect(text(render(true))).toContain("SECRET");
+    (card(render(true)).props.onBlur as () => void)();
+    expect(text(render(true))).not.toContain("SECRET");
+  });
+
+  it("is labelled only while it is closed, so the open card reads its content", () => {
+    expect(card(render(true)).props["aria-label"]).toBe("imposterHoldToSee");
+    press(render(false));
+    expect(card(render(false)).props["aria-label"]).toBe("imposterHoldToSee");
+    expect(card(render(true)).props["aria-label"]).toBeUndefined();
   });
 });
 
@@ -184,5 +262,33 @@ describe("DealTurn on a desktop pointer", () => {
     expect(text(render(true))).not.toContain("SECRET");
     expect(button(render(true), "imposterShow")).toBeDefined();
     expect(onReveal).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the keyboard to the Show button", () => {
+    const { props } = card(render(false));
+    expect(props.tabIndex).toBeUndefined();
+    expect(props.onKeyDown).toBeUndefined();
+    expect(props.onBlur).toBeUndefined();
+  });
+});
+
+describe("DealTurn when the pointer mode changes", () => {
+  it("closes a held card when the device turns into a desktop pointer", () => {
+    press(render(true));
+    expect(text(render(true))).toContain("SECRET");
+    hooks.desktop = true;
+    const tree = render(true);
+    expect(text(tree)).not.toContain("SECRET");
+    expect(button(tree, "imposterShow")).toBeDefined();
+  });
+
+  it("closes a card opened with Show when the device turns into a touch pointer", () => {
+    hooks.desktop = true;
+    (button(render(true), "imposterShow")!.props.onClick as () => void)();
+    expect(text(render(true))).toContain("SECRET");
+    hooks.desktop = false;
+    const tree = render(true);
+    expect(text(tree)).not.toContain("SECRET");
+    expect(text(tree)).toContain("imposterHoldToSee");
   });
 });

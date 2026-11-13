@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import { useLang } from "@/lib/i18n";
 import { GAME_THEME } from "@/lib/imposter";
 import { isDesktopPointer, subscribeDesktopPointer } from "@/lib/desktop-pointer";
@@ -29,11 +37,13 @@ export default function DealTurn({
   const { t } = useLang();
   // False during prerender and before hydration: the hold card also works with a mouse.
   const desktop = useSyncExternalStore(subscribeDesktopPointer, isDesktopPointer, () => false);
-  const [open, setOpen] = useState(false);
+  // The pointer mode the card was opened in, null while it is closed. A card opened in one
+  // mode is closed in the other: that mode's handlers would never see the release.
+  const [openedIn, setOpenedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
     const onVisibility = () => {
-      if (document.hidden) setOpen(false);
+      if (document.hidden) setOpenedIn(null);
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
@@ -44,23 +54,36 @@ export default function DealTurn({
   // disagree. Asking again after that would restart the tap guard and swallow Next.
   const show = () => {
     if (!revealed) onReveal();
-    setOpen(true);
+    setOpenedIn(desktop);
   };
-  const hide = () => setOpen(false);
-  const shown = open && revealed;
+  const hide = () => setOpenedIn(null);
+  const shown = openedIn === desktop && revealed;
 
   const hold = desktop
     ? undefined
     : {
         role: "button",
-        "aria-label": t.imposterHoldToSee,
+        tabIndex: 0,
+        "aria-label": shown ? undefined : t.imposterHoldToSee,
         onPointerDown: (e: PointerEvent<HTMLDivElement>) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
+          if (e.button !== undefined && e.button !== 0) return;
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            // The pointer may already be gone; the card still has to open.
+          }
           show();
         },
         onPointerUp: hide,
         onPointerCancel: hide,
         onPointerLeave: hide,
+        onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+          if ((e.key !== "Enter" && e.key !== " ") || e.repeat) return;
+          e.preventDefault();
+          if (shown) hide();
+          else show();
+        },
+        onBlur: hide,
         onContextMenu: (e: MouseEvent<HTMLDivElement>) => e.preventDefault(),
       };
 
@@ -70,7 +93,7 @@ export default function DealTurn({
       <p className="text-sm opacity-80">{t.imposterPassHint}</p>
       <div
         data-card
-        className="flex min-h-56 flex-col items-center justify-center gap-4 rounded-2xl p-6"
+        className="flex min-h-56 flex-col items-center justify-center gap-4 rounded-2xl p-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
         style={{ backgroundColor: GAME_THEME.bg, color: GAME_THEME.text, ...(desktop ? null : holdStyle) }}
         {...hold}
       >
