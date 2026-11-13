@@ -586,6 +586,18 @@ describe("wordGameReducer ending and replaying", () => {
     const again = { type: "start", setup: s.setup, lang: "tr", words: SIX, seen: [], rng: keepOrder, at: now + 100 } as const;
     expect(wordGameReducer(s, again)).toBe(s);
   });
+
+  it("ignores End game within the tap guard of the last tap", () => {
+    const s = start();
+    expect(wordGameReducer(s, { type: "endGame", at: T0 + WORD_TAP_GUARD_MS - 1 })).toBe(s);
+    expect(wordGameReducer(s, { type: "endGame", at: T0 + WORD_TAP_GUARD_MS }).phase).toBe("end");
+  });
+
+  it("ignores Play again within the tap guard of End game", () => {
+    const s = wordGameReducer(start(), { type: "endGame", at: tick() });
+    expect(wordGameReducer(s, { type: "playAgain", rng: keepOrder, at: now + WORD_TAP_GUARD_MS - 1 })).toBe(s);
+    expect(wordGameReducer(s, { type: "playAgain", rng: keepOrder, at: now + WORD_TAP_GUARD_MS }).phase).toBe("handoff");
+  });
 });
 
 describe("word game labels", () => {

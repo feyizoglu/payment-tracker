@@ -227,4 +227,18 @@ describe("WordScreen", () => {
     call(WordEnd, "onNewGame");
     expect(propsOf(WordSetupWizard)).toMatchObject({ value: valid, step: 0, quickStart: true });
   });
+
+  it("offers no quick start when the saved setup is not a valid one", async () => {
+    const invalid: WordSetup = { ...valid, teams: [{ name: "Red", players: ["Ann"] }, valid.teams[1]] };
+    storage.getStoredWordSetup.mockResolvedValue(invalid);
+    await open();
+    expect(propsOf(WordSetupWizard)).toMatchObject({ value: invalid, quickStart: false });
+  });
+
+  it("offers no quick start on a first visit with no saved setup", async () => {
+    const fresh = defaultWordSetup(["Team 1", "Team 2"]);
+    storage.getStoredWordSetup.mockResolvedValue(fresh);
+    await open();
+    expect(propsOf(WordSetupWizard)).toMatchObject({ value: fresh, quickStart: false });
+  });
 });

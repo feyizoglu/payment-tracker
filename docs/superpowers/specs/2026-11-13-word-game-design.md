@@ -121,11 +121,11 @@ scores so far.
 
 ### Deck and repeats
 
-- At game start the deck is every word of the chosen language, category and difficulty that
-  is not in the device's **seen list**, shuffled. When fewer than 50 unseen words are left,
-  the seen list is cleared for that category and difficulty, and the deck is the unseen words
-  shuffled, followed by the words that were seen, shuffled: words seen recently still come
-  last.
+- At game start the deck is every word of the chosen language, category and difficulty: the
+  words not in the device's **seen list** shuffled, followed by the seen ones shuffled, so
+  seen words come only after every unseen one and the deck is never smaller than the pool.
+  When fewer than 50 unseen words are left, the seen list is also cleared for that category
+  and difficulty.
 - A word is added to the seen list when it is shown in a turn. The seen list is saved at the
   end of every turn: one list per language, stored like Imposter's settings (web
   `localStorage`, mobile `AsyncStorage`, fail-soft).
