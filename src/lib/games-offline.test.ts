@@ -7,8 +7,7 @@ const sw = readFileSync(fileURLToPath(new URL("../../public/sw.js", import.meta.
 const ORIGIN = "https://paytrack.example";
 
 describe("games offline helper", () => {
-  it("uses the same cache name and pages as the service worker", () => {
-    expect(sw).toContain(`const GAMES_CACHE = "${GAMES_CACHE}";`);
+  it("uses the same pages as the service worker", () => {
     expect(sw).toContain(`const GAMES_PAGES = ${JSON.stringify(GAMES_PAGES).replace(/,/g, ", ")};`);
   });
 
@@ -111,14 +110,19 @@ describe("syncGamesCache", () => {
 });
 
 describe("prepareGamesOffline", () => {
-  function stubBrowser(register: () => Promise<unknown>) {
+  function stubBrowser(register: () => Promise<unknown>, { status = 503, names = [] as string[] } = {}) {
     const open = vi.fn(async () => ({ add: vi.fn(), put: vi.fn(), keys: vi.fn(async () => []), delete: vi.fn() }));
+    const remove = vi.fn(async () => true);
     vi.stubEnv("NODE_ENV", "production");
     vi.stubGlobal("navigator", { serviceWorker: { register: vi.fn(register) } });
-    vi.stubGlobal("caches", { open });
+    vi.stubGlobal("caches", { open, keys: vi.fn(async () => names), delete: remove });
     vi.stubGlobal("window", { caches: { open } });
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 503 })));
-    return { register: (navigator as unknown as { serviceWorker: { register: () => void } }).serviceWorker.register, open };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status })));
+    return {
+      register: (navigator as unknown as { serviceWorker: { register: () => void } }).serviceWorker.register,
+      open,
+      remove,
+    };
   }
 
   afterEach(() => {
@@ -131,6 +135,18 @@ describe("prepareGamesOffline", () => {
     await prepareGamesOffline();
     expect(register).toHaveBeenCalledWith("/sw.js", { scope: "/", updateViaCache: "none" });
     expect(open).toHaveBeenCalledWith("games-v2");
+  });
+
+  it("drops the older games caches once the new one is complete", async () => {
+    const { remove } = stubBrowser(async () => ({}), { status: 200, names: ["games-v0", "games-v1", "games-v2", "other"] });
+    await prepareGamesOffline();
+    expect(remove.mock.calls).toEqual([["games-v0"], ["games-v1"]]);
+  });
+
+  it("keeps the older games cache when the new one could not be filled", async () => {
+    const { remove } = stubBrowser(async () => ({}), { status: 503, names: ["games-v1", "games-v2"] });
+    await prepareGamesOffline();
+    expect(remove).not.toHaveBeenCalled();
   });
 
   it("resolves without opening the cache when registration fails", async () => {

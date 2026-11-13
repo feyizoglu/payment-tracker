@@ -1,6 +1,6 @@
 // Keeps the games playable offline. The page stores each games page together with every
-// static file that page needs; the service worker only reads that cache. Must match
-// GAMES_CACHE / GAMES_PAGES in sw.js.
+// static file that page needs; the service worker only reads that cache. GAMES_PAGES must
+// match sw.js.
 export const GAMES_CACHE = "games-v2";
 export const GAMES_PAGES = ["/games", "/games/imposter", "/games/word"];
 
@@ -51,7 +51,12 @@ export async function prepareGamesOffline(): Promise<void> {
   try {
     await navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
     const cache = await caches.open(GAMES_CACHE);
-    await syncGamesCache(cache, (path) => fetch(path, { cache: "no-store" }));
+    const complete = await syncGamesCache(cache, (path) => fetch(path, { cache: "no-store" }));
+    // The worker's caches.match searches every cache, so an older games cache keeps the
+    // games offline until this one is complete; only then is it dropped.
+    if (!complete) return;
+    const names = await caches.keys();
+    await Promise.all(names.filter((n) => n.startsWith("games-") && n !== GAMES_CACHE).map((n) => caches.delete(n)));
   } catch {
     // Offline play is a bonus: a failure here must never break the game.
   }
