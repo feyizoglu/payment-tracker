@@ -189,3 +189,85 @@ export function parseSavedSetup(raw: string | null): WolfSetup {
     showRoles: d.showRoles !== false,
   };
 }
+
+function pickIndex(length: number, rng: Rng): number {
+  return Math.min(length - 1, Math.floor(rng() * length));
+}
+
+/** `result[seat]` is that player's role. */
+export function dealRoles(setup: WolfSetup, rng: Rng): Role[] {
+  const deck = rolesInPlay(setup).flatMap(({ role, count }) => Array.from({ length: count }, () => role));
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = pickIndex(i + 1, rng);
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+
+export function otherWolves(roles: Role[], seat: number): number[] {
+  return roles.flatMap((role, i) => (role === "wolf" && i !== seat ? [i] : []));
+}
+
+export function winner(roles: Role[], alive: boolean[]): Side | null {
+  const wolves = roles.filter((role, i) => alive[i] && role === "wolf").length;
+  const others = roles.filter((role, i) => alive[i] && role !== "wolf").length;
+  // In this order, so the village wins when both hold at once.
+  if (wolves === 0) return "village";
+  if (wolves >= others) return "wolves";
+  return null;
+}
+
+/** The living seats in the order the phone visits them on night `nightNumber` (from 1). */
+export function visitOrder(alive: boolean[], nightNumber: number): number[] {
+  const n = alive.length;
+  if (n === 0) return [];
+  const start = (nightNumber - 1) % n;
+  return Array.from({ length: n }, (_, k) => (start + k) % n).filter((seat) => alive[seat]);
+}
+
+/** `picks[seat]` is whom that seat chose; only the wolves' picks count. */
+export function wolvesVictim(picks: (number | null)[], roles: Role[], rng: Rng): number | null {
+  const counts = new Map<number, number>();
+  picks.forEach((target, seat) => {
+    if (target !== null && roles[seat] === "wolf") counts.set(target, (counts.get(target) ?? 0) + 1);
+  });
+  if (counts.size === 0) return null;
+  const top = Math.max(...counts.values());
+  const leaders = [...counts.keys()].filter((target) => counts.get(target) === top).sort((a, b) => a - b);
+  return leaders.length === 1 ? leaders[0] : leaders[pickIndex(leaders.length, rng)];
+}
+
+export interface NightOutcome {
+  victim: number | null;
+  /** The doctor's pick. */
+  protect: number | null;
+  /** The witch used the healing potion on the victim. */
+  heal: boolean;
+  poison: number | null;
+}
+
+/** Who leaves the game in the morning, in seat order. */
+export function nightRemovals(night: NightOutcome): number[] {
+  const removed = new Set<number>();
+  // The doctor and the healing potion stop only the wolves; the poison cannot be stopped.
+  if (night.victim !== null && night.victim !== night.protect && !night.heal) removed.add(night.victim);
+  if (night.poison !== null) removed.add(night.poison);
+  return [...removed].sort((a, b) => a - b);
+}
+
+export type NarratorLine = "sleep" | "wolves" | "seer" | "doctor" | "witch" | "wake";
+
+export const NARRATOR_LINE_KEYS = {
+  sleep: "wolfLineSleep",
+  wolves: "wolfLineWolves",
+  seer: "wolfLineSeer",
+  doctor: "wolfLineDoctor",
+  witch: "wolfLineWitch",
+  wake: "wolfLineWake",
+} as const satisfies Record<NarratorLine, string>;
+
+// The hunter acts only when removed, so it has no line.
+export function narratorLines(setup: WolfSetup): NarratorLine[] {
+  const called = (["seer", "doctor", "witch"] as const).filter((role) => setup.specials.includes(role));
+  return ["sleep", "wolves", ...called, "wake"];
+}

@@ -144,3 +144,115 @@ describe("parseSavedSetup", () => {
     expect(W.parseSavedSetup(JSON.stringify({ players: ["Ann"] })).specials).toEqual(W.DEFAULT_SETUP.specials);
   });
 });
+
+type Role = W.Role;
+const zero = () => 0;
+
+describe("dealRoles", () => {
+  const count = (roles: Role[], role: Role) => roles.filter((r) => r === role).length;
+
+  it("deals every role in play, as many times as it is counted", () => {
+    const s = setup({ players: players(9), specials: [...W.SPECIAL_ROLES] });
+    for (const rng of [zero, () => 0.999, Math.random]) {
+      const roles = W.dealRoles(s, rng);
+      expect(roles).toHaveLength(9);
+      expect(count(roles, "wolf")).toBe(2);
+      for (const special of W.SPECIAL_ROLES) expect(count(roles, special)).toBe(1);
+      expect(count(roles, "villager")).toBe(3);
+    }
+  });
+
+  it("seats the roles by the random numbers it is given", () => {
+    expect(W.dealRoles(setup(), zero)).toEqual(["seer", "doctor", "villager", "villager", "wolf"]);
+    expect(W.dealRoles(setup(), () => 0.999)).toEqual(["wolf", "seer", "doctor", "villager", "villager"]);
+  });
+
+  it("tells each wolf who the other wolves are", () => {
+    const roles: Role[] = ["wolf", "villager", "wolf", "seer", "wolf"];
+    expect(W.otherWolves(roles, 0)).toEqual([2, 4]);
+    expect(W.otherWolves(roles, 2)).toEqual([0, 4]);
+    expect(W.otherWolves(["wolf", "villager"], 0)).toEqual([]);
+  });
+});
+
+describe("winner", () => {
+  const roles: Role[] = ["wolf", "villager", "seer", "wolf", "villager"];
+
+  it("lets the game go on while the wolves are fewer than the others", () => {
+    expect(W.winner(roles, [true, true, true, true, true])).toBeNull();
+  });
+
+  it("gives the village the win when no wolf is left", () => {
+    expect(W.winner(roles, [false, true, false, false, true])).toBe("village");
+  });
+
+  it("gives the wolves the win when they are as many as the others or more", () => {
+    expect(W.winner(roles, [true, true, false, true, false])).toBe("wolves");
+    expect(W.winner(roles, [true, true, false, false, false])).toBe("wolves");
+  });
+
+  it("gives the village the win when the last wolf and the last villagers fall together", () => {
+    expect(W.winner(roles, [false, false, false, false, false])).toBe("village");
+  });
+});
+
+describe("visitOrder", () => {
+  it("visits the living players in seat order, starting one seat later each night", () => {
+    const all = [true, true, true, true, true];
+    expect(W.visitOrder(all, 1)).toEqual([0, 1, 2, 3, 4]);
+    expect(W.visitOrder(all, 2)).toEqual([1, 2, 3, 4, 0]);
+    expect(W.visitOrder(all, 7)).toEqual([1, 2, 3, 4, 0]);
+    expect(W.visitOrder([true, false, true, true, false], 2)).toEqual([2, 3, 0]);
+  });
+});
+
+describe("night resolution", () => {
+  const roles: Role[] = ["wolf", "wolf", "wolf", "villager", "villager", "seer"];
+
+  it("takes the player most wolves chose", () => {
+    expect(W.wolvesVictim([4, 3, 4, null, null, null], roles, zero)).toBe(4);
+  });
+
+  it("settles a wolf tie at random and counts only the wolves' picks", () => {
+    const picks = [3, 4, 5, 0, 0, 0];
+    expect(W.wolvesVictim(picks, roles, zero)).toBe(3);
+    expect(W.wolvesVictim(picks, roles, () => 0.5)).toBe(4);
+    expect(W.wolvesVictim(picks, roles, () => 0.99)).toBe(5);
+  });
+
+  it("removes the victim unless the doctor protects or the witch heals them", () => {
+    expect(W.nightRemovals({ victim: 3, protect: null, heal: false, poison: null })).toEqual([3]);
+    expect(W.nightRemovals({ victim: 3, protect: 3, heal: false, poison: null })).toEqual([]);
+    expect(W.nightRemovals({ victim: 3, protect: 4, heal: true, poison: null })).toEqual([]);
+  });
+
+  it("cannot stop the poison", () => {
+    expect(W.nightRemovals({ victim: 3, protect: 3, heal: false, poison: 1 })).toEqual([1]);
+    expect(W.nightRemovals({ victim: 3, protect: null, heal: true, poison: 3 })).toEqual([3]);
+  });
+
+  it("lists the victim and the poisoned player in seat order", () => {
+    expect(W.nightRemovals({ victim: 4, protect: null, heal: false, poison: 1 })).toEqual([1, 4]);
+  });
+});
+
+describe("narratorLines", () => {
+  it("calls only the roles in the game, and the hunter has no line", () => {
+    expect(W.narratorLines(setup({ specials: [...W.SPECIAL_ROLES] }))).toEqual([
+      "sleep",
+      "wolves",
+      "seer",
+      "doctor",
+      "witch",
+      "wake",
+    ]);
+    expect(W.narratorLines(setup({ specials: ["hunter"] }))).toEqual(["sleep", "wolves", "wake"]);
+  });
+
+  it("has a translated text for every line", () => {
+    for (const key of Object.values(W.NARRATOR_LINE_KEYS)) {
+      expect(en[key]).toBeTruthy();
+      expect(tr[key]).toBeTruthy();
+    }
+  });
+});
