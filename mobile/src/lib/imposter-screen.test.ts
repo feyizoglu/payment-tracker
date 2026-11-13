@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import {
   CATEGORY_LABEL_KEYS,
   DEFAULT_SETUP,
+  GAME_THEME,
   IMPOSTER_CATEGORIES,
   IMPOSTER_WORDS,
   playerColor,
@@ -278,5 +279,118 @@ describe("ImposterScreen wizard", () => {
     (find(ImposterResult).props.onEnd as () => void)();
     expect(find(ImposterSetupWizard).props.step).toBe(0);
     expect(find(ImposterSetupWizard).props.quickStart).toBe(true);
+  });
+});
+
+describe("ImposterScreen roles", () => {
+  const colourUtility = /\b(?:text|bg)-(?:red|green)\b|\b(?:text|bg)-[a-z]+-\d+\b/;
+
+  function card() {
+    const all = nodes(pass().props.children);
+    return {
+      imposter: text(pass().props.children).includes("imposterYouAre"),
+      classes: all.map((n) => String(n.props.className ?? "")),
+      colours: all.flatMap((n) => {
+        const colour = (n.props.style as { color?: string } | undefined)?.color;
+        return colour === undefined ? [] : [colour];
+      }),
+    };
+  }
+
+  it("draws the imposter card and the crew card the same way", async () => {
+    await start(valid);
+    reveal();
+    const first = card();
+    dealAll(1);
+    reveal();
+    const second = card();
+    expect([first.imposter, second.imposter]).toEqual([true, false]);
+    for (const { classes, colours } of [first, second]) {
+      expect(classes.length).toBeGreaterThan(0);
+      for (const cls of classes) expect(cls).not.toMatch(colourUtility);
+      expect(colours.length).toBeGreaterThan(0);
+      for (const colour of colours) expect([GAME_THEME.text, GAME_THEME.muted]).toContain(colour);
+    }
+  });
+
+  it("colours a turn by the player's place, whatever the role", async () => {
+    await start(valid);
+    reveal();
+    expect(card().imposter).toBe(true);
+    expect(find(GameScreen).props.color).toBe(playerColor(0));
+    dealAll(1);
+    reveal();
+    expect(card().imposter).toBe(false);
+    expect(find(GameScreen).props.color).toBe(playerColor(1));
+
+    // The same seats with the roles dealt the other way round.
+    hooks.states = [];
+    vi.mocked(Math.random).mockReturnValue(0.99);
+    await start(valid);
+    reveal();
+    expect(card().imposter).toBe(false);
+    expect(find(GameScreen).props.color).toBe(playerColor(0));
+    dealAll(2);
+    reveal();
+    expect(card().imposter).toBe(true);
+    expect(find(GameScreen).props.color).toBe(playerColor(2));
+  });
+});
+
+describe("ImposterScreen deal turn", () => {
+  it("mounts a fresh deal turn for each player", async () => {
+    await start(valid);
+    expect(find(DealTurn).key).toBe("0");
+    reveal();
+    expect(find(DealTurn).key).toBe("0");
+    nextPlayer();
+    expect(find(DealTurn).key).toBe("1");
+    dealAll(1);
+    expect(find(DealTurn).key).toBe("2");
+  });
+});
+
+describe("ImposterScreen start", () => {
+  it("saves the setup on screen when a game starts", async () => {
+    await start(valid);
+    expect(storage.setStoredSetup).toHaveBeenCalledTimes(1);
+    expect(storage.setStoredSetup).toHaveBeenCalledWith(valid);
+  });
+
+  it("starts with the setup on screen, not the saved one", async () => {
+    storage.getStoredSetup.mockResolvedValue(valid);
+    render();
+    for (const effect of hooks.effects) effect();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(find(ImposterSetupWizard).props.quickStart).toBe(true);
+    const edited: ImposterSetup = { ...valid, players: ["Ann", "Zed", "Cem"] };
+    (find(ImposterSetupWizard).props.onChange as (next: ImposterSetup) => void)(edited);
+    (find(ImposterSetupWizard).props.onStart as () => void)();
+    expect(storage.setStoredSetup).toHaveBeenCalledWith(edited);
+    dealAll(1);
+    expect(pass().props.name).toBe("Zed");
+    dealAll(2);
+    (find(ImposterDiscuss).props.onFinish as () => void)();
+    expect((find(ImposterResult).props.state as GameState).setup.players).toEqual(["Ann", "Zed", "Cem"]);
+  });
+});
+
+describe("ImposterScreen vote and result look", () => {
+  it("draws each voter's turn on that voter's colour and the result dark", async () => {
+    await start({ ...valid, voting: true });
+    dealAll(3);
+    (find(ImposterDiscuss).props.onFinish as () => void)();
+    for (let voter = 0; voter < 3; voter++) {
+      expect(find(GameScreen).props).toMatchObject({ tone: "game", color: playerColor(voter), scroll: true });
+      reveal();
+      expect(find(GameScreen).props.color).toBe(playerColor(voter));
+      (ballot()[0].props.onPress as () => void)();
+    }
+    expect(find(ImposterResult)).toBeDefined();
+    const screen = find(GameScreen).props;
+    expect(screen.tone).toBe("game");
+    expect(screen.color).toBeUndefined();
+    expect(screen.scroll).toBe(true);
   });
 });
