@@ -16,6 +16,8 @@ const state = vi.hoisted(() => ({
   presses: [] as (() => void)[],
   pinScreens: [] as Array<{ onUnlock: (s: AppLockState) => Promise<void> | void }>,
   blur: null as null | (() => void),
+  setLang: vi.fn((_lang: string) => undefined),
+  langToggle: null as null | { value: string; options: { value: string; label: string }[]; onChange: (next: string) => void },
 }));
 
 vi.mock("react-native", async () => {
@@ -37,7 +39,15 @@ vi.mock("expo-router", async () => {
       }, [cb]),
   };
 });
-vi.mock("@ptracker/shared/i18n", () => ({ useLang: () => ({ t: new Proxy({}, { get: (_, k) => String(k) }), lang: "en" }) }));
+vi.mock("@ptracker/shared/i18n", () => ({
+  useLang: () => ({ t: new Proxy({}, { get: (_, k) => String(k) }), lang: "en", setLang: state.setLang }),
+}));
+vi.mock("@/components/ui/segmented-toggle", () => ({
+  SegmentedToggle: (props: NonNullable<typeof state.langToggle>) => {
+    state.langToggle = props;
+    return null;
+  },
+}));
 vi.mock("@/lib/app-lock-context", () => ({ useAppLock: () => ({ ready: true, lock: state.lock, update: state.update }) }));
 vi.mock("@/lib/app-lock-storage", () => ({ randomSalt: () => "salt", sha256Hex: async (s: string) => `h(${s})` }));
 vi.mock("@/lib/imposter-storage", () => ({
@@ -124,6 +134,8 @@ beforeEach(() => {
   vi.mocked(router.push).mockClear();
   state.pinScreens = [];
   state.blur = null;
+  state.setLang.mockClear();
+  state.langToggle = null;
 });
 
 afterEach(async () => {
@@ -199,6 +211,15 @@ describe("GamesScreen", () => {
     await render(GamesScreen);
     expect(state.update).toHaveBeenCalledTimes(1);
     expect(state.update).toHaveBeenCalledWith({ ...withPin, gameMode: true });
+  });
+
+  it("offers the language choice, which game mode keeps out of reach in Settings", async () => {
+    state.lock = { ...withPin, gameMode: true };
+    await render(GamesScreen);
+    expect(state.langToggle).toMatchObject({ value: "en", options: [{ value: "tr" }, { value: "en" }] });
+    state.langToggle!.onChange("tr");
+    expect(state.setLang).toHaveBeenCalledTimes(1);
+    expect(state.setLang).toHaveBeenCalledWith("tr");
   });
 });
 
