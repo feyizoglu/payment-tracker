@@ -617,6 +617,12 @@ describe("wordGameReducer ending and replaying", () => {
     expect(wordGameReducer(s, { type: "playAgain", rng: keepOrder, at: now + WORD_TAP_GUARD_MS - 1 })).toBe(s);
     expect(wordGameReducer(s, { type: "playAgain", rng: keepOrder, at: now + WORD_TAP_GUARD_MS }).phase).toBe("handoff");
   });
+
+  it("ignores New game within the tap guard of End game", () => {
+    const s = wordGameReducer(start(), { type: "endGame", at: tick() });
+    expect(wordGameReducer(s, { type: "newGame", at: now + WORD_TAP_GUARD_MS - 1 })).toBe(s);
+    expect(wordGameReducer(s, { type: "newGame", at: now + WORD_TAP_GUARD_MS }).phase).toBe("setup");
+  });
 });
 
 describe("word game labels", () => {
