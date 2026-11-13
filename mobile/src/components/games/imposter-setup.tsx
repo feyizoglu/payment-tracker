@@ -1,135 +1,70 @@
-import { Pressable, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { useLang } from "@ptracker/shared/i18n";
 import {
-  CATEGORY_CHOICES,
-  CATEGORY_LABEL_KEYS,
-  MAX_IMPOSTERS,
-  MAX_PLAYERS,
-  MAX_TIMER_MINUTES,
+  GAME_THEME,
   SETUP_ERROR_KEYS,
-  maxImposters,
+  SETUP_STEPS,
+  playerColor,
+  stepErrors,
   validateSetup,
-  type CategoryChoice,
-  type ImposterMode,
   type ImposterSetup,
 } from "@ptracker/shared/imposter";
-import { Field, inputBoxClass } from "@/components/ui/field";
+import { SetupCategoryStep } from "@/components/games/setup-category-step";
+import { SetupPlayersStep } from "@/components/games/setup-players-step";
+import { SetupRulesStep } from "@/components/games/setup-rules-step";
 import { PrimaryButton } from "@/components/ui/primary-button";
-import { SegmentedToggle } from "@/components/ui/segmented-toggle";
-import { SelectField } from "@/components/ui/select-field";
 
-export function ImposterSetupForm({
+// The setup, one step at a time. The step lives in the parent so this component has no
+// state of its own.
+export function ImposterSetupWizard({
   value,
   onChange,
+  step,
+  onStep,
   onStart,
+  quickStart,
 }: {
   value: ImposterSetup;
   onChange: (next: ImposterSetup) => void;
+  /** Index into SETUP_STEPS. */
+  step: number;
+  onStep: (step: number) => void;
   onStart: () => void;
+  /** A game was played on this device before: offer to skip the remaining steps. */
+  quickStart: boolean;
 }) {
   const { t } = useLang();
-  const errors = validateSetup(value);
-  const limit = Math.max(1, maxImposters(value.players.length));
-  const set = (patch: Partial<ImposterSetup>) => onChange({ ...value, ...patch });
+  const name = SETUP_STEPS[step];
+  const last = step === SETUP_STEPS.length - 1;
+  const allErrors = validateSetup(value);
+  // The last step shows everything that still blocks Start, whichever step it belongs to.
+  const errors = last ? allErrors : stepErrors(value, name);
+  const titles = { players: t.imposterPlayers, category: t.imposterCategory, rules: t.imposterStepRules };
 
   return (
     <View className="gap-5">
-      <Field label={t.imposterPlayers}>
-        <View className="gap-2">
-          {value.players.map((name, i) => (
-            <View key={i} className="flex-row items-center gap-2">
-              <TextInput
-                className={`${inputBoxClass} flex-1`}
-                value={name}
-                onChangeText={(next) => set({ players: value.players.map((p, j) => (j === i ? next : p)) })}
-                placeholder={t.imposterPlayerName}
-                placeholderTextColor="#9ca3af"
-              />
-              <Pressable onPress={() => set({ players: value.players.filter((_, j) => j !== i) })} className="px-2 py-2">
-                <Text className="text-lg text-gray-400">✕</Text>
-              </Pressable>
-            </View>
+      <View className="flex-row items-center justify-between">
+        <Text className="text-xl font-bold text-gray-900">{titles[name]}</Text>
+        <View
+          className="flex-row gap-1.5"
+          accessibilityLabel={t.imposterStep.replace("{n}", String(step + 1)).replace("{total}", String(SETUP_STEPS.length))}>
+          {SETUP_STEPS.map((s, i) => (
+            <View
+              key={s}
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: GAME_THEME.text, opacity: i === step ? 1 : 0.3 }}
+            />
           ))}
-          <Pressable
-            disabled={value.players.length >= MAX_PLAYERS}
-            onPress={() => set({ players: [...value.players, ""] })}
-            className={`rounded-lg border border-dashed border-gray-300 py-2.5 ${value.players.length >= MAX_PLAYERS ? "opacity-50" : ""}`}>
-            <Text className="text-center text-sm text-gray-500">+ {t.imposterAddPlayer}</Text>
-          </Pressable>
-        </View>
-      </Field>
-
-      <SegmentedToggle
-        label={t.imposterMode}
-        value={value.mode}
-        options={[
-          { value: "no-word", label: t.imposterModeNoWord },
-          { value: "similar-word", label: t.imposterModeSimilar },
-        ]}
-        onChange={(mode) => set({ mode: mode as ImposterMode })}
-      />
-
-      {value.mode === "similar-word" ? (
-        <View className="flex-row items-center justify-between gap-3">
-          <View className="flex-1">
-            <Text className="text-base text-gray-900">{t.imposterKnowsRole}</Text>
-            <Text className="text-xs text-gray-400">{t.imposterKnowsRoleHint}</Text>
-          </View>
-          <Switch value={value.imposterKnows} onValueChange={(imposterKnows) => set({ imposterKnows })} />
-        </View>
-      ) : null}
-
-      <SelectField
-        label={t.imposterCategory}
-        value={value.category}
-        options={CATEGORY_CHOICES.map((c) => ({ value: c, label: t[CATEGORY_LABEL_KEYS[c]] }))}
-        onChange={(category) => set({ category: category as CategoryChoice })}
-      />
-
-      <SegmentedToggle
-        label={t.imposterCount}
-        value={String(value.imposterCount)}
-        options={Array.from({ length: Math.min(MAX_IMPOSTERS, limit) }, (_, i) => ({
-          value: String(i + 1),
-          label: String(i + 1),
-        }))}
-        onChange={(n) => set({ imposterCount: Number(n) })}
-      />
-
-      <SelectField
-        label={t.imposterTimer}
-        value={String(value.timerMinutes)}
-        options={Array.from({ length: MAX_TIMER_MINUTES + 1 }, (_, m) => ({
-          value: String(m),
-          label: m === 0 ? t.imposterTimerOff : t.imposterMinutes.replace("{n}", String(m)),
-        }))}
-        onChange={(m) => set({ timerMinutes: Number(m) })}
-      />
-
-      <View className="gap-3 rounded-xl border border-gray-100 p-4">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-base text-gray-900">{t.imposterVoting}</Text>
-          <Switch
-            value={value.voting}
-            onValueChange={(voting) => set({ voting, scoreboard: voting && value.scoreboard })}
-          />
-        </View>
-        <View className={`flex-row items-center justify-between ${value.voting ? "" : "opacity-50"}`}>
-          <View>
-            <Text className="text-base text-gray-900">{t.imposterScoreboard}</Text>
-            {!value.voting ? <Text className="text-xs text-gray-400">{t.imposterScoreboardHint}</Text> : null}
-          </View>
-          <Switch
-            disabled={!value.voting}
-            value={value.scoreboard}
-            onValueChange={(scoreboard) => set({ scoreboard })}
-          />
         </View>
       </View>
 
+      {name === "players" ? <SetupPlayersStep value={value} onChange={onChange} /> : null}
+      {name === "category" ? <SetupCategoryStep value={value} onChange={onChange} /> : null}
+      {name === "rules" ? <SetupRulesStep value={value} onChange={onChange} /> : null}
+
       {errors.length > 0 ? (
-        <View className="gap-1 rounded-lg bg-amber-50 p-3">
+        <View className="gap-1 rounded-lg bg-amber-50 p-3" accessibilityRole="alert" accessibilityLiveRegion="polite">
           {errors.map((e) => (
             <Text key={e} className="text-sm text-amber-700">
               {t[SETUP_ERROR_KEYS[e]]}
@@ -138,7 +73,28 @@ export function ImposterSetupForm({
         </View>
       ) : null}
 
-      <PrimaryButton label={t.imposterStart} onPress={onStart} disabled={errors.length > 0} />
+      <View className="flex-row items-center gap-3">
+        {step > 0 ? (
+          <Pressable accessibilityRole="button" onPress={() => onStep(step - 1)} className="flex-1 rounded-lg border border-gray-200 py-3">
+            <Text className="text-center text-base text-gray-600">{t.back}</Text>
+          </Pressable>
+        ) : null}
+        <View className="flex-1">
+          {last ? (
+            <PrimaryButton label={t.imposterStart} onPress={onStart} disabled={allErrors.length > 0} />
+          ) : (
+            <PrimaryButton label={t.imposterNext} onPress={() => onStep(step + 1)} disabled={errors.length > 0} />
+          )}
+        </View>
+      </View>
+
+      {step === 0 && quickStart && allErrors.length === 0 ? (
+        <Pressable accessibilityRole="button" onPress={onStart} className="rounded-lg py-3.5" style={{ backgroundColor: playerColor(2) }}>
+          <Text className="text-center text-base font-semibold" style={{ color: GAME_THEME.ink }}>
+            {t.imposterQuickStart}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
