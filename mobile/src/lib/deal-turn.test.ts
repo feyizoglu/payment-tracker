@@ -9,6 +9,7 @@ const hooks = vi.hoisted(() => ({
 }));
 const rn = vi.hoisted(() => ({
   listener: null as null | ((state: string) => void),
+  type: null as null | string,
   remove: vi.fn(),
 }));
 
@@ -31,7 +32,8 @@ vi.mock("react", async (importOriginal) => {
 });
 vi.mock("react-native", () => ({
   AppState: {
-    addEventListener: (_type: string, fn: (state: string) => void) => {
+    addEventListener: (type: string, fn: (state: string) => void) => {
+      rn.type = type;
       rn.listener = fn;
       return { remove: rn.remove };
     },
@@ -86,11 +88,16 @@ function text(node: unknown): string {
 const card = (tree: Node) => nodes(tree).find((n) => n.type === Pressable)!;
 const pressIn = (tree: Node) => (card(tree).props.onPressIn as () => void)();
 const pressOut = (tree: Node) => (card(tree).props.onPressOut as () => void)();
+const act = (tree: Node, actionName: string) =>
+  (card(tree).props.onAccessibilityAction as (e: { nativeEvent: { actionName: string } }) => void)({
+    nativeEvent: { actionName },
+  });
 
 beforeEach(() => {
   vi.clearAllMocks();
   hooks.states = [];
   rn.listener = null;
+  rn.type = null;
 });
 
 describe("DealTurn hold card", () => {
@@ -132,6 +139,39 @@ describe("DealTurn hold card", () => {
     expect(text(render(true))).not.toContain("SECRET");
     cleanup();
     expect(rn.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("subscribes to app state changes and hides the card when the app goes inactive", () => {
+    render(true);
+    hooks.effects[0]();
+    expect(rn.type).toBe("change");
+    pressIn(render(true));
+    expect(text(render(true))).toContain("SECRET");
+    rn.listener!("inactive");
+    expect(text(render(true))).not.toContain("SECRET");
+  });
+
+  it("lets a screen reader open and close the card with the activate action", () => {
+    const first = render(false);
+    expect(card(first).props.accessibilityActions).toEqual([{ name: "activate" }]);
+    expect(card(first).props.accessibilityLiveRegion).toBe("polite");
+    act(first, "activate");
+    expect(onReveal).toHaveBeenCalledTimes(1);
+    expect(text(render(true))).toContain("SECRET");
+    act(render(true), "activate");
+    expect(onReveal).toHaveBeenCalledTimes(1);
+    expect(text(render(true))).not.toContain("SECRET");
+  });
+
+  it("ignores accessibility actions other than activate", () => {
+    act(render(false), "longpress");
+    expect(onReveal).not.toHaveBeenCalled();
+    expect(text(render(true))).not.toContain("SECRET");
+  });
+
+  it("gives the card the same height whatever it shows", () => {
+    expect(String(card(render(true)).props.className)).toContain("flex-1");
+    expect(String(card(render(true)).props.className)).toContain("min-h-64");
   });
 
   it("labels the card only while it is closed, so a screen reader reads the content when open", () => {

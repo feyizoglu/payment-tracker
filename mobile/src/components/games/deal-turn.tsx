@@ -26,9 +26,15 @@ export function DealTurn({
   const { t } = useLang();
   const [open, setOpen] = useState(false);
 
+  const show = () => {
+    if (!revealed) onReveal();
+    setOpen(true);
+  };
+  const hide = () => setOpen(false);
+
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
-      if (next !== "active") setOpen(false);
+      if (next !== "active") hide();
     });
     return () => sub.remove();
   }, []);
@@ -51,12 +57,16 @@ export function DealTurn({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={shown ? undefined : t.imposterHoldToSee}
-        onPressIn={() => {
-          if (!revealed) onReveal();
-          setOpen(true);
+        accessibilityActions={[{ name: "activate" }]}
+        accessibilityLiveRegion="polite"
+        onAccessibilityAction={(e) => {
+          if (e.nativeEvent.actionName !== "activate") return;
+          if (shown) hide();
+          else show();
         }}
-        onPressOut={() => setOpen(false)}
-        className="min-h-64 items-center justify-center rounded-3xl p-6"
+        onPressIn={show}
+        onPressOut={hide}
+        className="min-h-64 flex-1 items-center justify-center rounded-3xl p-6"
         style={{ backgroundColor: GAME_THEME.bg }}>
         {shown ? (
           <Animated.View entering={FadeIn.duration(150)} style={{ alignItems: "center", gap: 8 }}>
