@@ -258,9 +258,9 @@ describe("buildDeck", () => {
     food: cardsOf("food", "easy", 60),
   });
 
-  it("deals the unseen words of the chosen category and difficulty", () => {
+  it("deals the whole choice, the words this device has not shown yet first", () => {
     const { deck, seen } = buildDeck(words, "animals", "easy", ["animals-1", "animals-2", "food-1"], keepOrder);
-    expect(ids(deck)).toEqual(ids(animals.slice(2)));
+    expect(ids(deck)).toEqual([...ids(animals.slice(2)), "animals-1", "animals-2"]);
     expect(seen).toEqual(["animals-1", "animals-2", "food-1"]);
   });
 
@@ -520,6 +520,16 @@ describe("wordGameReducer running out of words", () => {
     expect(ids(s.deck)).toEqual(["animals-2"]);
   });
 
+  it("keeps the seen words in the deck, so a long first turn cannot use up the game", () => {
+    const hundred = source({ animals: cardsOf("animals", "easy", 100) });
+    let s = start(setupWith(), hundred, ids(hundred.animals.slice(0, 50)));
+    expect(ids(s.deck.slice(0, 50))).toEqual(ids(hundred.animals.slice(50)));
+    s = turn(s, Array.from({ length: 55 }, (): WordResult => "correct"));
+    expect(s.outOfWords).toBe(false);
+    expect(s.phase).toBe("handoff");
+    expect(currentTeam(s)).toBe(1);
+  });
+
   it("puts a word passed on an empty deck at the end of the refill, never straight back", () => {
     const four = source({ animals: cardsOf("animals", "easy", 4) });
     let s = turn(start(setupWith({ passLimit: null }), four), ["correct", "correct"]);
@@ -565,7 +575,7 @@ describe("wordGameReducer ending and replaying", () => {
     expect(wordGameReducer(summary, { type: "endGame", at: tick() }).phase).toBe("end");
   });
 
-  it("plays again with the same settings, no points and none of the words already shown", () => {
+  it("plays again with the same settings, no points and the words already shown last", () => {
     const sixty = source({ animals: cardsOf("animals", "easy", 60) });
     let s = turn(start(setupWith(), sixty), ["correct", "correct"]);
     s = wordGameReducer(s, { type: "endGame", at: tick() });
@@ -575,7 +585,7 @@ describe("wordGameReducer ending and replaying", () => {
     expect(s.turnsPlayed).toBe(0);
     expect(s.lang).toBe("tr");
     expect(s.setup.teams[0].players).toEqual(["Ann", "Bob"]);
-    expect(ids(s.deck)).toEqual(ids(sixty.animals.slice(3)));
+    expect(ids(s.deck)).toEqual([...ids(sixty.animals.slice(3)), "animals-1", "animals-2", "animals-3"]);
   });
 
   it("goes back to the setup with the played settings and keeps the time, so a double tap cannot start", () => {

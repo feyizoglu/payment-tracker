@@ -200,9 +200,9 @@ export type WordSource = Readonly<Record<WordCategory, readonly WordCard[]>>;
 
 export const WORD_DECK_MIN = 50;
 
-// The deck skips words this device has shown before. When the choice runs low, its part of
-// the seen list is forgotten so the game still has enough words, and the words just seen
-// still come last.
+// The deck is the whole choice, the words this device has not shown yet first, so a game
+// never runs short of words. When fewer than WORD_DECK_MIN are unseen, the choice's part of
+// the seen list is forgotten, so the next games start from fresh words again.
 export function buildDeck(
   words: WordSource,
   category: WordCategoryChoice,
@@ -216,13 +216,11 @@ export function buildDeck(
     .filter((card) => difficulty === "mixed" || card.level === difficulty);
   const seenIds = new Set(seen);
   const unseen = pool.filter((card) => !seenIds.has(card.id));
-  if (unseen.length >= WORD_DECK_MIN) return { deck: shuffle(unseen, rng), seen: [...seen] };
-  const poolIds = new Set(pool.map((card) => card.id));
   const again = pool.filter((card) => seenIds.has(card.id));
-  return {
-    deck: [...shuffle(unseen, rng), ...shuffle(again, rng)],
-    seen: seen.filter((id) => !poolIds.has(id)),
-  };
+  const deck = [...shuffle(unseen, rng), ...shuffle(again, rng)];
+  if (unseen.length >= WORD_DECK_MIN) return { deck, seen: [...seen] };
+  const poolIds = new Set(pool.map((card) => card.id));
+  return { deck, seen: seen.filter((id) => !poolIds.has(id)) };
 }
 
 export const WORD_TAP_GUARD_MS = 300;
