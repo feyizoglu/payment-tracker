@@ -48,6 +48,11 @@ beforeEach(() => {
 });
 
 describe("WordHandoff", () => {
+  it("writes a name that looks like a placeholder as it was typed", () => {
+    const tree = WordHandoff({ describer: "{team}", teamName: "Red", teams, scores: [0, 0], onBegin, onEnd }) as Node;
+    expect(text(tree)).toContain("Give to {team} (Red)");
+  });
+
   it("names the describer and their team", () => {
     expect(text(render())).toContain("Give to Ann (Red)");
     expect(text(render())).toContain("wordHandoffHint");

@@ -22,6 +22,7 @@ import {
   initialWordState,
   parseSavedSeen,
   parseSavedWordSetup,
+  fillTemplate,
   shuffleTeams,
   signedPoints,
   teamColor,
@@ -489,6 +490,14 @@ describe("wordGameReducer turn order and end of the game", () => {
     s = turn(s);
     expect(s.phase).toBe("end");
     expect(winner(s.scores)).toBe(0);
+  });
+
+  it("fills every placeholder in one pass, so a name stays as it was typed", () => {
+    expect(fillTemplate("Give the phone to {name} ({team})", { name: "{team}", team: "Red" })).toBe(
+      "Give the phone to {team} (Red)"
+    );
+    expect(fillTemplate("{team}: {points}", { team: "$&", points: "+1" })).toBe("$&: +1");
+    expect(fillTemplate("{a} {missing}", { a: "x" })).toBe("x {missing}");
   });
 
   it("writes the turn's points with a sign", () => {

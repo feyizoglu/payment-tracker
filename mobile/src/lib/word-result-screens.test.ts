@@ -88,6 +88,11 @@ describe("WordHandoff (mobile)", () => {
   const render = () =>
     WordHandoff({ describer: "Ann", teamName: "Red", teams, scores: [3, 1], onBegin: handlers.onBegin, onEnd: handlers.onEnd }) as Node;
 
+  it("writes a name that looks like a placeholder as it was typed", () => {
+    const tree = WordHandoff({ describer: "{team}", teamName: "Red", teams, scores: [0, 0], onBegin: handlers.onBegin, onEnd: handlers.onEnd }) as Node;
+    expect(text(tree)).toContain("Give to {team} (Red)");
+  });
+
   it("names the describer and their team and shows both scores", () => {
     expect(text(render())).toContain("Give to Ann (Red)");
     expect(scoresOf(render())).toEqual({ teams, scores: [3, 1] });
@@ -124,6 +129,12 @@ describe("WordSummary (mobile)", () => {
     expect(text(rows[2])).toBe("Owl✕ wordResultFoul");
     const mark = nodes(rows[2]).find((n) => (n.props.style as { color?: string } | undefined)?.color)!;
     expect(mark.props.style).toEqual({ color: WORD_RESULT_LOOK.foul.color });
+  });
+
+  it("writes a team name that looks like a placeholder as it was typed", () => {
+    const named: [WordTeam, WordTeam] = [teams[0], { name: "{points}", players: ["Cem", "Dan"] }];
+    const tree = WordSummary({ team: 1, teams: named, scores: [4, 1], results, outOfWords: false, onNext: handlers.onNext, onEnd: handlers.onEnd }) as Node;
+    expect(text(tree)).toContain("{points}: +1");
   });
 
   it("gives the team's points in its colour and shows both scores", () => {

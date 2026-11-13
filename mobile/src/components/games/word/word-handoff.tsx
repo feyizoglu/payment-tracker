@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 
 import { useLang } from "@ptracker/shared/i18n";
-import { GAME_THEME, type WordTeam } from "@ptracker/shared/word-game";
+import { GAME_THEME, fillTemplate, type WordTeam } from "@ptracker/shared/word-game";
 import { GameButton } from "@/components/games/game-button";
 import { WordScores } from "@/components/games/word/word-scores";
 
@@ -25,7 +25,7 @@ export function WordHandoff({
   return (
     <View className="gap-6 py-6">
       <Text className="text-center text-2xl font-bold" style={{ color: GAME_THEME.ink }}>
-        {t.wordGiveTo.replace("{name}", () => describer).replace("{team}", () => teamName)}
+        {fillTemplate(t.wordGiveTo, { name: describer, team: teamName })}
       </Text>
       <Text className="text-center text-sm" style={{ color: GAME_THEME.ink, opacity: 0.8 }}>
         {t.wordHandoffHint}

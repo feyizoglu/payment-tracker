@@ -4,6 +4,7 @@ import { useLang } from "@/lib/i18n";
 import {
   WORD_RESULT_KEYS,
   WORD_RESULT_LOOK,
+  fillTemplate,
   signedPoints,
   teamColor,
   turnPoints,
@@ -34,7 +35,7 @@ export default function WordSummary({
     <div className="space-y-5 text-center">
       <p className="text-3xl font-bold">{outOfWords ? t.wordNoWordsLeft : t.wordTimeUp}</p>
       <p className="font-semibold" style={{ color: teamColor(team) }}>
-        {t.wordTurnPoints.replace("{team}", () => teams[team].name).replace("{points}", signedPoints(turnPoints(results)))}
+        {fillTemplate(t.wordTurnPoints, { team: teams[team].name, points: signedPoints(turnPoints(results)) })}
       </p>
       {results.length > 0 && (
         <ul className="divide-y divide-gray-100 rounded-xl border border-gray-100 bg-surface text-left">

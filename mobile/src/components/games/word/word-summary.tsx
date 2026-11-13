@@ -4,6 +4,7 @@ import { useLang } from "@ptracker/shared/i18n";
 import {
   WORD_RESULT_KEYS,
   WORD_RESULT_LOOK,
+  fillTemplate,
   signedPoints,
   teamColor,
   turnPoints,
@@ -35,7 +36,7 @@ export function WordSummary({
     <View className="gap-5">
       <Text className="text-center text-3xl font-bold text-gray-900">{outOfWords ? t.wordNoWordsLeft : t.wordTimeUp}</Text>
       <Text className="text-center text-base font-semibold" style={{ color: teamColor(team) }}>
-        {t.wordTurnPoints.replace("{team}", () => teams[team].name).replace("{points}", signedPoints(turnPoints(results)))}
+        {fillTemplate(t.wordTurnPoints, { team: teams[team].name, points: signedPoints(turnPoints(results)) })}
       </Text>
       {results.length > 0 ? (
         <View className="rounded-xl border border-gray-100">

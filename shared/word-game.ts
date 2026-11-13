@@ -328,6 +328,13 @@ export function signedPoints(points: number): string {
   return points > 0 ? `+${points}` : String(points);
 }
 
+/** Fills `{key}` placeholders in one pass, so a typed name that looks like one stays as typed. */
+export function fillTemplate(template: string, values: Readonly<Record<string, string>>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) =>
+    Object.prototype.hasOwnProperty.call(values, key) ? values[key] : match
+  );
+}
+
 // Every button moves the game on at once and the next screen's buttons sit where the last
 // ones were, so a double tap would otherwise skip a word or a screen.
 function tooSoon(state: WordGameState, at: number): boolean {

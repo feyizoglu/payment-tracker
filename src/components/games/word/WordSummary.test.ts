@@ -74,6 +74,12 @@ describe("WordSummary", () => {
     expect(foul.props.style).toEqual({ color: WORD_RESULT_LOOK.foul.color });
   });
 
+  it("writes a team name that looks like a placeholder as it was typed", () => {
+    const named: [WordTeam, WordTeam] = [teams[0], { name: "{points}", players: ["Cem", "Dan"] }];
+    const tree = WordSummary({ team: 1, teams: named, scores: [4, 1], results, outOfWords: false, onNext, onEnd }) as Node;
+    expect(text(tree)).toContain("{points}: +1");
+  });
+
   it("gives the team's points for the turn in its colour", () => {
     const line = nodes(render()).find((n) => text(n) === "Blue: +1")!;
     expect(line.props.style).toEqual({ color: teamColor(1) });
