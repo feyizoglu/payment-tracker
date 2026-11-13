@@ -262,6 +262,35 @@ describe("Wolf Night screen: narrator night", () => {
     call(WolfNarrator, "onPick", 1);
     expect((find(WolfNarrator)!.props.state as GameState).night?.victim).toBe(1);
   });
+
+  it("turns the witch's Heal on for the wolves' victim", async () => {
+    await start({ ...valid, night: "narrator", specials: ["witch"] });
+    call(WolfThisGame, "onDeal");
+    dealAll(5);
+    call(PassPhone, "onReveal");
+    call(WolfRoster, "onStart");
+    call(WolfNarrator, "onNext");
+    const s = find(WolfNarrator)!.props.state as GameState;
+    call(WolfNarrator, "onPick", s.alive.findIndex((_, i) => canPick(s, i)));
+    call(WolfNarrator, "onNext");
+    expect((find(WolfNarrator)!.props.state as GameState).night?.heal).toBe(false);
+    call(WolfNarrator, "onHeal");
+    expect((find(WolfNarrator)!.props.state as GameState).night?.heal).toBe(true);
+  });
+});
+
+describe("Wolf Night screen: day", () => {
+  it("goes back from the vote to the talk", async () => {
+    await start();
+    call(WolfThisGame, "onDeal");
+    dealAll(5);
+    passNight();
+    call(WolfRemoval, "onContinue");
+    call(WolfDay, "onVote");
+    expect((find(WolfDay)!.props.state as GameState).dayStep).toBe("vote");
+    call(WolfDay, "onTalk");
+    expect((find(WolfDay)!.props.state as GameState).dayStep).toBe("talk");
+  });
 });
 
 describe("Wolf Night screen: turns", () => {

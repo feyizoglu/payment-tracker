@@ -253,6 +253,35 @@ describe("WolfGame narrator night", () => {
     await call(() => p("narrator").onPick(1));
     expect(p("narrator").state.night.victim).toBe(1);
   });
+
+  it("turns the witch's Heal on for the wolves' victim", async () => {
+    await start({ ...valid, night: "narrator", specials: ["witch"] });
+    await call(() => p("thisGame").onDeal());
+    await dealAll(5);
+    await call(() => p("pass").onReveal());
+    await call(() => p("roster").onStart());
+    await call(() => p("narrator").onNext());
+    const s: GameState = p("narrator").state;
+    await call(() => p("narrator").onPick(s.alive.findIndex((_, i) => canPick(s, i))));
+    await call(() => p("narrator").onNext());
+    expect(p("narrator").state.night.heal).toBe(false);
+    await call(() => p("narrator").onHeal());
+    expect(p("narrator").state.night.heal).toBe(true);
+  });
+});
+
+describe("WolfGame day", () => {
+  it("goes back from the vote to the talk", async () => {
+    await start();
+    await call(() => p("thisGame").onDeal());
+    await dealAll(5);
+    await passNight();
+    await call(() => p("removal").onContinue());
+    await call(() => p("day").onVote());
+    expect(p("day").state.dayStep).toBe("vote");
+    await call(() => p("day").onTalk());
+    expect(p("day").state.dayStep).toBe("talk");
+  });
 });
 
 describe("WolfGame turns", () => {
