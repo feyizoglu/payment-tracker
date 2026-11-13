@@ -676,39 +676,62 @@ describe("card texts", () => {
     ]);
   });
 
-  it("shows the witch the victim, her potions and how to use them, and everyone else that this lap has nothing", () => {
+  describe("the witch's card on her lap", () => {
+    // Ann wolf, Bob seer, Cem witch, Dan, Eda and Fay villagers.
     const roles: Role[] = ["wolf", "seer", "witch", "villager", "villager", "villager"];
-    const lap = (potions: GameState["potions"]) => mainLap({ ...night1(roles), potions }, { picks: { 0: 4 } });
-    const both = lap({ heal: true, poison: true });
-    expect(W.cardText(both, en)?.lines).toEqual(["Nothing to do this lap; choose anyone."]);
-    expect(W.cardText(choosingAt(both, 2), en)?.lines).toEqual([
-      "The wolves chose Eda.",
-      "Potions left: healing, poison",
-      "Choose Eda to heal them, anyone else to poison, or Nobody.",
-    ]);
-    expect(W.cardText(choosingAt(lap({ heal: true, poison: false }), 2), en)?.lines.slice(1)).toEqual([
-      "Potions left: healing",
-      "Choose Eda to heal them, or Nobody.",
-    ]);
-    expect(W.cardText(choosingAt(lap({ heal: false, poison: true }), 2), en)?.lines.slice(1)).toEqual([
-      "Potions left: poison",
-      "Choose a player to poison, or Nobody.",
-    ]);
-  });
+    const both = { heal: true, poison: true };
+    const healOnly = { heal: true, poison: false };
+    const poisonOnly = { heal: false, poison: true };
+    // Ann's pick: Eda, Cem the witch herself, or Ann herself, which is no vote and no victim.
+    const lap = (potions: GameState["potions"], wolfPick: number) =>
+      mainLap({ ...night1(roles), potions }, { picks: { 0: wolfPick } });
+    const card = (potions: GameState["potions"], wolfPick: number, t = en) =>
+      W.cardText(choosingAt(lap(potions, wolfPick), 2), t)?.lines;
 
-  it("tells the witch when the wolves chose no one, and what is left to do", () => {
-    const roles: Role[] = ["wolf", "seer", "witch", "villager", "villager", "villager"];
-    // Ann, the only wolf, wastes her vote on herself.
-    const lap = (potions: GameState["potions"]) => choosingAt(mainLap({ ...night1(roles), potions }, { picks: { 0: 0 } }), 2);
-    expect(W.cardText(lap({ heal: true, poison: true }), en)?.lines).toEqual([
-      "The wolves chose no one tonight.",
-      "Potions left: healing, poison",
-      "Choose a player to poison, or Nobody.",
-    ]);
-    expect(W.cardText(lap({ heal: true, poison: false }), en)?.lines.slice(1)).toEqual([
-      "Potions left: healing",
-      "No potion can be used tonight; choose anyone.",
-    ]);
+    it("tells everyone but the witch that this lap has nothing for them", () => {
+      expect(W.cardText(lap(both, 4), en)?.lines).toEqual(["Nothing to do this lap; choose anyone."]);
+    });
+
+    it("states every rule her tap is judged by, for each victim and the potions left", () => {
+      expect(card(both, 4)).toEqual([
+        "The wolves chose Eda.",
+        "Potions left: healing, poison",
+        "Choose Eda to heal them, anyone else but yourself to poison, or Nobody.",
+      ]);
+      expect(card(healOnly, 4)?.slice(1)).toEqual(["Potions left: healing", "Choose Eda to heal them, or Nobody."]);
+      expect(card(poisonOnly, 4)?.slice(1)).toEqual([
+        "Potions left: poison",
+        "Choose a player other than Eda and yourself to poison, or Nobody.",
+      ]);
+
+      expect(card(both, 2)).toEqual([
+        "The wolves chose Cem.",
+        "Potions left: healing, poison",
+        "Choose Cem to heal them, anyone else but yourself to poison, or Nobody.",
+      ]);
+      expect(card(healOnly, 2)?.slice(2)).toEqual(["Choose Cem to heal them, or Nobody."]);
+      // Her own name is the victim's, so it is named once.
+      expect(card(poisonOnly, 2)?.slice(2)).toEqual(["Choose a player other than yourself to poison, or Nobody."]);
+
+      expect(card(both, 0)).toEqual([
+        "The wolves chose no one tonight.",
+        "Potions left: healing, poison",
+        "Choose a player other than yourself to poison, or Nobody.",
+      ]);
+      expect(card(healOnly, 0)?.slice(2)).toEqual(["No potion can be used tonight; choose Nobody."]);
+      expect(card(poisonOnly, 0)?.slice(2)).toEqual(["Choose a player other than yourself to poison, or Nobody."]);
+    });
+
+    it("has every line translated, with the names filled in", () => {
+      for (const potions of [both, healOnly, poisonOnly]) {
+        for (const wolfPick of [4, 2, 0]) {
+          const lines = card(potions, wolfPick, tr)!;
+          expect(lines).toHaveLength(3);
+          for (const line of lines) expect(line).not.toMatch(/[{}]/);
+          expect(lines).not.toEqual(card(potions, wolfPick, en));
+        }
+      }
+    });
   });
 
   it("shows the result on the second card: the seer's answer, or that the choice is saved", () => {

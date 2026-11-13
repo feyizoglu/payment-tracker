@@ -600,12 +600,15 @@ export function cardText(state: GameState, t: Strings): CardText | null {
       const { heal, poison } = state.potions;
       const left = [heal ? t.wolfPotionHeal : "", poison ? t.wolfPotionPoison : ""].filter(Boolean);
       const potions = t.wolfPotionsLeft.replace("{list}", () => left.join(", "));
-      // When every wolf wasted their vote there is no one to heal.
+      // The last line names exactly the picks rejectionFor lets through. When every wolf wasted
+      // their vote there is no one to heal.
       if (night.victim === null) {
-        return { heading, role, lines: [t.wolfNoVictim, potions, poison ? t.wolfWitchPoisonOnly : t.wolfWitchNothing] };
+        return { heading, role, lines: [t.wolfNoVictim, potions, poison ? t.wolfWitchPoisonAny : t.wolfWitchNothing] };
       }
       const victim = names[night.victim];
-      const how = heal && poison ? t.wolfWitchBoth : heal ? t.wolfWitchHealOnly : t.wolfWitchPoisonOnly;
+      const self = night.victim === night.order[night.visit];
+      const poisonOnly = self ? t.wolfWitchPoisonAny : t.wolfWitchPoisonOnly;
+      const how = heal && poison ? t.wolfWitchBoth : heal ? t.wolfWitchHealOnly : poisonOnly;
       return {
         heading,
         role,

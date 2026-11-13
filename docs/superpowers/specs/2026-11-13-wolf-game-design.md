@@ -36,7 +36,7 @@ The texts below are what the game shows (translated in `shared/i18n.ts`).
 | Seer | Village | Each night picks one other player and learns whether they are a wolf. |
 | Doctor | Village | Each night protects one player from the wolves, themselves included, but not the same player two nights in a row. |
 | Hunter | Village | When removed, by night or by vote, at once takes one other player with them. |
-| Witch | Village | Has one healing potion (saves the wolves' victim) and one poison potion (removes any player), each once per game and at most one of them per night. |
+| Witch | Village | Has one healing potion (saves the wolves' victim) and one poison potion (removes any other player), each once per game and at most one of them per night. |
 
 Rules of play:
 - Wolves can only choose a player who is not a wolf. The seer cannot pick themselves. The
