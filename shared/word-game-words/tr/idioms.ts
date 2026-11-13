@@ -2,7 +2,7 @@ import { cards } from "../types";
 
 export const idioms = cards("idioms", [
   ["Ağzı kulaklarında", "easy", ["Mutlu", "Gülmek", "Sevinç", "Yüz"]],
-  ["Damlaya damlaya göl olur", "hard", ["Biriktirmek", "Sabır", "Yavaş", "Azar"]],
+  ["Damlaya damlaya göl olur", "easy", ["Biriktirmek", "Sabır", "Yavaş", "Azar"]],
   ["Kulak misafiri olmak", "easy", ["Dinlemek", "Duymak", "Gizlice", "Konuşma"]],
   ["Göz atmak", "easy", ["Bakmak", "Hızlıca", "Okumak", "Kısaca"]],
   ["Etekleri zil çalmak", "easy", ["Sevinç", "Neşe", "Coşku", "Heyecan"]],
@@ -10,7 +10,7 @@ export const idioms = cards("idioms", [
   ["Burnu havada", "easy", ["Kibirli", "Gururlu", "Beğenmiş", "Büyüklenmek"]],
   ["Eli açık", "easy", ["Cömert", "Para", "Vermek", "Harcamak"]],
   ["Eli sıkı", "easy", ["Cimri", "Para", "Harcamamak", "Pinti"]],
-  ["Ateş pahası", "easy", ["Pahalı", "Fiyat", "Para", "Yüksek"]],
+  ["Ateş pahası", "easy", ["Değerli", "Fiyat", "Para", "Yüksek"]],
   ["Kulağına küpe olmak", "easy", ["Ders", "Unutmamak", "Tecrübe", "Hata"]],
   ["Yüreği ağzına gelmek", "easy", ["Korku", "Endişe", "Heyecan", "Kalp"]],
   ["Ağzı sulanmak", "easy", ["Yemek", "İştah", "Canı", "İstemek"]],
