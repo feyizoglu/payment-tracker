@@ -929,8 +929,8 @@ describe("visit order across nights", () => {
 });
 
 describe("every visit takes the same steps", () => {
-  // Ann and Bob wolves, Cem seer, Dan doctor, Eda witch, Fay and Gil villagers.
-  const roles: Role[] = ["wolf", "wolf", "seer", "doctor", "witch", "villager", "villager"];
+  // Ann and Bob wolves, Cem seer, Dan doctor, Eda witch, Fay villager, Gil hunter.
+  const roles: Role[] = ["wolf", "wolf", "seer", "doctor", "witch", "villager", "hunter"];
 
   // Plays one visit with its five taps (hold, Continue, pick, hold, Continue), noting after each
   // tap what the screens offer, and whether the phone then moved on.
@@ -951,8 +951,8 @@ describe("every visit takes the same steps", () => {
     return [`${seen.join(" ")} moved:${movedOn}`, s, rejected];
   }
 
-  // A pick the rules allow, or one they do not, for whoever holds the phone. Villagers have no
-  // pick the rules forbid.
+  // A pick the rules allow, or one they do not, for whoever holds the phone. The villager and the
+  // hunter have no pick the rules forbid.
   function pickFor(s: GameState, disallowed: boolean): number | null {
     const seat = s.night!.order[s.night!.visit];
     const role = s.roles[seat];

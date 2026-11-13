@@ -481,7 +481,8 @@ function picker(state: GameState): { kind: PickKind; seat: number } | null {
   return { kind: "guess", seat };
 }
 
-// Why a pick is not taken, or null when it is.
+// Why a pick is not allowed, or null when it is: the narrator cannot tap it, and when the phone
+// goes round it counts as doing nothing.
 function rejectionFor(state: GameState, p: { kind: PickKind; seat: number }, target: number): Rejection | null {
   if (p.kind === "victim") return state.roles[target] === "wolf" ? "wolf" : null;
   if (p.kind === "doctor") return target === state.lastProtected ? "repeat" : null;
@@ -545,7 +546,7 @@ export function livingSeats(state: GameState): number[] {
 /**
  * Every living player, and whether a tap on them counts right now. When the phone goes round
  * every one of them can be tapped, so the choice screen looks the same for every role; a pick
- * the rules do not allow is turned down on the held result card instead.
+ * the rules do not allow is taken as doing nothing, and the held result card says why.
  */
 export function pickOptions(state: GameState): { seat: number; enabled: boolean }[] {
   const pass = state.setup.night === "pass";
@@ -614,7 +615,7 @@ export function cardText(state: GameState, t: Strings): CardText | null {
   }
 }
 
-/** What the result card says: why a pick was not taken, the seer's answer, or that it is saved. */
+/** What the result card says: why a pick did nothing, the seer's answer, or that it is saved. */
 export function visitResult(state: GameState, t: Strings): string | null {
   const task = visitTask(state);
   const night = state.night;
