@@ -65,9 +65,11 @@ The deal phase keeps its reducer actions (`reveal`, `next`).
   on release it hides again.
 - The first press dispatches `reveal`, which enables **Next player**. Later presses only show
   the card again.
-- The card shows only once the reducer accepted the `reveal`. A press inside the tap guard
-  (400 ms after the previous player's Next) is ignored and shows nothing, so "has seen the
-  card" and "may pass the phone on" never disagree.
+- The card shows only once the reducer accepted the `reveal`, so "has seen the card" and
+  "may pass the phone on" never disagree. A press that starts inside the tap guard (400 ms
+  after the previous player's Next) shows nothing at first; if the card is still held (or,
+  on desktop, still opened with Show) when the guard ends, the `reveal` is asked once more
+  and the card opens then.
 - On mobile the deal screen does not scroll: inside a scroll view a drifting finger would
   end the hold.
 - The card hides when the press is cancelled, when the app goes to the background (mobile

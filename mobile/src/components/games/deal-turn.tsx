@@ -3,7 +3,7 @@ import { AppState, Pressable, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import { useLang } from "@ptracker/shared/i18n";
-import { GAME_THEME } from "@ptracker/shared/imposter";
+import { GAME_THEME, TAP_GUARD_MS } from "@ptracker/shared/imposter";
 import { GameButton } from "@/components/games/game-button";
 
 // One player's turn while the cards are dealt: the card shows only while it is held.
@@ -38,6 +38,13 @@ export function DealTurn({
     });
     return () => sub.remove();
   }, []);
+
+  // A press that started inside the tap guard was ignored: ask once more when it has passed.
+  useEffect(() => {
+    if (!open || revealed) return;
+    const id = setTimeout(onReveal, TAP_GUARD_MS);
+    return () => clearTimeout(id);
+  }, [open, revealed, onReveal]);
 
   // The reducer ignores a reveal that comes too soon after the last tap. The card only
   // shows once the reveal was accepted, so "has seen it" and "may pass the phone on" never

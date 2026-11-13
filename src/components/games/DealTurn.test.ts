@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createElement, type ReactElement } from "react";
-import { GAME_THEME } from "@/lib/imposter";
+import { GAME_THEME, TAP_GUARD_MS } from "@/lib/imposter";
 
 const hooks = vi.hoisted(() => ({
   states: [] as unknown[],
@@ -245,6 +245,71 @@ describe("DealTurn hold card from the keyboard", () => {
     press(render(false));
     expect(card(render(false)).props["aria-label"]).toBe("imposterHoldToSee");
     expect(card(render(true)).props["aria-label"]).toBeUndefined();
+  });
+});
+
+describe("DealTurn hold inside the tap guard", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("asks for the reveal once more when the card is still held as the guard ends", () => {
+    press(render(false));
+    expect(onReveal).toHaveBeenCalledTimes(1);
+    render(false);
+    hooks.effects[1]();
+    vi.advanceTimersByTime(TAP_GUARD_MS - 1);
+    expect(onReveal).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    expect(onReveal).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(TAP_GUARD_MS * 5);
+    expect(onReveal).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not ask again when the card is released before the guard ends", () => {
+    press(render(false));
+    render(false);
+    const cleanup = hooks.effects[1]() as () => void;
+    vi.advanceTimersByTime(TAP_GUARD_MS - 1);
+    (card(render(false)).props.onPointerUp as () => void)();
+    cleanup();
+    render(false);
+    hooks.effects[1]();
+    vi.advanceTimersByTime(TAP_GUARD_MS * 5);
+    expect(onReveal).toHaveBeenCalledTimes(1);
+  });
+
+  it("schedules nothing once the reveal was accepted", () => {
+    press(render(true));
+    render(true);
+    hooks.effects[1]();
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(TAP_GUARD_MS * 5);
+    expect(onReveal).not.toHaveBeenCalled();
+  });
+
+  it("schedules nothing while the card is closed", () => {
+    render(false);
+    hooks.effects[1]();
+    vi.advanceTimersByTime(TAP_GUARD_MS * 5);
+    expect(onReveal).not.toHaveBeenCalled();
+  });
+
+  it("asks once more when a card opened with Show is still open as the guard ends", () => {
+    hooks.desktop = true;
+    (button(render(false), "imposterShow")!.props.onClick as () => void)();
+    expect(onReveal).toHaveBeenCalledTimes(1);
+    render(false);
+    hooks.effects[1]();
+    vi.advanceTimersByTime(TAP_GUARD_MS - 1);
+    expect(onReveal).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    expect(onReveal).toHaveBeenCalledTimes(2);
+    expect(text(render(true))).toContain("SECRET");
   });
 });
 

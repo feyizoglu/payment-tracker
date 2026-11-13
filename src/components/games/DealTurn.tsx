@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useLang } from "@/lib/i18n";
-import { GAME_THEME } from "@/lib/imposter";
+import { GAME_THEME, TAP_GUARD_MS } from "@/lib/imposter";
 import { isDesktopPointer, subscribeDesktopPointer } from "@/lib/desktop-pointer";
 
 // Without these a long press on a phone selects text, opens the context menu or is taken
@@ -63,7 +63,15 @@ export default function DealTurn({
     setOpenedIn(desktop);
   };
   const hide = () => setOpenedIn(null);
-  const shown = openedIn === desktop && revealed;
+  const open = openedIn === desktop;
+  const shown = open && revealed;
+
+  // A press that started inside the tap guard was ignored: ask once more when it has passed.
+  useEffect(() => {
+    if (!open || revealed) return;
+    const id = setTimeout(onReveal, TAP_GUARD_MS);
+    return () => clearTimeout(id);
+  }, [open, revealed, onReveal]);
 
   const hold = desktop
     ? undefined
