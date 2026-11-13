@@ -17,7 +17,7 @@ const state = vi.hoisted(() => ({
   pinScreens: [] as Array<{ onUnlock: (s: AppLockState) => Promise<void> | void }>,
   blur: null as null | (() => void),
   setLang: vi.fn((_lang: string) => undefined),
-  langToggle: null as null | { value: string; options: { value: string; label: string }[]; onChange: (next: string) => void },
+  lang: "en",
 }));
 
 vi.mock("react-native", async () => {
@@ -40,13 +40,7 @@ vi.mock("expo-router", async () => {
   };
 });
 vi.mock("@ptracker/shared/i18n", () => ({
-  useLang: () => ({ t: new Proxy({}, { get: (_, k) => String(k) }), lang: "en", setLang: state.setLang }),
-}));
-vi.mock("@/components/ui/segmented-toggle", () => ({
-  SegmentedToggle: (props: NonNullable<typeof state.langToggle>) => {
-    state.langToggle = props;
-    return null;
-  },
+  useLang: () => ({ t: new Proxy({}, { get: (_, k) => String(k) }), lang: state.lang, setLang: state.setLang }),
 }));
 vi.mock("@/lib/app-lock-context", () => ({ useAppLock: () => ({ ready: true, lock: state.lock, update: state.update }) }));
 vi.mock("@/lib/app-lock-storage", () => ({ randomSalt: () => "salt", sha256Hex: async (s: string) => `h(${s})` }));
@@ -56,7 +50,10 @@ vi.mock("@/lib/imposter-storage", () => ({
 }));
 vi.mock("@/components/games/game-screen", async () => {
   const { Fragment, createElement: h } = await import("react");
-  return { GameScreen: ({ children }: { children?: unknown }) => h(Fragment, null, children as never) };
+  return {
+    GameScreen: ({ children, right }: { children?: unknown; right?: unknown }) =>
+      h(Fragment, null, children as never, right as never),
+  };
 });
 vi.mock("@/components/games/imposter-setup", () => ({
   ImposterSetupWizard: (props: { value: unknown; onStart: () => void }) => {
@@ -135,7 +132,7 @@ beforeEach(() => {
   state.pinScreens = [];
   state.blur = null;
   state.setLang.mockClear();
-  state.langToggle = null;
+  state.lang = "en";
 });
 
 afterEach(async () => {
@@ -200,7 +197,7 @@ describe("GamesScreen", () => {
     state.lock = { ...withPin, gameMode: true };
     await render(GamesScreen);
     expect(state.pinSetups).toBe(0);
-    expect(state.presses).toHaveLength(1);
+    expect(state.presses).toHaveLength(2);
     state.presses[0]();
     expect(router.push).toHaveBeenCalledTimes(1);
     expect(router.push).toHaveBeenCalledWith("/games/imposter");
@@ -213,13 +210,17 @@ describe("GamesScreen", () => {
     expect(state.update).toHaveBeenCalledWith({ ...withPin, gameMode: true });
   });
 
-  it("offers the language choice, which game mode keeps out of reach in Settings", async () => {
+  it.each([
+    ["en", "tr"],
+    ["tr", "en"],
+  ])("switches the language from %s to %s with the header's flag, as Settings is out of reach in game mode", async (from, to) => {
     state.lock = { ...withPin, gameMode: true };
+    state.lang = from;
     await render(GamesScreen);
-    expect(state.langToggle).toMatchObject({ value: "en", options: [{ value: "tr" }, { value: "en" }] });
-    state.langToggle!.onChange("tr");
+    state.presses[1]();
+    expect(router.push).not.toHaveBeenCalled();
     expect(state.setLang).toHaveBeenCalledTimes(1);
-    expect(state.setLang).toHaveBeenCalledWith("tr");
+    expect(state.setLang).toHaveBeenCalledWith(to);
   });
 });
 

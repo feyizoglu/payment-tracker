@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { ReactElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { EMPTY_LOCK, type AppLockState } from "@ptracker/shared/app-lock";
 
 const s = vi.hoisted(() => ({
@@ -115,6 +115,34 @@ describe("GameScreen back fallback", () => {
   it("goes to Payments outside game mode when there is no history", () => {
     (pressable("BACK")!.props.onPress as () => void)();
     expect(router.replace).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("GameScreen header slots", () => {
+  const header = (props: { right?: ReactElement } = {}) => {
+    const tree = GameScreen({ title: "Game", children: null, ...props }) as Node;
+    const row = nodes(tree).find((n) => n.type === View && String(n.props.className).includes("border-b"))!;
+    return (row.props.children as unknown[]).map((child) => text(child));
+  };
+
+  it("puts the exit on the left on the games list in game mode, where there is no back", () => {
+    s.lock = { ...withPin, gameMode: true };
+    expect(header()).toEqual(["EXIT", "Game", ""]);
+  });
+
+  it("keeps the back on the left and the exit on the right on the other game screens", () => {
+    s.lock = { ...withPin, gameMode: true };
+    s.path = "/games/imposter";
+    expect(header()).toEqual(["‹ BACK", "Game", "EXIT"]);
+  });
+
+  it("shows the screen's own action on the right", () => {
+    s.lock = { ...withPin, gameMode: true };
+    expect(header({ right: createElement(Pressable, null, "FLAG") })).toEqual(["EXIT", "Game", "FLAG"]);
+  });
+
+  it("has no exit outside game mode", () => {
+    expect(header()).toEqual(["‹ BACK", "Game", ""]);
   });
 });
 
