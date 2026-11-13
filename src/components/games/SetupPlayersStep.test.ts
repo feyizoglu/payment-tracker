@@ -81,3 +81,14 @@ describe("SetupPlayersStep colours", () => {
     }
   });
 });
+
+describe("SetupPlayersStep accessibility", () => {
+  it("names every player input and gives it a visible focus ring", () => {
+    const inputs = nodes(render(valid)).filter((n) => n.type === "input");
+    expect(inputs).toHaveLength(3);
+    for (const input of inputs) {
+      expect(input.props["aria-label"]).toBe("imposterPlayerName");
+      expect(String(input.props.className)).toContain("focus-visible:ring-2");
+    }
+  });
+});

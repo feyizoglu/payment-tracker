@@ -22,7 +22,8 @@ export default function SetupPlayersStep({
             value={name}
             onChange={(e) => setPlayers(value.players.map((p, j) => (j === i ? e.target.value : p)))}
             placeholder={t.imposterPlayerName}
-            className="min-w-0 flex-1 bg-transparent text-lg font-semibold placeholder:text-black/40 focus:outline-none"
+            aria-label={t.imposterPlayerName}
+            className="min-w-0 flex-1 rounded bg-transparent text-lg font-semibold placeholder:text-black/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
             style={{ color: GAME_THEME.ink }}
           />
           <button

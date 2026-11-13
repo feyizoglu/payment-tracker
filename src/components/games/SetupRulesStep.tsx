@@ -29,7 +29,7 @@ export default function SetupRulesStep({
         <h3 className="text-sm font-medium text-gray-500">{t.imposterMode}</h3>
         <div className="flex rounded-lg bg-gray-100 p-1">
           {(["no-word", "similar-word"] as ImposterMode[]).map((mode) => (
-            <button key={mode} type="button" className={pill(value.mode === mode)} onClick={() => set({ mode })}>
+            <button key={mode} type="button" aria-pressed={value.mode === mode} className={pill(value.mode === mode)} onClick={() => set({ mode })}>
               {mode === "no-word" ? t.imposterModeNoWord : t.imposterModeSimilar}
             </button>
           ))}
@@ -57,6 +57,7 @@ export default function SetupRulesStep({
             <button
               key={n}
               type="button"
+              aria-pressed={value.imposterCount === n}
               disabled={n > limit}
               className={`${pill(value.imposterCount === n)} disabled:opacity-40`}
               onClick={() => set({ imposterCount: n })}

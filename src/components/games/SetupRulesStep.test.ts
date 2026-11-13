@@ -93,3 +93,21 @@ describe("SetupRulesStep imposter count and timer", () => {
     expect(onChange).toHaveBeenCalledWith({ ...valid, timerMinutes: 5 });
   });
 });
+
+describe("SetupRulesStep selected state", () => {
+  it("marks only the selected mode as pressed", () => {
+    const noWord = render({ ...valid, mode: "no-word" });
+    expect(button(noWord, "imposterModeNoWord").props["aria-pressed"]).toBe(true);
+    expect(button(noWord, "imposterModeSimilar").props["aria-pressed"]).toBe(false);
+    const similar = render({ ...valid, mode: "similar-word" });
+    expect(button(similar, "imposterModeNoWord").props["aria-pressed"]).toBe(false);
+    expect(button(similar, "imposterModeSimilar").props["aria-pressed"]).toBe(true);
+  });
+
+  it("marks only the selected imposter count as pressed", () => {
+    const tree = render({ ...valid, players: ["A", "B", "C", "D", "E", "F", "G"], imposterCount: 2 });
+    expect(button(tree, "1").props["aria-pressed"]).toBe(false);
+    expect(button(tree, "2").props["aria-pressed"]).toBe(true);
+    expect(button(tree, "3").props["aria-pressed"]).toBe(false);
+  });
+});
