@@ -1,9 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { PLAYER_COLORS } from "@/lib/imposter";
+import { translationsFor } from "@/lib/i18n";
+import { CATEGORY_EMOJI, CATEGORY_LABEL_KEYS, PLAYER_COLORS } from "@/lib/imposter";
 import {
   WORD_CATEGORIES,
+  WORD_CATEGORY_CHOICES,
+  WORD_CATEGORY_EMOJI,
+  WORD_CATEGORY_LABEL_KEYS,
   WORD_DECK_MIN,
+  WORD_DIFFICULTY_KEYS,
   WORD_MAX_TEAM,
+  WORD_MODE_KEYS,
+  WORD_RESULT_KEYS,
+  WORD_SETUP_ERROR_KEYS,
   WORD_SETUP_STORAGE_KEY,
   WORD_TAP_GUARD_MS,
   buildDeck,
@@ -508,5 +516,32 @@ describe("wordGameReducer ending and replaying", () => {
     expect(s.setup.teams[0].players).toEqual(["Ann", "Bob"]);
     const again = { type: "start", setup: s.setup, lang: "tr", words: SIX, seen: [], rng: keepOrder, at: now + 100 } as const;
     expect(wordGameReducer(s, again)).toBe(s);
+  });
+});
+
+describe("word game labels", () => {
+  const maps: Record<string, string>[] = [
+    WORD_CATEGORY_LABEL_KEYS,
+    WORD_DIFFICULTY_KEYS,
+    WORD_RESULT_KEYS,
+    WORD_SETUP_ERROR_KEYS,
+    ...Object.values(WORD_MODE_KEYS),
+  ];
+
+  it.each(["en", "tr"] as const)("has every label in %s", (lang) => {
+    const t = translationsFor(lang) as unknown as Record<string, string>;
+    for (const map of maps) for (const key of Object.values(map)) expect(t[key], key).toBeTruthy();
+  });
+
+  it("gives every category choice a label and an emoji, reusing Imposter's for the shared ones", () => {
+    expect(Object.keys(WORD_CATEGORY_LABEL_KEYS).sort()).toEqual([...WORD_CATEGORY_CHOICES].sort());
+    expect(Object.keys(WORD_CATEGORY_EMOJI).sort()).toEqual([...WORD_CATEGORY_CHOICES].sort());
+    expect(WORD_CATEGORY_LABEL_KEYS.animals).toBe(CATEGORY_LABEL_KEYS.animals);
+    expect(WORD_CATEGORY_EMOJI.sports).toBe(CATEGORY_EMOJI.sports);
+  });
+
+  it("names the game Describe It and Anlat Bul", () => {
+    expect(translationsFor("en").wordTitle).toBe("Describe It");
+    expect(translationsFor("tr").wordTitle).toBe("Anlat Bul");
   });
 });

@@ -1,6 +1,8 @@
 import type { Lang } from "./i18n";
-import { PLAYER_COLORS } from "./imposter";
+import { CATEGORY_EMOJI, CATEGORY_LABEL_KEYS, GAME_THEME, PLAYER_COLORS } from "./imposter";
 import { WORD_CATEGORIES, type WordCard, type WordCategory } from "./word-game-words/types";
+
+export { GAME_THEME, formatCountdown, remainingSeconds } from "./imposter";
 
 export { WORD_CATEGORIES };
 export type { WordCard, WordCategory, WordLevel } from "./word-game-words/types";
@@ -427,3 +429,63 @@ export function wordGameReducer(state: WordGameState, action: WordGameAction): W
       return { ...initialWordState(state.setup), lastActionAt: action.at };
   }
 }
+
+export const WORD_CATEGORY_LABEL_KEYS = {
+  ...CATEGORY_LABEL_KEYS,
+  home: "wordCategoryHome",
+  nature: "wordCategoryNature",
+  body: "wordCategoryBody",
+  transport: "wordCategoryTransport",
+  arts: "wordCategoryArts",
+  actions: "wordCategoryActions",
+  idioms: "wordCategoryIdioms",
+} as const satisfies Record<WordCategoryChoice, string>;
+
+export const WORD_CATEGORY_EMOJI = {
+  ...CATEGORY_EMOJI,
+  home: "🏠",
+  nature: "🌳",
+  body: "💪",
+  transport: "🚗",
+  arts: "🎨",
+  actions: "🏃",
+  idioms: "💬",
+} as const satisfies Record<WordCategoryChoice, string>;
+
+export const WORD_DIFFICULTY_KEYS = {
+  easy: "wordEasy",
+  hard: "wordHard",
+  mixed: "wordDifficultyMixed",
+} as const satisfies Record<WordDifficulty, string>;
+
+export const WORD_MODE_KEYS = {
+  free: { label: "wordModeFree", rule: "wordModeFreeRule" },
+  forbidden: { label: "wordModeForbidden", rule: "wordModeForbiddenRule" },
+  mime: { label: "wordModeMime", rule: "wordModeMimeRule" },
+} as const satisfies Record<WordMode, { label: string; rule: string }>;
+
+export const WORD_RESULT_KEYS = {
+  correct: "wordResultCorrect",
+  pass: "wordResultPass",
+  foul: "wordResultFoul",
+} as const satisfies Record<WordResult, string>;
+
+/** The answer buttons, and the red of the last seconds and the forbidden words. */
+export const WORD_COLORS = {
+  correct: PLAYER_COLORS[4],
+  pass: PLAYER_COLORS[2],
+  foul: PLAYER_COLORS[0],
+  warn: PLAYER_COLORS[0],
+} as const;
+
+/** How a result is written in the summary; the mark and label, never the colour alone. */
+export const WORD_RESULT_LOOK = {
+  correct: { mark: "✓", color: PLAYER_COLORS[4] },
+  pass: { mark: "↷", color: GAME_THEME.muted },
+  foul: { mark: "✕", color: PLAYER_COLORS[0] },
+} as const satisfies Record<WordResult, { mark: string; color: string }>;
+
+/** The clock turns red and pulses for this many seconds; it is read out once when it starts. */
+export const WORD_WARN_SECONDS = 10;
+/** How long "Time's up!" stays on the card before the turn ends. */
+export const WORD_TIME_UP_MS = 1500;
