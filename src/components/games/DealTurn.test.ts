@@ -176,6 +176,13 @@ describe("DealTurn hold card", () => {
     press(render(true));
     expect(card(render(true)).props.style).toMatchObject(fixed);
   });
+
+  it("keeps the card the same height closed and open, so a longer card cannot give the role away", () => {
+    const heights = (tree: Node) => String(card(tree).props.className).split(" ").filter((c) => /(^|:)(min-)?h-/.test(c));
+    expect(heights(render(true))).toEqual(["h-72"]);
+    press(render(true));
+    expect(heights(render(true))).toEqual(["h-72"]);
+  });
 });
 
 describe("DealTurn hold card from the keyboard", () => {
@@ -271,6 +278,17 @@ describe("DealTurn on a desktop pointer", () => {
     expect(text(render(true))).not.toContain("SECRET");
     expect(button(render(true), "imposterShow")).toBeDefined();
     expect(onReveal).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides a card opened with Show when the page goes to the background", () => {
+    render(true);
+    hooks.effects[0]();
+    (button(render(true), "imposterShow")!.props.onClick as () => void)();
+    expect(text(render(true))).toContain("SECRET");
+    doc.hidden = true;
+    listeners.visibilitychange();
+    expect(text(render(true))).not.toContain("SECRET");
+    expect(button(render(true), "imposterShow")).toBeDefined();
   });
 
   it("leaves the keyboard to the Show button", () => {

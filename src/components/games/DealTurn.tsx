@@ -100,7 +100,7 @@ export default function DealTurn({
       <p className="text-sm opacity-80">{t.imposterPassHint}</p>
       <div
         data-card
-        className="flex min-h-56 flex-col items-center justify-center gap-4 rounded-2xl p-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
+        className="flex h-72 flex-col items-center justify-center gap-4 rounded-2xl p-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
         style={{ backgroundColor: GAME_THEME.bg, color: GAME_THEME.text, ...(desktop ? null : holdStyle) }}
         {...hold}
       >
