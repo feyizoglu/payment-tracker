@@ -13,7 +13,7 @@ const storage = vi.hoisted(() => ({
   getStoredSeen: vi.fn(),
   setStoredSeen: vi.fn(async (_lang: unknown, _seen: unknown) => undefined),
 }));
-const entry = vi.hoisted(() => ({ pinReady: true }));
+const entry = vi.hoisted(() => ({ pinReady: true, lang: "tr" }));
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
@@ -48,7 +48,7 @@ vi.mock("@ptracker/shared/i18n", async (importOriginal) => ({
     t: new Proxy({} as Record<string, string>, {
       get: (_, key) => (key === "wordTeamDefault" ? "Team {n}" : String(key)),
     }),
-    lang: "tr",
+    lang: entry.lang,
   }),
 }));
 vi.mock("@ptracker/shared/word-game-words", async () => {
@@ -136,6 +136,7 @@ beforeEach(() => {
   hooks.states = [];
   vi.clearAllMocks();
   entry.pinReady = true;
+  entry.lang = "tr";
   storage.getStoredWordSetup.mockResolvedValue(valid);
   storage.getStoredSeen.mockResolvedValue([]);
   clock = 1_800_000_000_000;
@@ -215,6 +216,25 @@ describe("WordScreen", () => {
     call(WordSetupWizard, "onStart");
     call(WordHandoff, "onBegin");
     expect((propsOf(WordTurn).card as { id: string }).id).toBe("animals-3");
+  });
+
+  it("drops the old language's seen list on a language switch until the new one is read", async () => {
+    let readEnglish: (ids: string[]) => void = () => {};
+    storage.getStoredSeen.mockImplementation((lang: string) =>
+      lang === "tr" ? Promise.resolve(["animals-1", "animals-2"]) : new Promise((resolve) => (readEnglish = resolve))
+    );
+    await open();
+    expect(find(WordSetupWizard)).toBeDefined();
+    entry.lang = "en";
+    await open();
+    expect(storage.getStoredSeen).toHaveBeenLastCalledWith("en");
+    expect(find(WordSetupWizard)).toBeUndefined();
+    expect(find(ActivityIndicator)).toBeDefined();
+    readEnglish(["animals-5"]);
+    await runEffects();
+    call(WordSetupWizard, "onStart");
+    call(WordHandoff, "onBegin");
+    expect(propsOf(WordTurn).card).toMatchObject({ id: "animals-1", word: "en 1" });
   });
 
   it("plays again from the end screen, and New game goes back to the first step with the played setup", async () => {

@@ -49,6 +49,8 @@ export default function WordScreen() {
 
   useEffect(() => {
     let live = true;
+    // Until this language's list is read, no game may start with the last language's list.
+    setSeen(null);
     getStoredSeen(lang).then((ids) => {
       if (live) setSeen(ids);
     });
