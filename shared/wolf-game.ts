@@ -278,7 +278,7 @@ export function narratorLines(setup: WolfSetup): NarratorLine[] {
 export type Phase = "setup" | "rules" | "deal" | "night" | "morning" | "day" | "end";
 
 /**
- * Why a pick is not taken: a wolf chosen by a wolf, oneself, the doctor's last night, or a
+ * Why a pick does nothing: a wolf chosen by a wolf, oneself, the doctor's last night, or a
  * potion the witch no longer has (or poison for herself).
  */
 export type Rejection = "wolf" | "self" | "repeat" | "healUsed" | "poisonUsed" | "poisonSelf";
@@ -303,7 +303,7 @@ export interface Night extends NightOutcome {
   visit: number;
   /** Pass the phone: the held card, the open choice, then the held result. */
   stage: "card" | "choose" | "result";
-  /** Pass the phone: why the visitor's pick was not taken, shown on the result card. */
+  /** Pass the phone: why the visitor's pick did nothing, shown on the result card. */
   rejected: Rejection | null;
   /** Pass the phone: whom each seat chose on the main lap. */
   picks: (number | null)[];
@@ -597,17 +597,18 @@ export function cardText(state: GameState, t: Strings): CardText | null {
       return { heading, role, lines: [t.wolfNothingThisLap] };
     case "witch": {
       const { heal, poison } = state.potions;
-      const victim = night.victim === null ? "" : names[night.victim];
       const left = [heal ? t.wolfPotionHeal : "", poison ? t.wolfPotionPoison : ""].filter(Boolean);
+      const potions = t.wolfPotionsLeft.replace("{list}", () => left.join(", "));
+      // When every wolf wasted their vote there is no one to heal.
+      if (night.victim === null) {
+        return { heading, role, lines: [t.wolfNoVictim, potions, poison ? t.wolfWitchPoisonOnly : t.wolfWitchNothing] };
+      }
+      const victim = names[night.victim];
       const how = heal && poison ? t.wolfWitchBoth : heal ? t.wolfWitchHealOnly : t.wolfWitchPoisonOnly;
       return {
         heading,
         role,
-        lines: [
-          t.wolfTaskWitch.replace("{name}", () => victim),
-          t.wolfPotionsLeft.replace("{list}", () => left.join(", ")),
-          how.replace("{name}", () => victim),
-        ],
+        lines: [t.wolfTaskWitch.replace("{name}", () => victim), potions, how.replace("{name}", () => victim)],
       };
     }
   }
@@ -621,7 +622,7 @@ export function visitResult(state: GameState, t: Strings): string | null {
   const names = state.setup.players;
   if (night.rejected) {
     const last = state.lastProtected === null ? "" : names[state.lastProtected];
-    return `${t[REJECTION_KEYS[night.rejected]].replace("{name}", () => last)} ${t.wolfChooseAgain}`;
+    return t[REJECTION_KEYS[night.rejected]].replace("{name}", () => last);
   }
   if (task === "seer" && night.seen !== null) {
     return `${names[night.seen]}: ${state.roles[night.seen] === "wolf" ? t.wolfIsWolf : t.wolfNotWolf}`;
@@ -662,26 +663,28 @@ function nightNext(state: GameState, rng: Rng, at: number): GameState {
   if (state.setup.night === "narrator") return narratorNext(state, at);
   const night = state.night!;
   if (night.stage === "card") return { ...state, night: { ...night, stage: "choose" }, lastActionAt: at };
-  // A pick that was not taken brings the choice back to the same visitor.
-  if (night.stage === "result" && night.rejected) {
-    return { ...state, night: { ...night, stage: "choose", rejected: null }, revealed: false, lastActionAt: at };
-  }
   if (night.visit + 1 < night.order.length) {
-    return { ...state, night: { ...night, visit: night.visit + 1, stage: "card" }, revealed: false, lastActionAt: at };
+    return {
+      ...state,
+      night: { ...night, visit: night.visit + 1, stage: "card", rejected: null },
+      revealed: false,
+      lastActionAt: at,
+    };
   }
   if (night.lap === "witch") return toMorning(state, at);
   const decided = { ...state, night: { ...night, victim: wolvesVictim(night.picks, state.roles, rng) } };
   if (!witchMayAct(state)) return toMorning(decided, at);
   return {
     ...decided,
-    night: { ...decided.night, lap: "witch", visit: 0, stage: "card" },
+    night: { ...decided.night, lap: "witch", visit: 0, stage: "card", rejected: null },
     revealed: false,
     lastActionAt: at,
   };
 }
 
-// A visitor's tap on the open choice screen. Every tap leads to the held result card, so every
-// visit takes the same steps; a pick the rules do not allow is only turned down there.
+// A visitor's tap on the open choice screen. Every tap leads to the held result card and then
+// to the next visitor, so every visit takes the same steps and taps. A pick the rules do not
+// allow is taken as doing nothing: going back to choose again would show the table a role.
 function passChoose(state: GameState, target: number | null, at: number): GameState {
   const night = state.night!;
   const p = picker(state);
@@ -695,10 +698,11 @@ function passChoose(state: GameState, target: number | null, at: number): GameSt
       seen: p.kind === "seer" ? target : night.seen,
       protect: p.kind === "doctor" ? target : night.protect,
     };
-  } else if (!rejected && p.kind === "witch") {
-    // Nobody uses neither potion; the choices of everyone else on the witch lap change nothing.
-    const heal = target !== null && target === night.victim;
-    picked = { ...night, heal, poison: target !== null && !heal ? target : null };
+  } else if (p.kind === "witch") {
+    // One potion a night: the victim is healed, anyone else poisoned. Nobody, or a pick her
+    // potions cannot do, uses neither. Everyone else's pick on the witch lap changes nothing.
+    const heal = !rejected && target !== null && target === night.victim;
+    picked = { ...night, heal, poison: !rejected && target !== null && !heal ? target : null };
   }
   return { ...state, night: { ...picked, stage: "result", rejected }, revealed: false, lastActionAt: at };
 }

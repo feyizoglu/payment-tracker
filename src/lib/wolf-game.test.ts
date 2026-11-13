@@ -472,23 +472,37 @@ describe("night: the phone goes round", () => {
     expect([W.visitTask(s), pickable(s)]).toEqual(["guess", [0, 1, 2, 3, 4, 5, 6]]);
   });
 
-  it("turns down a wolf's pick of a wolf on the result card and brings the choice back", () => {
+  it("takes a wolf's pick of a wolf as no vote, says so on the result card and goes on", () => {
     let s = step(choosingAt(night1(["villager", "wolf", "seer", "doctor", "wolf"]), 1), { type: "choose", target: 4 });
     expect([s.night?.stage, s.night?.rejected, s.night?.picks[1]]).toEqual(["result", "wolf", null]);
-    expect(W.visitResult(s, en)).toBe("You cannot choose a wolf. Choose again.");
+    expect(W.visitResult(s, en)).toBe("You cannot choose a wolf, so you cast no vote tonight.");
     s = step(step(s, { type: "reveal" }), { type: "next", rng: zero });
-    expect([s.night?.stage, s.night?.visit, s.night?.rejected, s.revealed]).toEqual(["choose", 1, null, false]);
-    s = step(s, { type: "choose", target: 0 });
-    expect([s.night?.rejected, s.night?.picks[1]]).toEqual([null, 0]);
+    expect([s.night?.stage, s.night?.visit, s.night?.rejected]).toEqual(["card", 2, null]);
   });
 
-  it("does not let the doctor protect last night's player again", () => {
+  it("leaves a wasted wolf vote out of the count, and no victim when every wolf wastes theirs", () => {
+    const roles: Role[] = ["wolf", "wolf", "villager", "villager", "villager", "seer", "villager"];
+    expect(passNight(night1(roles), { picks: { 0: 1, 1: 3 } }).removal?.removed).toEqual([3]);
+    const none = passNight(night1(roles), { picks: { 0: 1, 1: 0 } });
+    expect([none.removal?.removed, none.night?.victim]).toEqual([[], null]);
+  });
+
+  it("takes the doctor's repeat of last night as no protection tonight and goes on", () => {
     let s = step(choosingAt({ ...night1(basic), lastProtected: 4 }, 3), { type: "choose", target: 4 });
     expect([s.night?.rejected, s.night?.protect]).toEqual(["repeat", null]);
-    expect(W.visitResult(s, en)).toBe("You protected Eda last night. Choose again.");
-    s = step(step(step(s, { type: "reveal" }), { type: "next", rng: zero }), { type: "choose", target: 3 });
-    expect([s.night?.rejected, s.night?.protect]).toEqual([null, 3]);
-    expect(W.visitResult(s, en)).toBe(en.wolfChoiceSaved);
+    expect(W.visitResult(s, en)).toBe("You protected Eda last night, so you protect no one tonight.");
+    s = step(step(s, { type: "reveal" }), { type: "next", rng: zero });
+    expect([s.night?.stage, s.night?.visit]).toEqual(["card", 4]);
+  });
+
+  it("remembers only real protections: after a wasted night the doctor may protect that player again", () => {
+    let s = passNight(night1(basic), { picks: { 1: 4, 3: 4 } });
+    expect([s.removal?.removed, s.lastProtected]).toEqual([[], 4]);
+    s = passNight(step(voteOut(toDay(s), null), { type: "continue" }), { picks: { 1: 2, 3: 4 } });
+    expect([s.removal?.removed, s.lastProtected]).toEqual([[2], null]);
+    s = choosingAt(step(voteOut(toDay(s), null), { type: "continue" }), 3);
+    expect(W.cardText(s, en)?.lines).toEqual([en.wolfTaskDoctor]);
+    expect(W.canPick(s, 4)).toBe(true);
   });
 
   it("shows a wolf the earlier wolves' picks of this night", () => {
@@ -498,13 +512,13 @@ describe("night: the phone goes round", () => {
     expect(W.wolfPicksSoFar(s)).toEqual([{ wolf: 1, target: 5 }]);
   });
 
-  it("gives the seer the answer on the result card, and asks again after a pick of themselves", () => {
+  it("gives the seer the answer on the result card, and nothing for a pick of themselves", () => {
+    expect(W.visitResult(step(choosingAt(night1(basic), 2), { type: "choose", target: 1 }), en)).toBe("Bob: Wolf");
     let s = step(choosingAt(night1(basic), 2), { type: "choose", target: 2 });
     expect([s.night?.rejected, s.night?.seen]).toEqual(["self", null]);
-    expect(W.visitResult(s, en)).toBe("You cannot choose yourself. Choose again.");
-    s = step(step(step(s, { type: "reveal" }), { type: "next", rng: zero }), { type: "choose", target: 1 });
-    expect(s.night?.seen).toBe(1);
-    expect(W.visitResult(s, en)).toBe("Bob: Wolf");
+    expect(W.visitResult(s, en)).toBe("You cannot choose yourself, so you learn nothing tonight.");
+    s = step(step(s, { type: "reveal" }), { type: "next", rng: zero });
+    expect([s.night?.stage, s.night?.visit]).toEqual(["card", 3]);
   });
 
   it("removes the wolves' victim in the morning and remembers the doctor's pick", () => {
@@ -594,18 +608,25 @@ describe("night: the witch lap", () => {
     const healed = step(choosingAt(mainLap(night1(witchRoles), { picks: { 0: 2 } }), 2), { type: "choose", target: 2 });
     expect([healed.night?.rejected, healed.night?.heal]).toEqual([null, true]);
     const poisoned = step(choosingAt(mainLap(night1(witchRoles), { picks: { 0: 4 } }), 2), { type: "choose", target: 2 });
-    expect([poisoned.night?.rejected, poisoned.night?.poison]).toEqual(["poisonSelf", null]);
-    expect(W.visitResult(poisoned, en)).toBe("You cannot poison yourself. Choose again.");
+    expect([poisoned.night?.rejected, poisoned.night?.heal, poisoned.night?.poison]).toEqual(["poisonSelf", false, null]);
+    expect(W.visitResult(poisoned, en)).toBe("You cannot poison yourself, so you use no potion tonight.");
+    expect(passNight(poisoned).removal?.removed).toEqual([4]);
   });
 
-  it("turns down a potion that is used up and brings the choice back", () => {
+  it("uses no potion when the witch chooses what her potions cannot do, and goes on", () => {
     const noHeal = mainLap({ ...night1(witchRoles), potions: { heal: false, poison: true } }, { picks: { 0: 4 } });
     let s = step(choosingAt(noHeal, 2), { type: "choose", target: 4 });
-    expect([s.night?.rejected, W.visitResult(s, en)]).toEqual(["healUsed", "Your healing potion is used up. Choose again."]);
+    expect([s.night?.rejected, s.night?.heal, s.night?.poison]).toEqual(["healUsed", false, null]);
+    expect(W.visitResult(s, en)).toBe("Your healing potion is used up, so you use no potion tonight.");
     s = step(step(s, { type: "reveal" }), { type: "next", rng: zero });
-    expect([s.night?.stage, s.night?.visit]).toEqual(["choose", 2]);
+    expect([s.night?.stage, s.night?.visit]).toEqual(["card", 3]);
+    expect(passNight(s).removal?.removed).toEqual([4]);
     const noPoison = mainLap({ ...night1(witchRoles), potions: { heal: true, poison: false } }, { picks: { 0: 4 } });
-    expect(step(choosingAt(noPoison, 2), { type: "choose", target: 3 }).night?.rejected).toBe("poisonUsed");
+    const wasted = passNight(noPoison, { witch: 3 });
+    expect([wasted.removal?.removed, wasted.potions]).toEqual([[4], { heal: true, poison: false }]);
+    expect(W.visitResult(step(choosingAt(noPoison, 2), { type: "choose", target: 3 }), en)).toBe(
+      "Your poison is used up, so you use no potion tonight."
+    );
   });
 
   it("saves anyone else's pick or Nobody on the witch lap, and it changes nothing", () => {
@@ -672,6 +693,21 @@ describe("card texts", () => {
     expect(W.cardText(choosingAt(lap({ heal: false, poison: true }), 2), en)?.lines.slice(1)).toEqual([
       "Potions left: poison",
       "Choose a player to poison, or Nobody.",
+    ]);
+  });
+
+  it("tells the witch when the wolves chose no one, and what is left to do", () => {
+    const roles: Role[] = ["wolf", "seer", "witch", "villager", "villager", "villager"];
+    // Ann, the only wolf, wastes her vote on herself.
+    const lap = (potions: GameState["potions"]) => choosingAt(mainLap({ ...night1(roles), potions }, { picks: { 0: 0 } }), 2);
+    expect(W.cardText(lap({ heal: true, poison: true }), en)?.lines).toEqual([
+      "The wolves chose no one tonight.",
+      "Potions left: healing, poison",
+      "Choose a player to poison, or Nobody.",
+    ]);
+    expect(W.cardText(lap({ heal: true, poison: false }), en)?.lines.slice(1)).toEqual([
+      "Potions left: healing",
+      "No potion can be used tonight; choose anyone.",
     ]);
   });
 
@@ -889,5 +925,63 @@ describe("visit order across nights", () => {
       s = step(voteOut(toDay(s), null), { type: "continue" });
     }
     expect(starts).toEqual([0, 2, 3, 4]);
+  });
+});
+
+describe("every visit takes the same steps", () => {
+  // Ann and Bob wolves, Cem seer, Dan doctor, Eda witch, Fay and Gil villagers.
+  const roles: Role[] = ["wolf", "wolf", "seer", "doctor", "witch", "villager", "villager"];
+
+  // Plays one visit with its five taps (hold, Continue, pick, hold, Continue), noting after each
+  // tap what the screens offer, and whether the phone then moved on.
+  function trace(state: GameState, target: number | null): [string, GameState, W.Rejection | null] {
+    const { lap, visit } = state.night!;
+    let s = state;
+    const seen: string[] = [];
+    const note = () => seen.push(`${s.night!.stage}|held:${s.revealed}|next:${W.canGoOn(s)}|options:${W.pickOptions(s).length}`);
+    note();
+    const taps: Act[] = [{ type: "reveal" }, { type: "next", rng: zero }, { type: "choose", target }, { type: "reveal" }];
+    for (const tap of taps) {
+      s = step(s, tap);
+      note();
+    }
+    const rejected = s.night!.rejected;
+    s = step(s, { type: "next", rng: zero });
+    const movedOn = s.phase !== "night" || s.night!.lap !== lap || s.night!.visit !== visit;
+    return [`${seen.join(" ")} moved:${movedOn}`, s, rejected];
+  }
+
+  // A pick the rules allow, or one they do not, for whoever holds the phone. Villagers have no
+  // pick the rules forbid.
+  function pickFor(s: GameState, disallowed: boolean): number | null {
+    const seat = s.night!.order[s.night!.visit];
+    const role = s.roles[seat];
+    if (s.night!.lap === "witch") return role === "witch" ? (disallowed ? seat : s.night!.victim) : null;
+    if (role === "wolf") return disallowed ? 1 - seat : 6;
+    if (role === "seer") return disallowed ? seat : 0;
+    if (role === "doctor") return disallowed ? 5 : 6;
+    return 0;
+  }
+
+  it("is the same for every role on both laps, whether the pick is allowed or not", () => {
+    const traces: string[] = [];
+    const rejected: Record<string, W.Rejection[]> = { allowed: [], disallowed: [] };
+    for (const disallowed of [false, true]) {
+      let s: GameState = { ...night1(roles), lastProtected: 5 };
+      for (let guard = 0; s.phase === "night"; guard++) {
+        if (guard > 20) throw new Error("the night did not end");
+        const [visit, after, why] = trace(s, pickFor(s, disallowed));
+        traces.push(visit);
+        if (why) rejected[disallowed ? "disallowed" : "allowed"].push(why);
+        s = after;
+      }
+    }
+    expect(rejected).toEqual({ allowed: [], disallowed: ["wolf", "wolf", "self", "repeat", "poisonSelf"] });
+    expect(traces).toHaveLength(28);
+    for (const visit of traces) expect(visit).toBe(traces[0]);
+    expect(traces[0]).toBe(
+      "card|held:false|next:false|options:7 card|held:true|next:true|options:7 choose|held:true|next:false|options:7 " +
+        "result|held:false|next:false|options:7 result|held:true|next:true|options:7 moved:true"
+    );
   });
 });
