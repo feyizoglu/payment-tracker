@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ReactElement } from "react";
-import { DEFAULT_SETUP, initialGameState, type GameState, type Outcome } from "@/lib/imposter";
+import { DEFAULT_SETUP, initialGameState, playerColor, type GameState, type Outcome } from "@/lib/imposter";
 
 vi.mock("@/lib/i18n", () => ({
   useLang: () => ({
@@ -88,5 +88,17 @@ describe("ImposterResult buttons", () => {
     (button(render(game(null)), "imposterNextRound")!.props.onClick as () => void)();
     expect(onNextRound).toHaveBeenCalledTimes(1);
     expect(onEnd).not.toHaveBeenCalled();
+  });
+});
+
+describe("ImposterResult colours", () => {
+  it("writes each name in that player's colour, imposters and scoreboard alike", () => {
+    const names = ["Ann", "Bob", "Cem"];
+    const coloured = nodes(render(game(null, true))).filter((n) => (n.props.style as { color?: string })?.color);
+    // Two imposters, then the three scoreboard rows (highest score first).
+    expect(coloured.map(text)).toEqual(["Ann", "Cem", "Bob", "Cem", "Ann"]);
+    for (const n of coloured) {
+      expect((n.props.style as { color: string }).color).toBe(playerColor(names.indexOf(text(n))));
+    }
   });
 });

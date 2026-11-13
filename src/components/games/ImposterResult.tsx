@@ -1,7 +1,7 @@
 "use client";
 
 import { useLang } from "@/lib/i18n";
-import type { GameState } from "@/lib/imposter";
+import { playerColor, type GameState } from "@/lib/imposter";
 
 export default function ImposterResult({
   state,
@@ -44,7 +44,14 @@ export default function ImposterResult({
         )}
         <p className="text-gray-900">
           <span className="text-gray-500">{t.imposterWere}: </span>
-          <b>{round.imposters.map((i) => names[i]).join(", ")}</b>
+          <b>
+            {round.imposters.flatMap((i, n) => [
+              n > 0 ? ", " : "",
+              <span key={i} style={{ color: playerColor(i) }}>
+                {names[i]}
+              </span>,
+            ])}
+          </b>
         </p>
       </div>
 
@@ -52,11 +59,13 @@ export default function ImposterResult({
         <div className="rounded-xl border border-gray-100 bg-surface p-4 text-left">
           <p className="mb-2 text-sm font-medium text-gray-500">{t.imposterScores}</p>
           {names
-            .map((name, i) => ({ name, score: scores[i] }))
+            .map((name, i) => ({ name, score: scores[i], color: playerColor(i) }))
             .sort((a, b) => b.score - a.score)
-            .map(({ name, score }) => (
+            .map(({ name, score, color }) => (
               <div key={name} className="flex justify-between py-1 text-gray-900">
-                <span>{name}</span>
+                <span className="font-semibold" style={{ color }}>
+                  {name}
+                </span>
                 <b>{score}</b>
               </div>
             ))}

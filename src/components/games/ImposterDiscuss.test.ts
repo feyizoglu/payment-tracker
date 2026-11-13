@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactElement } from "react";
+import { GAME_THEME } from "@/lib/imposter";
 
 const NOW = 1_800_000_000_000;
 
@@ -39,7 +40,7 @@ type Node = ReactElement<Props>;
 function render(timerMinutes: number): Node {
   hooks.index = 0;
   hooks.effects = [];
-  return ImposterDiscuss({ starter: "Ann", timerMinutes, voting: true, onFinish: vi.fn() }) as Node;
+  return ImposterDiscuss({ starter: "Ann", starterColor: "#123456", timerMinutes, voting: true, onFinish: vi.fn() }) as Node;
 }
 
 function runEffects() {
@@ -54,6 +55,13 @@ function text(node: unknown): string {
   if (typeof node === "string" || typeof node === "number") return String(node);
   if (!node || typeof node !== "object" || !("props" in node)) return "";
   return text((node as Node).props.children);
+}
+
+function nodes(node: unknown): Node[] {
+  if (Array.isArray(node)) return node.flatMap(nodes);
+  if (!node || typeof node !== "object" || !("props" in node)) return [];
+  const el = node as Node;
+  return [el, ...nodes(el.props.children)];
 }
 
 beforeEach(() => {
@@ -85,5 +93,13 @@ describe("ImposterDiscuss countdown", () => {
     expect(vi.getTimerCount()).toBe(0);
     expect(out).not.toContain("0:00");
     expect(out).not.toContain("imposterTimeUp");
+  });
+});
+
+describe("ImposterDiscuss starter", () => {
+  it("names who starts on that player's colour", () => {
+    const chip = nodes(render(0)).find((n) => n.props.style)!;
+    expect(text(chip)).toBe("imposterStarts");
+    expect(chip.props.style).toEqual({ backgroundColor: "#123456", color: GAME_THEME.ink });
   });
 });
