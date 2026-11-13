@@ -81,11 +81,28 @@ describe("SetupRulesStep mode", () => {
 });
 
 describe("SetupRulesStep imposter count and timer", () => {
-  it("offers only the counts the player count allows", () => {
-    const options = (tree: Node) => (toggle(tree, "imposterCount").props.options as { value: string }[]).map((o) => o.value);
-    expect(options(render({ ...valid, players: ["A", "B"] }))).toEqual(["1"]);
-    expect(options(render(valid))).toEqual(["1"]);
-    expect(options(render({ ...valid, players: ["A", "B", "C", "D", "E", "F", "G"] }))).toEqual(["1", "2", "3"]);
+  const enabled = (tree: Node) =>
+    (toggle(tree, "imposterCount").props.options as { value: string; disabled?: boolean }[]).map((o) => [
+      o.value,
+      !o.disabled,
+    ]);
+
+  it("offers every count and disables the ones the player count does not allow", () => {
+    const onlyOne = [["1", true], ["2", false], ["3", false]];
+    expect(enabled(render({ ...valid, players: ["A", "B"] }))).toEqual(onlyOne);
+    expect(enabled(render(valid))).toEqual(onlyOne);
+    expect(enabled(render({ ...valid, players: ["A", "B", "C", "D", "E"] }))).toEqual([["1", true], ["2", true], ["3", false]]);
+    expect(enabled(render({ ...valid, players: ["A", "B", "C", "D", "E", "F", "G"] }))).toEqual([
+      ["1", true],
+      ["2", true],
+      ["3", true],
+    ]);
+  });
+
+  it("keeps a saved count above the limit selected, so the toggle never shows nothing chosen", () => {
+    const tree = render({ ...valid, players: ["A", "B", "C", "D"], imposterCount: 3 });
+    expect(enabled(tree)).toEqual([["1", true], ["2", false], ["3", false]]);
+    expect(toggle(tree, "imposterCount").props.value).toBe("3");
   });
 
   it("sets the imposter count and the timer", () => {

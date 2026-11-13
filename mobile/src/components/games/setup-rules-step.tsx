@@ -47,9 +47,10 @@ export function SetupRulesStep({
       <SegmentedToggle
         label={t.imposterCount}
         value={String(value.imposterCount)}
-        options={Array.from({ length: Math.min(MAX_IMPOSTERS, limit) }, (_, i) => ({
+        options={Array.from({ length: MAX_IMPOSTERS }, (_, i) => ({
           value: String(i + 1),
           label: String(i + 1),
+          disabled: i + 1 > limit,
         }))}
         onChange={(n) => set({ imposterCount: Number(n) })}
       />
