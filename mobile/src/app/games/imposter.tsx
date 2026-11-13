@@ -114,5 +114,9 @@ export default function ImposterScreen() {
     );
   }
 
-  return <GameScreen title={t.imposterTitle}>{body}</GameScreen>;
+  return (
+    <GameScreen title={t.imposterTitle} tone="game">
+      {body}
+    </GameScreen>
+  );
 }
