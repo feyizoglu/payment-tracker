@@ -6,8 +6,8 @@ const LANGS = [
   ["en", "en-US"],
 ] as const;
 
-const MIN_PER_CATEGORY = 90;
-const MIN_PER_LEVEL = 35;
+const MIN_PER_CATEGORY = 220;
+const MIN_PER_LEVEL = 90;
 
 describe.each(LANGS)("%s word list", (lang, locale) => {
   const norm = (s: string) => s.trim().toLocaleLowerCase(locale);
