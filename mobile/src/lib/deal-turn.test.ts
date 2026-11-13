@@ -238,6 +238,28 @@ describe("DealTurn hold inside the tap guard", () => {
     vi.advanceTimersByTime(TAP_GUARD_MS * 5);
     expect(onReveal).not.toHaveBeenCalled();
   });
+
+  it("does not open a card a screen reader opened on its own when the guard ends", () => {
+    act(render(false), "activate");
+    expect(onReveal).toHaveBeenCalledTimes(1);
+    render(false);
+    hooks.effects[1]();
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(TAP_GUARD_MS * 5);
+    expect(onReveal).toHaveBeenCalledTimes(1);
+    expect(text(render(false))).not.toContain("SECRET");
+  });
+
+  it("stops asking once a held card was hidden by the app leaving the foreground", () => {
+    render(false);
+    hooks.effects[0]();
+    pressIn(render(false));
+    rn.listener!("background");
+    render(false);
+    hooks.effects[1]();
+    vi.advanceTimersByTime(TAP_GUARD_MS * 5);
+    expect(onReveal).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("DealTurn next player", () => {

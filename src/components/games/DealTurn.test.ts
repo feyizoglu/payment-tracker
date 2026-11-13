@@ -299,17 +299,39 @@ describe("DealTurn hold inside the tap guard", () => {
     expect(onReveal).not.toHaveBeenCalled();
   });
 
-  it("asks once more when a card opened with Show is still open as the guard ends", () => {
+  it("does not open a card opened with Show on its own when the guard ends", () => {
     hooks.desktop = true;
+    // The second click of a double click on Start lands on the first player's Show.
     (button(render(false), "imposterShow")!.props.onClick as () => void)();
     expect(onReveal).toHaveBeenCalledTimes(1);
     render(false);
     hooks.effects[1]();
-    vi.advanceTimersByTime(TAP_GUARD_MS - 1);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(TAP_GUARD_MS * 5);
     expect(onReveal).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(1);
-    expect(onReveal).toHaveBeenCalledTimes(2);
-    expect(text(render(true))).toContain("SECRET");
+    expect(text(render(false))).not.toContain("SECRET");
+    expect(button(render(false), "imposterShow")).toBeDefined();
+  });
+
+  it("does not open a card opened with a key on its own when the guard ends", () => {
+    keyDown(render(false), { key: "Enter" });
+    render(false);
+    hooks.effects[1]();
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(TAP_GUARD_MS * 5);
+    expect(onReveal).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops asking once a held card was hidden by the page going to the background", () => {
+    render(false);
+    hooks.effects[0]();
+    press(render(false));
+    doc.hidden = true;
+    listeners.visibilitychange();
+    render(false);
+    hooks.effects[1]();
+    vi.advanceTimersByTime(TAP_GUARD_MS * 5);
+    expect(onReveal).toHaveBeenCalledTimes(1);
   });
 });
 

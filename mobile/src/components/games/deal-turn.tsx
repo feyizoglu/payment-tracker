@@ -25,12 +25,19 @@ export function DealTurn({
 }) {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
+  // Only a press that is still held is asked again: a card a screen reader opened stays open
+  // without a finger on it, and must not open on its own when the guard ends.
+  const [held, setHeld] = useState(false);
 
-  const show = () => {
+  const show = (byHold = false) => {
     if (!revealed) onReveal();
     setOpen(true);
+    setHeld(byHold);
   };
-  const hide = () => setOpen(false);
+  const hide = () => {
+    setOpen(false);
+    setHeld(false);
+  };
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
@@ -39,12 +46,12 @@ export function DealTurn({
     return () => sub.remove();
   }, []);
 
-  // A press that started inside the tap guard was ignored: ask once more when it has passed.
+  // A hold that started inside the tap guard was ignored: ask once more when it has passed.
   useEffect(() => {
-    if (!open || revealed) return;
+    if (!open || !held || revealed) return;
     const id = setTimeout(onReveal, TAP_GUARD_MS);
     return () => clearTimeout(id);
-  }, [open, revealed, onReveal]);
+  }, [open, held, revealed, onReveal]);
 
   // The reducer ignores a reveal that comes too soon after the last tap. The card only
   // shows once the reveal was accepted, so "has seen it" and "may pass the phone on" never
@@ -71,7 +78,7 @@ export function DealTurn({
           if (shown) hide();
           else show();
         }}
-        onPressIn={show}
+        onPressIn={() => show(true)}
         onPressOut={hide}
         className="min-h-64 flex-1 items-center justify-center rounded-3xl p-6"
         style={{ backgroundColor: GAME_THEME.bg }}>

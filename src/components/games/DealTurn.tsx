@@ -42,14 +42,21 @@ export default function DealTurn({
   const [openedIn, setOpenedIn] = useState<boolean | null>(null);
   // Cleared on every mode change, or a flip back to the opening mode would show it again.
   const [lastMode, setLastMode] = useState(desktop);
+  // Only a press that is still held is asked again: a card opened with Show or a key stays
+  // open without a hand on it, and must not open on its own when the guard ends.
+  const [held, setHeld] = useState(false);
   if (lastMode !== desktop) {
     setLastMode(desktop);
     setOpenedIn(null);
+    setHeld(false);
   }
 
   useEffect(() => {
     const onVisibility = () => {
-      if (document.hidden) setOpenedIn(null);
+      if (document.hidden) {
+        setOpenedIn(null);
+        setHeld(false);
+      }
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
@@ -58,20 +65,24 @@ export default function DealTurn({
   // The reducer ignores a reveal that comes too soon after the last tap. The card only
   // shows once the reveal was accepted, so "has seen it" and "may pass the phone on" never
   // disagree. Asking again after that would restart the tap guard and swallow Next.
-  const show = () => {
+  const show = (byHold = false) => {
     if (!revealed) onReveal();
     setOpenedIn(desktop);
+    setHeld(byHold);
   };
-  const hide = () => setOpenedIn(null);
+  const hide = () => {
+    setOpenedIn(null);
+    setHeld(false);
+  };
   const open = openedIn === desktop;
   const shown = open && revealed;
 
-  // A press that started inside the tap guard was ignored: ask once more when it has passed.
+  // A hold that started inside the tap guard was ignored: ask once more when it has passed.
   useEffect(() => {
-    if (!open || revealed) return;
+    if (!open || !held || revealed) return;
     const id = setTimeout(onReveal, TAP_GUARD_MS);
     return () => clearTimeout(id);
-  }, [open, revealed, onReveal]);
+  }, [open, held, revealed, onReveal]);
 
   const hold = desktop
     ? undefined
@@ -86,7 +97,7 @@ export default function DealTurn({
           } catch {
             // The pointer may already be gone; the card still has to open.
           }
-          show();
+          show(true);
         },
         onPointerUp: hide,
         onPointerCancel: hide,
@@ -122,7 +133,7 @@ export default function DealTurn({
         {desktop && (
           <button
             type="button"
-            onClick={shown ? hide : show}
+            onClick={shown ? hide : () => show()}
             className="rounded-lg px-8 py-2 font-semibold"
             style={{ backgroundColor: GAME_THEME.text, color: GAME_THEME.ink }}
           >
