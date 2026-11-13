@@ -1,8 +1,8 @@
 // Keeps the games playable offline. The page stores each games page together with every
 // static file that page needs; the service worker only reads that cache. Must match
 // GAMES_CACHE / GAMES_PAGES in sw.js.
-export const GAMES_CACHE = "games-v1";
-export const GAMES_PAGES = ["/games", "/games/imposter"];
+export const GAMES_CACHE = "games-v2";
+export const GAMES_PAGES = ["/games", "/games/imposter", "/games/wolf"];
 
 // Stops at quotes, whitespace and the backslash that escapes quotes in the inline RSC payload.
 const STATIC_ASSET = /\/_next\/static\/[^"'\s)\\<>]+/g;

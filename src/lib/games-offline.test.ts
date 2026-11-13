@@ -11,6 +11,10 @@ describe("games offline helper", () => {
     expect(sw).toContain(`const GAMES_CACHE = "${GAMES_CACHE}";`);
     expect(sw).toContain(`const GAMES_PAGES = ${JSON.stringify(GAMES_PAGES).replace(/,/g, ", ")};`);
   });
+
+  it("keeps Wolf Night offline too", () => {
+    expect(GAMES_PAGES).toContain("/games/wolf");
+  });
 });
 
 describe("staticAssetsIn", () => {
@@ -39,8 +43,14 @@ describe("syncGamesCache", () => {
   const pages: Record<string, string> = {
     "/games": `<script src="/_next/static/chunks/main.js?dpl=1"></script><link href="/_next/static/css/app.css?dpl=1">`,
     "/games/imposter": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/imposter.js?dpl=1\"]"])</script>`,
+    "/games/wolf": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/wolf.js?dpl=1\"]"])</script>`,
   };
-  const assets = ["/_next/static/chunks/main.js?dpl=1", "/_next/static/css/app.css?dpl=1", "/_next/static/chunks/imposter.js?dpl=1"];
+  const assets = [
+    "/_next/static/chunks/main.js?dpl=1",
+    "/_next/static/css/app.css?dpl=1",
+    "/_next/static/chunks/imposter.js?dpl=1",
+    "/_next/static/chunks/wolf.js?dpl=1",
+  ];
 
   function fakeCache(initial: string[] = [], failing: string[] = []) {
     const store = new Map<string, Response>(initial.map((path) => [`${ORIGIN}${path}`, new Response("old")]));
@@ -119,7 +129,7 @@ describe("prepareGamesOffline", () => {
     const { register, open } = stubBrowser(async () => ({}));
     await prepareGamesOffline();
     expect(register).toHaveBeenCalledWith("/sw.js", { scope: "/", updateViaCache: "none" });
-    expect(open).toHaveBeenCalledWith("games-v1");
+    expect(open).toHaveBeenCalledWith("games-v2");
   });
 
   it("resolves without opening the cache when registration fails", async () => {
