@@ -689,7 +689,7 @@ describe("card texts", () => {
       W.cardText(choosingAt(lap(potions, wolfPick), 2), t)?.lines;
 
     it("tells everyone but the witch that this lap has nothing for them", () => {
-      expect(W.cardText(lap(both, 4), en)?.lines).toEqual(["Nothing to do this lap; choose anyone."]);
+      expect(W.cardText(lap(both, 4), en)?.lines).toEqual(["Nothing to do this lap; choose anyone or Nobody."]);
     });
 
     it("states every rule her tap is judged by, for each victim and the potions left", () => {
@@ -718,7 +718,7 @@ describe("card texts", () => {
         "Potions left: healing, poison",
         "Choose a player other than yourself to poison, or Nobody.",
       ]);
-      expect(card(healOnly, 0)?.slice(2)).toEqual(["No potion can be used tonight; choose Nobody."]);
+      expect(card(healOnly, 0)?.slice(2)).toEqual(["No potion can be used tonight; choose anyone or Nobody."]);
       expect(card(poisonOnly, 0)?.slice(2)).toEqual(["Choose a player other than yourself to poison, or Nobody."]);
     });
 
