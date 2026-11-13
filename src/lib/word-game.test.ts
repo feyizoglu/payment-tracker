@@ -261,8 +261,15 @@ describe("buildDeck", () => {
   it(`clears the seen list of that choice when fewer than ${WORD_DECK_MIN} of its words are unseen`, () => {
     const seen = [...ids(animals.slice(0, 11)), "food-1", "animals-61"];
     const built = buildDeck(words, "animals", "easy", seen, keepOrder);
-    expect(ids(built.deck)).toEqual(ids(animals));
+    expect(ids(built.deck)).toHaveLength(60);
     expect(built.seen).toEqual(["food-1", "animals-61"]);
+  });
+
+  it("deals the words just seen only after every unseen one when the choice ran low", () => {
+    const seen = ids(animals.slice(0, 11));
+    const { deck } = buildDeck(words, "animals", "easy", seen, () => 0);
+    expect([...ids(deck.slice(0, 49))].sort()).toEqual([...ids(animals.slice(11))].sort());
+    expect([...ids(deck.slice(49))].sort()).toEqual([...seen].sort());
   });
 
   it("shuffles with the random source", () => {
