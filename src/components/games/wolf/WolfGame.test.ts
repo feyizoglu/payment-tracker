@@ -227,6 +227,7 @@ describe("WolfGame turns", () => {
     await call(() => p("thisGame").onDeal());
     await dealAll(5);
     expect([ui.screen, ui.frameColor, p("pass").name]).toEqual(["pass", NARRATOR_COLOR, "wolfTheNarrator"]);
+    expect(p("rules")).toBeDefined();
     await call(() => p("pass").onReveal());
     expect(ui.screen).toBe("roster");
     await call(() => p("roster").onStart());

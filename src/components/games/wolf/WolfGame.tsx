@@ -117,6 +117,7 @@ export default function WolfGame() {
   if (phase === "deal" && state.turn === names.length) {
     return (
       <GameFrame color={NARRATOR_COLOR}>
+        <WolfRulesButton onClick={openRules} />
         <PassPhone name={t.wolfTheNarrator} revealed={state.revealed} revealLabel={t.wolfShowAllRoles} onReveal={reveal}>
           <WolfRoster state={state} onStart={next} />
         </PassPhone>

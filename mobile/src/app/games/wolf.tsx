@@ -95,9 +95,12 @@ export default function WolfScreen() {
   } else if (phase === "deal" && state.turn === names.length) {
     color = NARRATOR_COLOR;
     body = (
-      <PassPhone name={t.wolfTheNarrator} revealed={state.revealed} revealLabel={t.wolfShowAllRoles} onReveal={reveal}>
-        <WolfRoster state={state} onStart={next} />
-      </PassPhone>
+      <>
+        <WolfRulesButton onPress={openRules} ink />
+        <PassPhone name={t.wolfTheNarrator} revealed={state.revealed} revealLabel={t.wolfShowAllRoles} onReveal={reveal}>
+          <WolfRoster state={state} onStart={next} />
+        </PassPhone>
+      </>
     );
   } else if (phase === "deal") {
     color = playerColor(state.turn);

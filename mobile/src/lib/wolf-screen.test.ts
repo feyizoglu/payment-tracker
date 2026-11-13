@@ -225,6 +225,7 @@ describe("Wolf Night screen: turns", () => {
     call(WolfThisGame, "onDeal");
     dealAll(5);
     expect([find(PassPhone)!.props.name, screen().color]).toEqual(["wolfTheNarrator", NARRATOR_COLOR]);
+    expect(find(WolfRulesButton)!.props.ink).toBe(true);
     call(PassPhone, "onReveal");
     call(WolfRoster, "onStart");
     expect(has(WolfNarrator)).toBe(true);
