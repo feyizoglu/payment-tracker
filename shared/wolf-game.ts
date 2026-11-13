@@ -277,13 +277,19 @@ export function narratorLines(setup: WolfSetup): NarratorLine[] {
 
 export type Phase = "setup" | "rules" | "deal" | "night" | "morning" | "day" | "end";
 
-/** Why a pick is not taken: a wolf chosen by a wolf, oneself, or the doctor's last night. */
-export type Rejection = "wolf" | "self" | "repeat";
+/**
+ * Why a pick is not taken: a wolf chosen by a wolf, oneself, the doctor's last night, or a
+ * potion the witch no longer has (or poison for herself).
+ */
+export type Rejection = "wolf" | "self" | "repeat" | "healUsed" | "poisonUsed" | "poisonSelf";
 
 export const REJECTION_KEYS = {
   wolf: "wolfRejectWolf",
   self: "wolfRejectSelf",
   repeat: "wolfRejectRepeat",
+  healUsed: "wolfRejectHealUsed",
+  poisonUsed: "wolfRejectPoisonUsed",
+  poisonSelf: "wolfRejectPoisonSelf",
 } as const satisfies Record<Rejection, string>;
 
 export interface Night extends NightOutcome {
@@ -346,7 +352,8 @@ export type GameAction =
   | { type: "deal"; rng: Rng; at: number }
   | { type: "reveal"; at: number }
   | { type: "next"; rng: Rng; at: number }
-  | { type: "choose"; target: number; at: number }
+  /** `target: null` is Nobody, offered on the witch lap only. */
+  | { type: "choose"; target: number | null; at: number }
   | { type: "heal"; at: number }
   | { type: "shoot"; target: number; at: number }
   | { type: "vote"; at: number }
@@ -449,14 +456,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   return state;
 }
 
-type PickKind = "victim" | "seer" | "doctor" | "guess" | "poison";
+// "witch" is the witch's pick on her lap; "poison" the narrator's poison pick for her.
+type PickKind = "victim" | "seer" | "doctor" | "guess" | "witch" | "poison";
 
+// The narrator's witch line, with the witch still in the game.
 function witchTurn(state: GameState): boolean {
-  const { night } = state;
   const seat = state.roles.indexOf("witch");
-  if (state.phase !== "night" || !night || seat < 0 || !state.alive[seat]) return false;
-  if (state.setup.night === "narrator") return narratorLine(state) === "witch";
-  return night.lap === "witch" && night.stage === "choose" && night.order[night.visit] === seat;
+  if (state.phase !== "night" || !state.night || seat < 0 || !state.alive[seat]) return false;
+  return narratorLine(state) === "witch";
 }
 
 // What a tap on a player means right now, and whose choice it is.
@@ -465,9 +472,10 @@ function picker(state: GameState): { kind: PickKind; seat: number } | null {
   if (state.phase !== "night" || !night) return null;
   if (witchTurn(state)) return state.potions.poison ? { kind: "poison", seat: state.roles.indexOf("witch") } : null;
   if (state.setup.night === "narrator") return narratorPicker(state);
-  if (night.stage !== "choose" || night.lap !== "main") return null;
+  if (night.stage !== "choose") return null;
   const seat = night.order[night.visit];
   const role = state.roles[seat];
+  if (night.lap === "witch") return { kind: role === "witch" ? "witch" : "guess", seat };
   if (role === "wolf") return { kind: "victim", seat };
   if (role === "seer" || role === "doctor") return { kind: role, seat };
   return { kind: "guess", seat };
@@ -478,6 +486,12 @@ function rejectionFor(state: GameState, p: { kind: PickKind; seat: number }, tar
   if (p.kind === "victim") return state.roles[target] === "wolf" ? "wolf" : null;
   if (p.kind === "doctor") return target === state.lastProtected ? "repeat" : null;
   if (p.kind === "guess") return null;
+  if (p.kind === "witch") {
+    // On her lap the victim is healed and anyone else poisoned: one potion a night.
+    if (target === state.night!.victim) return state.potions.heal ? null : "healUsed";
+    if (target === p.seat) return "poisonSelf";
+    return state.potions.poison ? null : "poisonUsed";
+  }
   return target === p.seat ? "self" : null;
 }
 
@@ -497,8 +511,8 @@ export function canGoOn(state: GameState): boolean {
   const { night } = state;
   if (state.phase !== "night" || !night) return false;
   if (state.setup.night === "narrator") return narratorReady(state);
-  // On the main lap the pick itself moves on to the result card.
-  if (night.stage === "choose") return night.lap === "witch";
+  // The pick itself moves on to the result card.
+  if (night.stage === "choose") return false;
   return state.revealed;
 }
 
@@ -582,9 +596,19 @@ export function cardText(state: GameState, t: Strings): CardText | null {
     case "idle":
       return { heading, role, lines: [t.wolfNothingThisLap] };
     case "witch": {
-      const left = [state.potions.heal ? t.wolfPotionHeal : "", state.potions.poison ? t.wolfPotionPoison : ""].filter(Boolean);
-      const victim = night.victim === null ? [] : [t.wolfTaskWitch.replace("{name}", () => names[night.victim!])];
-      return { heading, role, lines: [...victim, t.wolfPotionsLeft.replace("{list}", () => left.join(", "))] };
+      const { heal, poison } = state.potions;
+      const victim = night.victim === null ? "" : names[night.victim];
+      const left = [heal ? t.wolfPotionHeal : "", poison ? t.wolfPotionPoison : ""].filter(Boolean);
+      const how = heal && poison ? t.wolfWitchBoth : heal ? t.wolfWitchHealOnly : t.wolfWitchPoisonOnly;
+      return {
+        heading,
+        role,
+        lines: [
+          t.wolfTaskWitch.replace("{name}", () => victim),
+          t.wolfPotionsLeft.replace("{list}", () => left.join(", ")),
+          how.replace("{name}", () => victim),
+        ],
+      };
     }
   }
 }
@@ -637,11 +661,7 @@ function nightNext(state: GameState, rng: Rng, at: number): GameState {
   if (!canGoOn(state)) return state;
   if (state.setup.night === "narrator") return narratorNext(state, at);
   const night = state.night!;
-  const seat = night.order[night.visit];
-  // On the witch lap only the witch has a choice; everyone else passes the phone on from the card.
-  if (night.stage === "card" && (night.lap === "main" || state.roles[seat] === "witch")) {
-    return { ...state, night: { ...night, stage: "choose" }, lastActionAt: at };
-  }
+  if (night.stage === "card") return { ...state, night: { ...night, stage: "choose" }, lastActionAt: at };
   // A pick that was not taken brings the choice back to the same visitor.
   if (night.stage === "result" && night.rejected) {
     return { ...state, night: { ...night, stage: "choose", rejected: null }, revealed: false, lastActionAt: at };
@@ -662,19 +682,24 @@ function nightNext(state: GameState, rng: Rng, at: number): GameState {
 
 // A visitor's tap on the open choice screen. Every tap leads to the held result card, so every
 // visit takes the same steps; a pick the rules do not allow is only turned down there.
-function passChoose(state: GameState, target: number, at: number): GameState {
+function passChoose(state: GameState, target: number | null, at: number): GameState {
   const night = state.night!;
   const p = picker(state);
-  if (!p || !state.alive[target]) return state;
-  const rejected = rejectionFor(state, p, target);
-  const picked = rejected
-    ? night
-    : {
-        ...night,
-        picks: night.picks.map((pick, seat) => (seat === p.seat ? target : pick)),
-        seen: p.kind === "seer" ? target : night.seen,
-        protect: p.kind === "doctor" ? target : night.protect,
-      };
+  if (!p || (target === null ? night.lap !== "witch" : !state.alive[target])) return state;
+  const rejected = target === null ? null : rejectionFor(state, p, target);
+  let picked = night;
+  if (!rejected && night.lap === "main") {
+    picked = {
+      ...night,
+      picks: night.picks.map((pick, seat) => (seat === p.seat ? target : pick)),
+      seen: p.kind === "seer" ? target : night.seen,
+      protect: p.kind === "doctor" ? target : night.protect,
+    };
+  } else if (!rejected && p.kind === "witch") {
+    // Nobody uses neither potion; the choices of everyone else on the witch lap change nothing.
+    const heal = target !== null && target === night.victim;
+    picked = { ...night, heal, poison: target !== null && !heal ? target : null };
+  }
   return { ...state, night: { ...picked, stage: "result", rejected }, revealed: false, lastActionAt: at };
 }
 
@@ -686,22 +711,22 @@ function nightStep(state: GameState, action: GameAction): GameState {
       if (state.setup.night !== "pass" || night.stage === "choose" || state.revealed) return state;
       return { ...state, revealed: true, lastActionAt: action.at };
     case "choose": {
-      if (state.setup.night === "pass" && night.lap === "main") return passChoose(state, action.target, action.at);
-      if (!canPick(state, action.target)) return state;
-      const { kind, seat } = picker(state)!;
+      if (state.setup.night === "pass") return passChoose(state, action.target, action.at);
       const target = action.target;
-      // A pick moves no turn on, so it does not restart the tap guard: Next right after it counts.
-      if (kind === "poison") return { ...state, night: { ...night, poison: night.poison === target ? null : target } };
-      const patch: Partial<Night> = {};
-      if (state.setup.night === "pass") patch.picks = night.picks.map((p, i) => (i === seat ? target : p));
-      else if (kind === "victim") patch.victim = target;
-      if (kind === "seer") patch.seen = target;
-      if (kind === "doctor") patch.protect = target;
-      return { ...state, night: { ...night, ...patch } };
+      if (target === null || !canPick(state, target)) return state;
+      const { kind } = picker(state)!;
+      // The narrator's pick moves no turn on, so it does not restart the tap guard: Next right
+      // after it counts. A poison pick takes the place of Heal: one potion a night.
+      if (kind === "poison") {
+        return { ...state, night: { ...night, poison: night.poison === target ? null : target, heal: false } };
+      }
+      if (kind === "victim") return { ...state, night: { ...night, victim: target } };
+      if (kind === "seer") return { ...state, night: { ...night, seen: target } };
+      return { ...state, night: { ...night, protect: target } };
     }
     case "heal":
       if (!canHeal(state)) return state;
-      return { ...state, night: { ...night, heal: !night.heal } };
+      return { ...state, night: { ...night, heal: !night.heal, poison: null } };
     case "next":
       return nightNext(state, action.rng, action.at);
   }

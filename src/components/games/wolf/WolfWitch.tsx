@@ -4,8 +4,7 @@ import { useLang } from "@/lib/i18n";
 import { canHeal, pickOptions, type GameState } from "@/lib/wolf-game";
 import WolfPicker from "./WolfPicker";
 
-// The witch's choices, on her visit and on the narrator's witch line. Text takes the colour of
-// the screen it is on.
+// The witch's choices on the narrator's witch line: only the narrator sees this screen.
 export default function WolfWitch({
   state,
   onHeal,

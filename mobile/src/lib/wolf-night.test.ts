@@ -138,8 +138,7 @@ describe("WolfCard", () => {
 
 describe("WolfChoose", () => {
   const roles: Role[] = ["villager", "wolf", "seer", "doctor", "wolf"];
-  const render = (s: GameState) => WolfChoose({ state: s, onPick, onHeal, onNext }) as Node;
-  const next = (tree: Node) => find(tree, GameButton)!;
+  const render = (s: GameState) => WolfChoose({ state: s, onPick }) as Node;
 
   // What the table can see of the screen: every element with the visitor's name taken out.
   const look = (s: GameState) => {
@@ -174,21 +173,30 @@ describe("WolfChoose", () => {
     expect(find(tree, GameButton)).toBeUndefined();
   });
 
-  it("gives the witch her potions on the witch lap, in dark text on her colour", () => {
-    const s = game(["wolf", "seer", "witch", "villager", "villager"], { night: night({ lap: "witch", visit: 2, victim: 4 }) });
-    const tree = render(s);
-    expect(find(tree, WolfWitch)!.props).toMatchObject({ state: s, onHeal, onPick, ink: true });
-    expect(find(tree, WolfPicker)).toBeUndefined();
-    expect(next(tree).props.disabled).toBe(false);
+  it("looks the same on the witch lap for the witch and everyone else, with a Nobody button", () => {
+    const witchRoles: Role[] = ["wolf", "seer", "witch", "villager", "villager"];
+    const lap = (visit: number) => game(witchRoles, { night: night({ lap: "witch", visit, victim: 4 }) });
+    const same = look(lap(0));
+    for (const visit of [1, 2, 3, 4]) expect(look(lap(visit))).toBe(same);
+    const tree = render(lap(2));
+    expect(find(tree, WolfWitch)).toBeUndefined();
+    const nobody = find(tree, Pressable)!;
+    expect([text(nobody), nobody.props.accessibilityRole]).toEqual(["wolfNobody", "button"]);
+    press(nobody);
+    expect(onPick).toHaveBeenCalledWith(null);
+    expect(text(render(game(witchRoles, { night: night({ visit: 2 }) })))).not.toContain("wolfNobody");
   });
 });
 
 describe("WolfWitch", () => {
   const roles: Role[] = ["wolf", "seer", "witch", "villager", "villager"];
   const render = (s: GameState) => WolfWitch({ state: s, onHeal, onPick }) as Node;
+  // The narrator's witch line (line 3 of sleep, wolves, seer, witch, wake).
+  const witchLine = (over: Partial<Night>, state: Partial<GameState> = {}) =>
+    game(roles, { night: night({ stage: "card", line: 3, victim: 4, ...over }), ...state }, { night: "narrator", specials: ["seer", "witch"] });
 
   it("shows the victim and offers Heal and Poison while those potions are left", () => {
-    const s = game(roles, { night: night({ lap: "witch", visit: 2, victim: 4 }) });
+    const s = witchLine({});
     const tree = render(s);
     expect(text(tree)).toContain("victim Eda");
     const heal = find(tree, Pressable)!;
@@ -199,12 +207,10 @@ describe("WolfWitch", () => {
   });
 
   it("marks the heal and leaves out the potions that are used", () => {
-    const healed = render(
-      game(roles, { night: night({ lap: "witch", visit: 2, victim: 4, heal: true }), potions: { heal: true, poison: false } })
-    );
+    const healed = render(witchLine({ heal: true }, { potions: { heal: true, poison: false } }));
     expect(text(find(healed, Pressable))).toBe("✓ heal Eda");
     expect(find(healed, WolfPicker)).toBeUndefined();
-    const empty = render(game(roles, { night: night({ lap: "witch", visit: 2, victim: 4 }), potions: { heal: false, poison: false } }));
+    const empty = render(witchLine({}, { potions: { heal: false, poison: false } }));
     expect(text(empty)).toContain("wolfNoPotions");
     expect(find(empty, Pressable)).toBeUndefined();
   });

@@ -50,7 +50,7 @@ export default function WolfScreen() {
   const names = setup.players;
   const reveal = () => dispatch({ type: "reveal", at: Date.now() });
   const next = () => dispatch({ type: "next", rng: Math.random, at: Date.now() });
-  const pick = (target: number) => dispatch({ type: "choose", target, at: Date.now() });
+  const pick = (target: number | null) => dispatch({ type: "choose", target, at: Date.now() });
   const heal = () => dispatch({ type: "heal", at: Date.now() });
   const openRules = () => setRulesOpen(true);
   const newGame = () => {
@@ -137,7 +137,7 @@ export default function WolfScreen() {
         </>
       );
     } else {
-      body = <WolfChoose state={state} onPick={pick} onHeal={heal} onNext={next} />;
+      body = <WolfChoose state={state} onPick={pick} />;
     }
   } else if (phase === "morning" || (phase === "day" && state.dayStep === "result")) {
     body = (

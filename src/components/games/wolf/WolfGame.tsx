@@ -66,7 +66,7 @@ export default function WolfGame() {
   const names = setup.players;
   const reveal = () => dispatch({ type: "reveal", at: Date.now() });
   const next = () => dispatch({ type: "next", rng: Math.random, at: Date.now() });
-  const pick = (target: number) => dispatch({ type: "choose", target, at: Date.now() });
+  const pick = (target: number | null) => dispatch({ type: "choose", target, at: Date.now() });
   const heal = () => dispatch({ type: "heal", at: Date.now() });
   const openRules = () => setRulesOpen(true);
   const newGame = () => {
@@ -167,7 +167,7 @@ export default function WolfGame() {
     }
     return (
       <GameFrame color={playerColor(seat)}>
-        <WolfChoose state={state} onPick={pick} onHeal={heal} onNext={next} />
+        <WolfChoose state={state} onPick={pick} />
       </GameFrame>
     );
   }
