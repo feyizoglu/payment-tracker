@@ -175,8 +175,9 @@ still read out, marked "(removed: wait a moment, then go on)", so the table cann
   `tone="game"`, reusing `DealTurn` and `PassPhone`; a new entry on
   `mobile/src/app/games/index.tsx`; `mobile/src/lib/wolf-game-storage.ts` for the setup.
 - Offline web: `/games/wolf` added to `GAMES_PAGES` in `src/lib/games-offline.ts` and
-  `public/sw.js`, and `GAMES_CACHE` bumped one version above what `main` has when this branch
-  merges (Describe It also bumps it), in both files.
+  `public/sw.js`; the two lists must match. `GAMES_CACHE` lives only in
+  `src/lib/games-offline.ts` and goes one version above what `main` has when this branch
+  merges (Describe It also bumps it).
 - Imposter's code is not changed, apart from reusing its components.
 
 ## Accessibility
