@@ -404,8 +404,10 @@ export function wordGameReducer(state: WordGameState, action: WordGameAction): W
       let deck = state.deck;
       let played = state.played;
       // Out of fresh words: the words of earlier turns come back, so every turn can be played.
+      // A word passed now goes last, never straight back.
       if (deck.length === 0) {
         deck = shuffle(played, action.rng);
+        if (pass && deck.length > 0) deck.push(card);
         played = [];
       }
       const [nextCard, ...rest] = deck;

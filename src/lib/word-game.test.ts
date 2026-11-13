@@ -499,6 +499,27 @@ describe("wordGameReducer running out of words", () => {
     expect(ids(s.deck)).toEqual(["animals-2"]);
   });
 
+  it("puts a word passed on an empty deck at the end of the refill, never straight back", () => {
+    const four = source({ animals: cardsOf("animals", "easy", 4) });
+    let s = turn(start(setupWith({ passLimit: null }), four), ["correct", "correct"]);
+    s = answer(answer(begin(s), "correct"), "pass");
+    expect(s.card?.id).toBe("animals-1");
+    expect(ids(s.deck)).toEqual(["animals-2", "animals-3"]);
+    s = timeUp(answer(answer(s, "pass"), "pass"));
+    expect(ids(s.deck)).toEqual(["animals-3"]);
+    expect(ids(s.played)).toEqual(["animals-4", "animals-1", "animals-2"]);
+  });
+
+  it("ends the turn rather than deal a word passed on an empty deck straight back", () => {
+    let s = begin(start(setupWith({ passLimit: null }), source({ animals: cardsOf("animals", "easy", 2) })));
+    s = answer(s, "pass");
+    expect(s.card?.id).toBe("animals-2");
+    s = answer(s, "pass");
+    expect(s.card).toBeNull();
+    expect(s.phase).toBe("summary");
+    expect(s.outOfWords).toBe(true);
+  });
+
   it("ends the turn with a note when no earlier turn has words to give back", () => {
     let s = begin(start(setupWith(), source({ animals: cardsOf("animals", "easy", 3) })));
     s = answer(s, "pass");
