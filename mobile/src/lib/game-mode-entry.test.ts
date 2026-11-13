@@ -197,10 +197,18 @@ describe("GamesScreen", () => {
     state.lock = { ...withPin, gameMode: true };
     await render(GamesScreen);
     expect(state.pinSetups).toBe(0);
-    expect(state.presses).toHaveLength(2);
+    expect(state.presses).toHaveLength(3);
     state.presses[0]();
     expect(router.push).toHaveBeenCalledTimes(1);
     expect(router.push).toHaveBeenCalledWith("/games/imposter");
+  });
+
+  it("opens Wolf Night from its entry", async () => {
+    state.lock = { ...withPin, gameMode: true };
+    await render(GamesScreen);
+    state.presses[1]();
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith("/games/wolf");
   });
 
   it("enters game mode when the games list is opened with a PIN", async () => {
@@ -217,7 +225,7 @@ describe("GamesScreen", () => {
     state.lock = { ...withPin, gameMode: true };
     state.lang = from;
     await render(GamesScreen);
-    state.presses[1]();
+    state.presses[2]();
     expect(router.push).not.toHaveBeenCalled();
     expect(state.setLang).toHaveBeenCalledTimes(1);
     expect(state.setLang).toHaveBeenCalledWith(to);
