@@ -244,6 +244,19 @@ describe("ImposterScreen look", () => {
       playerColor(1),
       playerColor(2),
     ]);
+    const labelColours = ballot().map((b) =>
+      nodes(b.props.children).map((n) => (n.props.style as { color?: string } | undefined)?.color)
+    );
+    expect(labelColours).toEqual([[GAME_THEME.ink], [GAME_THEME.ink]]);
+  });
+
+  it("draws the discussion starter on that player's colour, whoever starts", async () => {
+    vi.mocked(Math.random).mockReturnValue(0.99);
+    await start(valid);
+    dealAll(3);
+    const discuss = find(ImposterDiscuss).props;
+    expect(discuss.starter).toBe("Cem");
+    expect(discuss.starterColor).toBe(playerColor(2));
   });
 });
 
@@ -278,6 +291,22 @@ describe("ImposterScreen wizard", () => {
     (find(ImposterDiscuss).props.onFinish as () => void)();
     (find(ImposterResult).props.onEnd as () => void)();
     expect(find(ImposterSetupWizard).props.step).toBe(0);
+    expect(find(ImposterSetupWizard).props.quickStart).toBe(true);
+  });
+
+  it("offers quick start after the first game on a device with nothing saved", async () => {
+    storage.getStoredSetup.mockResolvedValue(DEFAULT_SETUP);
+    render();
+    for (const effect of hooks.effects) effect();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(find(ImposterSetupWizard).props.quickStart).toBe(false);
+    (find(ImposterSetupWizard).props.onChange as (next: ImposterSetup) => void)(valid);
+    expect(find(ImposterSetupWizard).props.quickStart).toBe(false);
+    (find(ImposterSetupWizard).props.onStart as () => void)();
+    dealAll(3);
+    (find(ImposterDiscuss).props.onFinish as () => void)();
+    (find(ImposterResult).props.onEnd as () => void)();
     expect(find(ImposterSetupWizard).props.quickStart).toBe(true);
   });
 });
