@@ -19,6 +19,20 @@ config.resolver.nodeModulesPaths = [
   path.resolve(repoRoot, "node_modules"),
 ];
 
+// Imports made from shared/ are resolved as if they came from this project. Otherwise a
+// checkout that also has the web app installed finds the repo root's `react` first and the
+// bundle ships two Reacts: hooks in shared/ then run against a renderer-less copy and throw.
+const sharedRoot = path.resolve(repoRoot, "shared") + path.sep;
+const projectOrigin = path.join(projectRoot, "package.json");
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  const fromShared = context.originModulePath.startsWith(sharedRoot);
+  const isPackage = !moduleName.startsWith(".") && !path.isAbsolute(moduleName);
+  if (fromShared && isPackage) {
+    return context.resolveRequest({ ...context, originModulePath: projectOrigin }, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 // Tailwind entry is named tailwind.css (not global.css) to avoid a basename
 // collision with the template's src/global.css font-vars file.
 module.exports = withNativeWind(config, { input: "./tailwind.css" });
