@@ -187,6 +187,72 @@ describe("WolfGame This game screen", () => {
     await call(() => p("thisGame").onBack());
     expect([ui.screen, p("form").value]).toEqual(["form", valid]);
   });
+
+  it("goes back to the setup with the names as they were played", async () => {
+    await start({ ...valid, players: ["Ann ", "Bob", "Cem", "Dan", "Eda"] });
+    await call(() => p("thisGame").onBack());
+    expect(p("form").value.players[0]).toBe("Ann");
+  });
+
+  it("offers the quick start on the way back after a first game", async () => {
+    await render();
+    expect(p("form").quickStart).toBe(false);
+    await call(() => p("form").onChange(valid));
+    await call(() => p("form").onStart());
+    await call(() => p("thisGame").onBack());
+    expect(p("form").quickStart).toBe(true);
+  });
+
+  it("opens the wizard on its first step on the way back", async () => {
+    await render();
+    await call(() => p("form").onChange(valid));
+    await call(() => p("form").onStep(2));
+    expect(p("form").step).toBe(2);
+    await call(() => p("form").onStart());
+    await call(() => p("thisGame").onBack());
+    expect(p("form").step).toBe(0);
+  });
+});
+
+describe("WolfGame morning and vote result", () => {
+  it("lets the hunter shoot a player out and ends the game when the wolf is shot", async () => {
+    await start({ ...valid, specials: ["hunter"] });
+    await call(() => p("thisGame").onDeal());
+    await dealAll(5);
+    await passNight();
+    expect(ui.screen).toBe("removal");
+    await call(() => p("removal").onShoot(4));
+    const s: GameState = p("removal").state;
+    expect([s.removal?.shot, s.alive[4]]).toEqual([4, false]);
+    await call(() => p("removal").onContinue());
+    expect([ui.screen, p("end").state.winner]).toEqual(["end", "village"]);
+  });
+
+  it("offers the rules in the morning but not on the vote result", async () => {
+    await start();
+    await call(() => p("thisGame").onDeal());
+    await dealAll(5);
+    await passNight();
+    expect(p("removal").onRules).toBeTypeOf("function");
+    await call(() => p("removal").onContinue());
+    await call(() => p("day").onVote());
+    await call(() => p("day").onVoteOut(2));
+    expect(ui.screen).toBe("removal");
+    expect(p("removal").onRules).toBeUndefined();
+  });
+});
+
+describe("WolfGame narrator night", () => {
+  it("records the narrator's pick as the wolves' victim", async () => {
+    await start({ ...valid, night: "narrator" });
+    await call(() => p("thisGame").onDeal());
+    await dealAll(5);
+    await call(() => p("pass").onReveal());
+    await call(() => p("roster").onStart());
+    await call(() => p("narrator").onNext());
+    await call(() => p("narrator").onPick(1));
+    expect(p("narrator").state.night.victim).toBe(1);
+  });
 });
 
 describe("WolfGame turns", () => {
@@ -265,5 +331,16 @@ describe("WolfGame storage", () => {
     });
     await render();
     expect([p("form").value, p("form").quickStart]).toEqual([DEFAULT_SETUP, false]);
+  });
+
+  it("still starts the game when storage cannot be written", async () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("quota");
+      },
+    });
+    await start();
+    expect(ui.screen).toBe("thisGame");
   });
 });
