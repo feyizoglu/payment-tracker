@@ -91,6 +91,14 @@ describe("ImposterSetupWizard steps", () => {
     expect(errors(render(broken, 1))).toEqual([]);
     expect(button(render(broken, 1), "imposterNext")!.props.disabled).toBe(false);
   });
+
+  it("announces the errors and has nothing to announce without them", () => {
+    const alerts = (tree: Node) => nodes(tree).filter((n) => n.props.role === "alert");
+    const broken = alerts(render({ ...DEFAULT_SETUP, players: ["Ann"] }, 0));
+    expect(broken).toHaveLength(1);
+    expect(text(broken[0])).toContain("imposterErrTooFew");
+    expect(alerts(render(valid, 0))).toEqual([]);
+  });
 });
 
 describe("ImposterSetupWizard start gate", () => {

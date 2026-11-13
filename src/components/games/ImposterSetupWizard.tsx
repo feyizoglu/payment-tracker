@@ -62,7 +62,7 @@ export default function ImposterSetupWizard({
       {name === "rules" && <SetupRulesStep value={value} onChange={onChange} />}
 
       {errors.length > 0 && (
-        <ul className="space-y-1 rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:text-amber-400">
+        <ul role="alert" className="space-y-1 rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:text-amber-400">
           {errors.map((e) => (
             <li key={e}>{t[SETUP_ERROR_KEYS[e]]}</li>
           ))}
