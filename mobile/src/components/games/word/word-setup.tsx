@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 
-import { useLang } from "@ptracker/shared/i18n";
+import { localeFor, useLang } from "@ptracker/shared/i18n";
 import { playerColor } from "@ptracker/shared/imposter";
 import {
   GAME_THEME,
@@ -34,12 +34,13 @@ export function WordSetupWizard({
   /** A game was played on this device before: offer to skip the remaining steps. */
   quickStart: boolean;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const locale = localeFor(lang);
   const name = WORD_SETUP_STEPS[step];
   const last = step === WORD_SETUP_STEPS.length - 1;
-  const allErrors = validateWordSetup(value);
+  const allErrors = validateWordSetup(value, locale);
   // The last step shows everything that still blocks Start, whichever step it belongs to.
-  const errors = last ? allErrors : wordStepErrors(value, name);
+  const errors = last ? allErrors : wordStepErrors(value, name, locale);
   const titles = { teams: t.wordStepTeams, words: t.wordStepWords, rules: t.wordStepRules };
 
   return (

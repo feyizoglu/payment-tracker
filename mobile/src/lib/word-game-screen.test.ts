@@ -42,7 +42,8 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 vi.mock("react-native", () => ({ ActivityIndicator: () => null }));
-vi.mock("@ptracker/shared/i18n", () => ({
+vi.mock("@ptracker/shared/i18n", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@ptracker/shared/i18n")>()),
   useLang: () => ({
     t: new Proxy({} as Record<string, string>, {
       get: (_, key) => (key === "wordTeamDefault" ? "Team {n}" : String(key)),

@@ -92,21 +92,21 @@ describe("word game setup", () => {
 
 describe("validateWordSetup", () => {
   it("accepts two teams of 2 to 8 named players", () => {
-    expect(validateWordSetup(setupWith())).toEqual([]);
+    expect(validateWordSetup(setupWith(), "en-US")).toEqual([]);
     const eight = Array.from({ length: 8 }, (_, i) => `P${i}`);
     const eightMore = Array.from({ length: 8 }, (_, i) => `Q${i}`);
-    expect(validateWordSetup(setupWith({ teams: teams(eight, eightMore) }))).toEqual([]);
+    expect(validateWordSetup(setupWith({ teams: teams(eight, eightMore) }), "en-US")).toEqual([]);
   });
 
   it("needs 2 to 8 players in each team", () => {
-    expect(validateWordSetup(setupWith({ teams: teams(["Ann"], ["Cem", "Dan"]) }))).toEqual(["teamSize"]);
+    expect(validateWordSetup(setupWith({ teams: teams(["Ann"], ["Cem", "Dan"]) }), "en-US")).toEqual(["teamSize"]);
     const nine = Array.from({ length: 9 }, (_, i) => `P${i}`);
-    expect(validateWordSetup(setupWith({ teams: teams(["Ann", "Bob"], nine) }))).toEqual(["teamSize"]);
+    expect(validateWordSetup(setupWith({ teams: teams(["Ann", "Bob"], nine) }), "en-US")).toEqual(["teamSize"]);
   });
 
   it("needs a name for every player, used once across both teams", () => {
-    expect(validateWordSetup(setupWith({ teams: teams(["Ann", " "], ["Cem", "Dan"]) }))).toEqual(["blankName"]);
-    expect(validateWordSetup(setupWith({ teams: teams(["Ann", "Bob"], [" ann ", "Dan"]) }))).toEqual(["duplicateName"]);
+    expect(validateWordSetup(setupWith({ teams: teams(["Ann", " "], ["Cem", "Dan"]) }), "en-US")).toEqual(["blankName"]);
+    expect(validateWordSetup(setupWith({ teams: teams(["Ann", "Bob"], [" ann ", "Dan"]) }), "en-US")).toEqual(["duplicateName"]);
   });
 
   it("needs two different team names", () => {
@@ -117,16 +117,28 @@ describe("validateWordSetup", () => {
           { name: b, players: ["Cem", "Dan"] },
         ],
       });
-    expect(validateWordSetup(named(" ", "Blue"))).toEqual(["blankTeamName"]);
-    expect(validateWordSetup(named("Red", " red "))).toEqual(["sameTeamName"]);
+    expect(validateWordSetup(named(" ", "Blue"), "en-US")).toEqual(["blankTeamName"]);
+    expect(validateWordSetup(named("Red", " red "), "en-US")).toEqual(["sameTeamName"]);
+  });
+
+  it("compares names with the case rules of the app language", () => {
+    const irem = setupWith({ teams: teams(["İrem", "Bob"], ["irem", "Dan"]) });
+    expect(validateWordSetup(irem, "tr-TR")).toEqual(["duplicateName"]);
+    const isik = setupWith({
+      teams: [
+        { name: "IŞIK", players: ["Ann", "Bob"] },
+        { name: "Işık", players: ["Cem", "Dan"] },
+      ],
+    });
+    expect(validateWordSetup(isik, "tr-TR")).toEqual(["sameTeamName"]);
   });
 
   it("puts every error on the teams step", () => {
     const broken = setupWith({ teams: teams(["Ann"], ["Ann", ""]) });
-    expect(validateWordSetup(broken)).toEqual(["teamSize", "blankName", "duplicateName"]);
-    expect(wordStepErrors(broken, "teams")).toEqual(validateWordSetup(broken));
-    expect(wordStepErrors(broken, "words")).toEqual([]);
-    expect(wordStepErrors(broken, "rules")).toEqual([]);
+    expect(validateWordSetup(broken, "en-US")).toEqual(["teamSize", "blankName", "duplicateName"]);
+    expect(wordStepErrors(broken, "teams", "en-US")).toEqual(validateWordSetup(broken, "en-US"));
+    expect(wordStepErrors(broken, "words", "en-US")).toEqual([]);
+    expect(wordStepErrors(broken, "rules", "en-US")).toEqual([]);
   });
 });
 
@@ -321,6 +333,15 @@ describe("wordGameReducer start", () => {
     const before = initialWordState(setup);
     const action = { type: "start", setup, lang: "tr", words: SIX, seen: [], rng: keepOrder, at: T0 } as const;
     expect(wordGameReducer(before, action)).toBe(before);
+  });
+
+  it("checks the names with the case rules of the game's language", () => {
+    const setup = setupWith({ teams: teams(["İrem", "Bob"], ["irem", "Dan"]) });
+    const before = initialWordState(setup);
+    const startIn = (lang: "tr" | "en") =>
+      wordGameReducer(before, { type: "start", setup, lang, words: SIX, seen: [], rng: keepOrder, at: T0 });
+    expect(startIn("tr")).toBe(before);
+    expect(startIn("en").phase).toBe("handoff");
   });
 
   it("keeps the seen list it was given, without the choice's words when it ran low", () => {

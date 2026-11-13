@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useReducer, useState } from "react";
-import { useLang } from "@/lib/i18n";
+import { localeFor, useLang } from "@/lib/i18n";
 import { WORD_GAME_WORDS } from "@/lib/word-game-words";
 import {
   WORD_SETUP_STORAGE_KEY,
@@ -44,8 +44,10 @@ function write(key: string, value: string) {
 // Returns only other components, never a host element: its test renders it without a DOM.
 export default function WordGame() {
   const { t, lang } = useLang();
-  // The default team names follow the language the page opened in.
+  // The default team names, and the name rules a saved setup is checked with, follow the
+  // language the page opened in.
   const [teamNames] = useState(() => defaultTeamNames(t.wordTeamDefault));
+  const [nameLocale] = useState(() => localeFor(lang));
   const [state, dispatch] = useReducer(wordGameReducer, undefined, () => initialWordState(defaultWordSetup(teamNames)));
   const [draft, setDraft] = useState<WordSetup>(() => defaultWordSetup(teamNames));
   const [step, setStep] = useState(0);
@@ -58,8 +60,8 @@ export default function WordGame() {
     const saved = parseSavedWordSetup(read(WORD_SETUP_STORAGE_KEY), teamNames);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(saved);
-    setPlayed(validateWordSetup(saved).length === 0);
-  }, [teamNames]);
+    setPlayed(validateWordSetup(saved, nameLocale).length === 0);
+  }, [teamNames, nameLocale]);
 
   const { phase, setup, words, seen } = state;
   useEffect(() => {

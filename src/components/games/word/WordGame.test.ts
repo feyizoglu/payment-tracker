@@ -35,7 +35,8 @@ const state = vi.hoisted(() => ({
   end: null as null | { scores: number[]; outOfWords: boolean; onPlayAgain: () => void; onNewGame: () => void },
 }));
 
-vi.mock("@/lib/i18n", () => ({
+vi.mock("@/lib/i18n", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/i18n")>()),
   useLang: () => ({
     t: new Proxy({} as Record<string, string>, {
       get: (_, key) => (key === "wordTeamDefault" ? "Team {n}" : String(key)),

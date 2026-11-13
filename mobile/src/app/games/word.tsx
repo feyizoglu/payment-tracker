@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useState, type ReactNode } from "react";
 import { ActivityIndicator } from "react-native";
 
-import { useLang } from "@ptracker/shared/i18n";
+import { localeFor, useLang } from "@ptracker/shared/i18n";
 import {
   currentTeam,
   defaultTeamNames,
@@ -25,8 +25,10 @@ import { getStoredSeen, getStoredWordSetup, setStoredSeen, setStoredWordSetup } 
 
 export default function WordScreen() {
   const { t, lang } = useLang();
-  // The default team names follow the language the screen opened in.
+  // The default team names, and the name rules a saved setup is checked with, follow the
+  // language the screen opened in.
   const [teamNames] = useState(() => defaultTeamNames(t.wordTeamDefault));
+  const [nameLocale] = useState(() => localeFor(lang));
   const [state, dispatch] = useReducer(wordGameReducer, undefined, () => initialWordState(defaultWordSetup(teamNames)));
   const [draft, setDraft] = useState<WordSetup | null>(null);
   // This device's seen list in `lang`. Updated on every save, so the next game never starts
@@ -41,9 +43,9 @@ export default function WordScreen() {
   useEffect(() => {
     getStoredWordSetup(teamNames).then((saved) => {
       setDraft(saved);
-      setPlayed(validateWordSetup(saved).length === 0);
+      setPlayed(validateWordSetup(saved, nameLocale).length === 0);
     });
-  }, [teamNames]);
+  }, [teamNames, nameLocale]);
 
   useEffect(() => {
     let live = true;

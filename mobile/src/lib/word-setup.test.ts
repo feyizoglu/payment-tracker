@@ -2,9 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ReactElement } from "react";
 import { defaultWordSetup, type WordSetup } from "@ptracker/shared/word-game";
 
+const i18n = vi.hoisted(() => ({ lang: "en" }));
+
 vi.mock("react-native", () => ({ Pressable: () => null, Text: () => null, View: () => null }));
-vi.mock("@ptracker/shared/i18n", () => ({
-  useLang: () => ({ t: new Proxy({}, { get: (_, key) => String(key) }) }),
+vi.mock("@ptracker/shared/i18n", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@ptracker/shared/i18n")>()),
+  useLang: () => ({ t: new Proxy({}, { get: (_, key) => String(key) }), lang: i18n.lang }),
 }));
 vi.mock("@/components/ui/primary-button", () => ({ PrimaryButton: () => null }));
 vi.mock("@/components/games/word/word-teams-step", () => ({ WordTeamsStep: () => null }));
@@ -57,9 +60,24 @@ const has = (tree: Node, type: unknown) => nodes(tree).some((n) => n.type === ty
 
 beforeEach(() => {
   vi.clearAllMocks();
+  i18n.lang = "en";
 });
 
 describe("WordSetupWizard (mobile) steps", () => {
+  it("compares names with the case rules of the app language", () => {
+    const irem: WordSetup = {
+      ...valid,
+      teams: [
+        { name: "Red", players: ["İrem", "Bob"] },
+        { name: "Blue", players: ["irem", "Dan"] },
+      ],
+    };
+    i18n.lang = "tr";
+    expect(text(render(irem, 0))).toContain("wordErrDuplicate");
+    i18n.lang = "en";
+    expect(text(render(irem, 0))).not.toContain("wordErrDuplicate");
+  });
+
   it("shows one step at a time under its title and hands it the setup", () => {
     const first = render(valid, 0);
     expect([has(first, WordTeamsStep), has(first, WordWordsStep), has(first, WordRulesStep)]).toEqual([true, false, false]);

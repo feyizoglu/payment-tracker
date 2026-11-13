@@ -1,4 +1,4 @@
-import type { Lang } from "./i18n";
+import { localeFor, type Lang } from "./i18n";
 import { CATEGORY_EMOJI, CATEGORY_LABEL_KEYS, GAME_THEME, PLAYER_COLORS } from "./imposter";
 import { WORD_CATEGORIES, type WordCard, type WordCategory } from "./word-game-words/types";
 
@@ -97,7 +97,8 @@ const ERROR_STEP = {
   sameTeamName: "teams",
 } as const satisfies Record<WordSetupError, WordSetupStep>;
 
-export function validateWordSetup(setup: WordSetup): WordSetupError[] {
+/** `locale` is the app language's, e.g. "tr-TR": names are compared lowercased with its rules. */
+export function validateWordSetup(setup: WordSetup, locale: string): WordSetupError[] {
   const errors: WordSetupError[] = [];
   const { teams } = setup;
   if (teams.some((team) => team.players.length < WORD_MIN_TEAM || team.players.length > WORD_MAX_TEAM)) {
@@ -105,17 +106,17 @@ export function validateWordSetup(setup: WordSetup): WordSetupError[] {
   }
   const names = teams.flatMap((team) => team.players.map((p) => p.trim()));
   if (names.some((n) => n === "")) errors.push("blankName");
-  const keys = names.filter((n) => n !== "").map((n) => n.toLocaleLowerCase());
+  const keys = names.filter((n) => n !== "").map((n) => n.toLocaleLowerCase(locale));
   if (new Set(keys).size !== keys.length) errors.push("duplicateName");
-  const teamNames = teams.map((team) => team.name.trim().toLocaleLowerCase());
+  const teamNames = teams.map((team) => team.name.trim().toLocaleLowerCase(locale));
   if (teamNames.some((n) => n === "")) errors.push("blankTeamName");
   else if (teamNames[0] === teamNames[1]) errors.push("sameTeamName");
   return errors;
 }
 
 /** The `validateWordSetup` errors the given wizard step can fix. */
-export function wordStepErrors(setup: WordSetup, step: WordSetupStep): WordSetupError[] {
-  return validateWordSetup(setup).filter((e) => ERROR_STEP[e] === step);
+export function wordStepErrors(setup: WordSetup, step: WordSetupStep, locale: string): WordSetupError[] {
+  return validateWordSetup(setup, locale).filter((e) => ERROR_STEP[e] === step);
 }
 
 function pickIndex(length: number, rng: Rng): number {
@@ -374,7 +375,7 @@ function dealGame(setup: WordSetup, lang: Lang, words: WordSource, seen: readonl
 export function wordGameReducer(state: WordGameState, action: WordGameAction): WordGameState {
   switch (action.type) {
     case "start": {
-      if (state.phase !== "setup" || validateWordSetup(action.setup).length > 0 || tooSoon(state, action.at)) return state;
+      if (state.phase !== "setup" || validateWordSetup(action.setup, localeFor(action.lang)).length > 0 || tooSoon(state, action.at)) return state;
       const setup: WordSetup = { ...action.setup, teams: [trimTeam(action.setup.teams[0]), trimTeam(action.setup.teams[1])] };
       return dealGame(setup, action.lang, action.words, action.seen, action.rng, action.at);
     }
