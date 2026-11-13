@@ -470,13 +470,16 @@ export const WORD_RESULT_KEYS = {
   foul: "wordResultFoul",
 } as const satisfies Record<WordResult, string>;
 
-/** The answer buttons, and the red of the last seconds and the forbidden words. */
-export const WORD_COLORS = {
-  correct: PLAYER_COLORS[4],
-  pass: PLAYER_COLORS[2],
-  foul: PLAYER_COLORS[0],
-  warn: PLAYER_COLORS[0],
-} as const;
+/** The red of the last seconds and the forbidden words. */
+export const WORD_COLORS = { warn: PLAYER_COLORS[0] } as const;
+
+// The buttons sit on the team's colour: Foul is dark with red text, as a red fill would
+// vanish on team 1's screen.
+export const WORD_ANSWER_LOOK = {
+  correct: { fill: PLAYER_COLORS[4], text: GAME_THEME.ink },
+  pass: { fill: PLAYER_COLORS[2], text: GAME_THEME.ink },
+  foul: { fill: GAME_THEME.bg, text: PLAYER_COLORS[0] },
+} as const satisfies Record<WordResult, { fill: string; text: string }>;
 
 /** How a result is written in the summary; the mark and label, never the colour alone. */
 export const WORD_RESULT_LOOK = {

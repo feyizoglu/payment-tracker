@@ -5,6 +5,7 @@ import Animated, { ZoomIn } from "react-native-reanimated";
 import { useLang } from "@ptracker/shared/i18n";
 import {
   GAME_THEME,
+  WORD_ANSWER_LOOK,
   WORD_COLORS,
   WORD_TIME_UP_MS,
   WORD_WARN_SECONDS,
@@ -20,6 +21,7 @@ import {
 // `onTimeUp`, or the pause before it would restart on every render.
 export function WordTurn({
   card,
+  teamName,
   mode,
   endsAt,
   passLimit,
@@ -28,6 +30,7 @@ export function WordTurn({
   onTimeUp,
 }: {
   card: WordCard;
+  teamName: string;
   mode: WordMode;
   endsAt: number;
   passLimit: number | null;
@@ -73,7 +76,7 @@ export function WordTurn({
     </Text>
   );
 
-  const answerButton = (result: WordResult, label: string, color: string, disabled: boolean, accessibilityLabel = label) => (
+  const answerButton = (result: WordResult, label: string, disabled: boolean, accessibilityLabel = label) => (
     <Pressable
       key={result}
       accessibilityRole="button"
@@ -82,8 +85,8 @@ export function WordTurn({
       disabled={disabled}
       onPress={() => onAnswer(result)}
       className={`flex-1 items-center rounded-xl border-2 py-5 ${disabled ? "opacity-40" : ""}`}
-      style={{ backgroundColor: color, borderColor: GAME_THEME.bg }}>
-      <Text className="text-lg font-bold" style={{ color: GAME_THEME.ink }}>
+      style={{ backgroundColor: WORD_ANSWER_LOOK[result].fill, borderColor: GAME_THEME.bg }}>
+      <Text className="text-lg font-bold" style={{ color: WORD_ANSWER_LOOK[result].text }}>
         {label}
       </Text>
     </Pressable>
@@ -91,7 +94,10 @@ export function WordTurn({
 
   return (
     <View className="flex-1 justify-between gap-4 py-2">
-      <View className="items-center">
+      <View className="items-center gap-2">
+        <Text className="text-base font-semibold" style={{ color: GAME_THEME.ink }}>
+          {teamName}
+        </Text>
         <View className="rounded-full px-6 py-1" style={{ backgroundColor: GAME_THEME.bg }}>
           {warn && !over ? (
             <Animated.View key={left} entering={ZoomIn.duration(200)}>
@@ -134,17 +140,16 @@ export function WordTurn({
         )}
       </View>
       <View className="flex-row gap-2">
-        {answerButton("foul", t.wordFoul, WORD_COLORS.foul, over)}
+        {answerButton("foul", t.wordFoul, over)}
         {passLimit === 0
           ? null
           : answerButton(
               "pass",
               passesLeft === null ? t.wordPass : `${t.wordPass} (${passesLeft})`,
-              WORD_COLORS.pass,
               over || passesLeft === 0,
               passesLeft === null ? t.wordPass : t.wordPassesLeft.replace("{n}", String(passesLeft))
             )}
-        {answerButton("correct", t.wordCorrect, WORD_COLORS.correct, over)}
+        {answerButton("correct", t.wordCorrect, over)}
       </View>
     </View>
   );

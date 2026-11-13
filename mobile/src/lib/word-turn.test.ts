@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactElement } from "react";
-import { GAME_THEME, WORD_COLORS, WORD_TIME_UP_MS, type WordCard, type WordMode } from "@ptracker/shared/word-game";
+import { GAME_THEME, WORD_COLORS, WORD_TIME_UP_MS, teamColor, type WordCard, type WordMode } from "@ptracker/shared/word-game";
 
 const NOW = 1_800_000_000_000;
 
@@ -66,7 +66,7 @@ function render(props: { mode?: WordMode; passLimit?: number | null; passesLeft?
   hooks.index = 0;
   hooks.effects = [];
   const { mode = "forbidden", passLimit = 3, passesLeft = passLimit } = props;
-  return WordTurn({ card, mode, endsAt: NOW + 60_000, passLimit, passesLeft, onAnswer, onTimeUp }) as Node;
+  return WordTurn({ card, teamName: "Red", mode, endsAt: NOW + 60_000, passLimit, passesLeft, onAnswer, onTimeUp }) as Node;
 }
 
 function runEffects() {
@@ -118,6 +118,16 @@ describe("WordTurn (mobile) card", () => {
 });
 
 describe("WordTurn (mobile) buttons", () => {
+  it("writes the team on turn, as its colour fills the screen", () => {
+    expect(text(render())).toContain("Red");
+  });
+
+  it("fills no button with a team colour, so each one stands out on either team's screen", () => {
+    const fills = buttons(render()).map((b) => (b.props.style as { backgroundColor: string }).backgroundColor);
+    expect(fills).toHaveLength(3);
+    for (const fill of fills) expect([teamColor(0), teamColor(1)]).not.toContain(fill);
+  });
+
   it("answers Foul, Pass and Correct, and reads out the passes left", () => {
     const tree = render();
     expect(buttons(tree).map((b) => b.props.accessibilityLabel)).toEqual(["wordFoul", "wordPassesLeft 3", "wordCorrect"]);

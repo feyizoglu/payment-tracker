@@ -102,6 +102,7 @@ export default function WordScreen() {
       <WordTurn
         key={state.turnsPlayed}
         card={state.card}
+        teamName={setup.teams[team].name}
         mode={setup.mode}
         endsAt={state.endsAt}
         passLimit={setup.passLimit}

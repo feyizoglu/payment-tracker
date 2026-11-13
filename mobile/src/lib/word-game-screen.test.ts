@@ -175,6 +175,7 @@ describe("WordScreen", () => {
     await start();
     call(WordHandoff, "onBegin");
     expect((propsOf(WordTurn).card as { id: string }).id).toBe("animals-3");
+    expect(propsOf(WordTurn).teamName).toBe("Red");
     expect(propsOf(GameScreen)).toMatchObject({ color: teamColor(0), scroll: false });
   });
 

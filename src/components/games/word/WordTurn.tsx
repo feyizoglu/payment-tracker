@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLang } from "@/lib/i18n";
 import {
   GAME_THEME,
+  WORD_ANSWER_LOOK,
   WORD_COLORS,
   WORD_TIME_UP_MS,
   WORD_WARN_SECONDS,
@@ -18,6 +19,7 @@ import {
 // parent passes a stable `onTimeUp`, or the pause before it would restart on every render.
 export default function WordTurn({
   card,
+  teamName,
   mode,
   endsAt,
   passLimit,
@@ -26,6 +28,7 @@ export default function WordTurn({
   onTimeUp,
 }: {
   card: WordCard;
+  teamName: string;
   mode: WordMode;
   endsAt: number;
   passLimit: number | null;
@@ -54,10 +57,15 @@ export default function WordTurn({
   // The text changes only twice per turn, so it is read out only then.
   const announcement = over ? t.wordTimeUp : warn ? t.wordSecondsLeft.replace("{n}", String(WORD_WARN_SECONDS)) : "";
   const answer = "flex-1 rounded-xl border-2 py-4 text-lg font-bold disabled:opacity-40";
-  const ink = { color: GAME_THEME.ink, borderColor: GAME_THEME.bg };
+  const look = (result: WordResult) => ({
+    backgroundColor: WORD_ANSWER_LOOK[result].fill,
+    color: WORD_ANSWER_LOOK[result].text,
+    borderColor: GAME_THEME.bg,
+  });
 
   return (
     <div className="space-y-4 text-center">
+      <p className="font-semibold">{teamName}</p>
       <p
         role="timer"
         className={`mx-auto w-fit rounded-full px-6 py-1 font-mono text-5xl font-bold ${warn && !over ? "animate-pulse" : ""}`}
@@ -101,7 +109,7 @@ export default function WordTurn({
           disabled={over}
           onClick={() => onAnswer("foul")}
           className={answer}
-          style={{ ...ink, backgroundColor: WORD_COLORS.foul }}
+          style={look("foul")}
         >
           {t.wordFoul}
         </button>
@@ -112,7 +120,7 @@ export default function WordTurn({
             onClick={() => onAnswer("pass")}
             aria-label={passesLeft === null ? t.wordPass : t.wordPassesLeft.replace("{n}", String(passesLeft))}
             className={answer}
-            style={{ ...ink, backgroundColor: WORD_COLORS.pass }}
+            style={look("pass")}
           >
             {passesLeft === null ? t.wordPass : `${t.wordPass} (${passesLeft})`}
           </button>
@@ -122,7 +130,7 @@ export default function WordTurn({
           disabled={over}
           onClick={() => onAnswer("correct")}
           className={answer}
-          style={{ ...ink, backgroundColor: WORD_COLORS.correct }}
+          style={look("correct")}
         >
           {t.wordCorrect}
         </button>

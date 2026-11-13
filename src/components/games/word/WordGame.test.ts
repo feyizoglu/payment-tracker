@@ -214,6 +214,7 @@ describe("WordGame turns", () => {
     await act(async () => state.handoff!.onBegin());
     expect(state.shown).toBe("turn");
     expect(state.turn?.card.word).toBe("tr 1");
+    expect(state.turn).toMatchObject({ teamName: "Red" });
     expect(state.frameColor).toBe(teamColor(0));
     await act(async () => state.turn!.onAnswer("correct"));
     await act(async () => state.turn!.onAnswer("pass"));

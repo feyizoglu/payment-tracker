@@ -118,6 +118,7 @@ export default function WordGame() {
         <WordTurn
           key={state.turnsPlayed}
           card={state.card}
+          teamName={setup.teams[team].name}
           mode={setup.mode}
           endsAt={state.endsAt}
           passLimit={setup.passLimit}
