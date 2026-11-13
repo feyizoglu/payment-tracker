@@ -262,6 +262,7 @@ describe("RootNavigator Stack.Protected guards", () => {
     expect(guardFor("app-lock")).toBe(true);
     expect(guardFor("games/index")).toBe(true);
     expect(guardFor("games/imposter")).toBe(true);
+    expect(guardFor("games/word")).toBe(true);
     expect(guardFor("games/wolf")).toBe(true);
   });
 

@@ -16,7 +16,6 @@ function loadWorker(
     fetch?: (req: unknown) => Promise<unknown>;
     match?: (key: unknown) => Promise<unknown>;
     keys?: string[];
-    keysError?: Error;
   } = {}
 ) {
   const handlers: Record<string, Handler> = {};
@@ -29,7 +28,7 @@ function loadWorker(
   const caches = {
     open: vi.fn().mockResolvedValue(cache),
     match: vi.fn(net.match ?? (() => Promise.resolve(undefined))),
-    keys: net.keysError ? vi.fn().mockRejectedValue(net.keysError) : vi.fn().mockResolvedValue(net.keys ?? []),
+    keys: vi.fn().mockResolvedValue(net.keys ?? []),
     delete: vi.fn().mockResolvedValue(true),
   };
   const fetch = vi.fn(net.fetch ?? (() => Promise.reject(new Error("offline"))));
@@ -211,21 +210,12 @@ describe("sw.js games offline cache", () => {
     expect(cache.addAll).not.toHaveBeenCalled();
   });
 
-  it("deletes old games caches on activate", async () => {
-    const { handlers, caches } = loadWorker([], { keys: ["games-v1", "games-v2", "other"] });
+  it("keeps every cache on activate, so an older games cache serves until the page has filled the new one", async () => {
+    const { handlers, caches, claim } = loadWorker([], { keys: ["games-v1", "games-v2", "other"] });
     let wait: Promise<unknown> = Promise.resolve();
     handlers.activate({ waitUntil: (p: Promise<unknown>) => (wait = p) });
     await wait;
-    expect(caches.delete).toHaveBeenCalledWith("games-v1");
-    expect(caches.delete).not.toHaveBeenCalledWith("games-v2");
-    expect(caches.delete).not.toHaveBeenCalledWith("other");
-  });
-
-  it("still claims open pages when the cache cleanup fails", async () => {
-    const { handlers, claim } = loadWorker([], { keysError: new Error("SecurityError") });
-    let wait: Promise<unknown> = Promise.resolve();
-    handlers.activate({ waitUntil: (p: Promise<unknown>) => (wait = p) });
-    await wait;
+    expect(caches.delete).not.toHaveBeenCalled();
     expect(claim).toHaveBeenCalled();
   });
 
@@ -249,6 +239,14 @@ describe("sw.js games offline cache", () => {
     handlers.fetch(e.event);
     expect(await e.responded()).toBe(cached);
     expect(caches.match).toHaveBeenCalledWith("/games");
+  });
+
+  it("serves the word game from the cache when offline", async () => {
+    const cached = { body: "word" };
+    const { handlers } = loadWorker([], { match: (key) => Promise.resolve(key === "/games/word" ? cached : undefined) });
+    const e = fetchEvent(`${ORIGIN}/games/word`, { mode: "navigate" });
+    handlers.fetch(e.event);
+    expect(await e.responded()).toBe(cached);
   });
 
   it("answers with a network error when offline and the page was never cached", async () => {

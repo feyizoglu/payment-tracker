@@ -197,16 +197,23 @@ describe("GamesScreen", () => {
     state.lock = { ...withPin, gameMode: true };
     await render(GamesScreen);
     expect(state.pinSetups).toBe(0);
-    expect(state.presses).toHaveLength(3);
+    expect(state.presses).toHaveLength(4);
     state.presses[0]();
     expect(router.push).toHaveBeenCalledTimes(1);
     expect(router.push).toHaveBeenCalledWith("/games/imposter");
   });
 
-  it("opens Wolf Night from its entry", async () => {
+  it("opens the word game from its entry", async () => {
     state.lock = { ...withPin, gameMode: true };
     await render(GamesScreen);
     state.presses[1]();
+    expect(router.push).toHaveBeenCalledWith("/games/word");
+  });
+
+  it("opens Wolf Night from its entry", async () => {
+    state.lock = { ...withPin, gameMode: true };
+    await render(GamesScreen);
+    state.presses[2]();
     expect(router.push).toHaveBeenCalledTimes(1);
     expect(router.push).toHaveBeenCalledWith("/games/wolf");
   });
@@ -225,7 +232,7 @@ describe("GamesScreen", () => {
     state.lock = { ...withPin, gameMode: true };
     state.lang = from;
     await render(GamesScreen);
-    state.presses[2]();
+    state.presses[3]();
     expect(router.push).not.toHaveBeenCalled();
     expect(state.setLang).toHaveBeenCalledTimes(1);
     expect(state.setLang).toHaveBeenCalledWith(to);

@@ -1,25 +1,17 @@
-// Games are meant to work offline. The games pages fill GAMES_CACHE themselves (see
+// Games are meant to work offline. The games pages fill the games cache themselves (see
 // src/lib/games-offline.ts) and this worker only reads it; every other request goes
 // straight to the network as before.
-const GAMES_CACHE = "games-v2";
-const GAMES_PAGES = ["/games", "/games/imposter", "/games/wolf"];
+const GAMES_PAGES = ["/games", "/games/imposter", "/games/word", "/games/wolf"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
 
 // Take over pages already open when the worker first installs, so a notification click
-// can reuse them. Old games caches are dropped when GAMES_CACHE is bumped.
+// can reuse them. Old games caches stay: they keep the games offline until the page has
+// filled the new one, and the page drops them then.
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(keys.filter((k) => k.startsWith("games-") && k !== GAMES_CACHE).map((k) => caches.delete(k)))
-      )
-      .catch(() => {})
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener("push", (event) => {
