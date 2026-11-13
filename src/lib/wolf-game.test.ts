@@ -588,3 +588,93 @@ describe("card texts", () => {
     expect(W.visitResult(step(choosingAt(night1(basic), 0), { type: "choose", target: 2 }), en)).toBe("Chosen: Cem");
   });
 });
+
+interface NarratorChoices {
+  victim: number;
+  seen?: number;
+  protect?: number;
+  heal?: boolean;
+  poison?: number;
+}
+
+// The narrator reads the night line by line and taps what the table points at, until the
+// morning or until the line `stop` is up.
+function narratorNight(state: GameState, c: NarratorChoices, stop?: W.NarratorLine): GameState {
+  let s = state;
+  for (let guard = 0; s.phase === "night"; guard++) {
+    if (guard > 10) throw new Error("the night did not end");
+    const line = W.narratorLine(s);
+    if (line === stop) return s;
+    if (line === "wolves") s = step(s, { type: "choose", target: c.victim });
+    if (line === "seer" && c.seen !== undefined) s = step(s, { type: "choose", target: c.seen });
+    if (line === "doctor" && c.protect !== undefined) s = step(s, { type: "choose", target: c.protect });
+    if (line === "witch" && c.heal) s = step(s, { type: "heal" });
+    if (line === "witch" && c.poison !== undefined) s = step(s, { type: "choose", target: c.poison });
+    s = step(s, { type: "next", rng: zero });
+  }
+  return s;
+}
+
+describe("night: narrator", () => {
+  // Ann wolf, Bob seer, Cem doctor, Dan witch, Eda and Fay villagers, Gil hunter.
+  const roles: Role[] = ["wolf", "seer", "doctor", "witch", "villager", "villager", "hunter"];
+  const start = () => night1(roles, { night: "narrator" });
+
+  it("walks the lines one at a time and needs the wolves' victim before going on", () => {
+    let s = start();
+    expect(W.narratorLine(s)).toBe("sleep");
+    expect(W.visitTask(s)).toBeNull();
+    s = step(s, { type: "next", rng: zero });
+    expect(W.narratorLine(s)).toBe("wolves");
+    expect(W.canGoOn(s)).toBe(false);
+    expect(W.canPick(s, 0)).toBe(false);
+    s = step(s, { type: "choose", target: 4 });
+    s = step(s, { type: "choose", target: 5 });
+    expect(s.night?.victim).toBe(5);
+    s = step(s, { type: "next", rng: zero });
+    expect(W.narratorLine(s)).toBe("seer");
+  });
+
+  it("shows the narrator the seer's pick and needs the doctor's", () => {
+    let s = narratorNight(start(), { victim: 4 }, "seer");
+    expect(W.canGoOn(s)).toBe(false);
+    expect(W.canPick(s, 1)).toBe(false);
+    s = step(s, { type: "choose", target: 0 });
+    expect(s.roles[s.night!.seen!]).toBe("wolf");
+    s = step(s, { type: "next", rng: zero });
+    expect(W.narratorLine(s)).toBe("doctor");
+    expect(W.canGoOn(s)).toBe(false);
+    expect(W.canPick(s, 2)).toBe(true);
+  });
+
+  it("resolves the night the narrator entered", () => {
+    const s = narratorNight(start(), { victim: 4, seen: 0, protect: 4, poison: 5 });
+    expect(s.phase).toBe("morning");
+    expect(s.removal?.removed).toEqual([5]);
+    expect(s.lastProtected).toBe(4);
+    expect(s.potions).toEqual({ heal: true, poison: false });
+  });
+
+  it("lets the narrator heal the witch but not poison her", () => {
+    let s = narratorNight(start(), { victim: 3, seen: 0, protect: 4 }, "witch");
+    expect([W.canHeal(s), W.canPick(s, 3), W.canGoOn(s)]).toEqual([true, false, true]);
+    s = narratorNight(step(s, { type: "heal" }), { victim: 3 });
+    expect(s.removal?.removed).toEqual([]);
+    expect(s.potions).toEqual({ heal: false, poison: true });
+  });
+
+  it("reads the lines of removed roles, marked, and goes on without a choice", () => {
+    const out = dealAll({ ...dealt(roles, { night: "narrator" }), alive: [true, false, true, false, true, true, true] });
+    let s = narratorNight(out, { victim: 4 }, "seer");
+    expect([W.lineRemoved(s), W.canPick(s, 0), W.canGoOn(s)]).toEqual([true, false, true]);
+    s = step(s, { type: "next", rng: zero });
+    expect([W.narratorLine(s), W.lineRemoved(s)]).toEqual(["doctor", false]);
+    s = narratorNight(s, { victim: 4, protect: 5 }, "witch");
+    expect([W.lineRemoved(s), W.canHeal(s), W.canGoOn(s)]).toEqual([true, false, true]);
+  });
+
+  it("reads the witch's line when she has no potion left, with nothing to choose", () => {
+    const s = narratorNight({ ...start(), potions: { heal: false, poison: false } }, { victim: 4, seen: 0, protect: 2 }, "witch");
+    expect([W.lineRemoved(s), W.canHeal(s), W.canPick(s, 4), W.canGoOn(s)]).toEqual([false, false, false, true]);
+  });
+});

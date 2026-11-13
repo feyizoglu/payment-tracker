@@ -439,6 +439,7 @@ function witchTurn(state: GameState): boolean {
   const { night } = state;
   const seat = state.roles.indexOf("witch");
   if (state.phase !== "night" || !night || seat < 0 || !state.alive[seat]) return false;
+  if (state.setup.night === "narrator") return narratorLine(state) === "witch";
   return night.lap === "witch" && night.stage === "choose" && night.order[night.visit] === seat;
 }
 
@@ -447,6 +448,7 @@ function picker(state: GameState): { kind: PickKind; seat: number } | null {
   const { night } = state;
   if (state.phase !== "night" || !night) return null;
   if (witchTurn(state)) return state.potions.poison ? { kind: "poison", seat: state.roles.indexOf("witch") } : null;
+  if (state.setup.night === "narrator") return narratorPicker(state);
   if (night.stage !== "choose" || night.lap !== "main") return null;
   const seat = night.order[night.visit];
   const role = state.roles[seat];
@@ -473,6 +475,7 @@ export function canHeal(state: GameState): boolean {
 export function canGoOn(state: GameState): boolean {
   const { night } = state;
   if (state.phase !== "night" || !night) return false;
+  if (state.setup.night === "narrator") return narratorReady(state);
   if (night.stage === "card") return state.revealed;
   return night.lap === "witch" || night.picks[night.order[night.visit]] !== null;
 }
@@ -597,6 +600,7 @@ function witchMayAct(state: GameState): boolean {
 
 function nightNext(state: GameState, rng: Rng, at: number): GameState {
   if (!canGoOn(state)) return state;
+  if (state.setup.night === "narrator") return narratorNext(state, at);
   const night = state.night!;
   const seat = night.order[night.visit];
   // On the witch lap only the witch has a choice; everyone else passes the phone on from the card.
@@ -644,4 +648,43 @@ function nightStep(state: GameState, action: GameAction): GameState {
       return nightNext(state, action.rng, action.at);
   }
   return state;
+}
+
+export function narratorLine(state: GameState): NarratorLine | null {
+  if (state.phase !== "night" || !state.night || state.setup.night !== "narrator") return null;
+  return narratorLines(state.setup)[state.night.line] ?? null;
+}
+
+/** The line's role is in the game but removed: it is read anyway, so the table cannot tell. */
+export function lineRemoved(state: GameState): boolean {
+  const line = narratorLine(state);
+  if (line !== "seer" && line !== "doctor" && line !== "witch") return false;
+  return !state.alive[state.roles.indexOf(line)];
+}
+
+function narratorPicker(state: GameState): { kind: PickKind; seat: number } | null {
+  const line = narratorLine(state);
+  if (line === "wolves") return { kind: "victim", seat: -1 };
+  if ((line === "seer" || line === "doctor") && !lineRemoved(state)) {
+    return { kind: line, seat: state.roles.indexOf(line) };
+  }
+  return null;
+}
+
+function narratorReady(state: GameState): boolean {
+  const night = state.night!;
+  const line = narratorLine(state);
+  if (line === "wolves") return night.victim !== null;
+  if (lineRemoved(state)) return true;
+  if (line === "seer") return night.seen !== null;
+  if (line === "doctor") return night.protect !== null;
+  return true;
+}
+
+function narratorNext(state: GameState, at: number): GameState {
+  const night = state.night!;
+  if (night.line + 1 < narratorLines(state.setup).length) {
+    return { ...state, night: { ...night, line: night.line + 1 }, lastActionAt: at };
+  }
+  return toMorning(state, at);
 }
