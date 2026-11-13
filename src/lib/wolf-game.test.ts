@@ -827,6 +827,30 @@ describe("night: narrator", () => {
     expect([s.removal?.removed, s.potions]).toEqual([[], { heal: false, poison: true }]);
   });
 
+  it("ignores a bounced second tap on Heal or on the poisoned player", () => {
+    const witch = narratorNight(start(), { victim: 4, seen: 0, protect: 2 }, "witch");
+    const at = witch.lastActionAt + 1000;
+    const healed = W.gameReducer(witch, { type: "heal", at });
+    expect(healed.night?.heal).toBe(true);
+    expect(W.gameReducer(healed, { type: "heal", at: at + W.TAP_GUARD_MS - 1 }).night?.heal).toBe(true);
+    expect(W.gameReducer(healed, { type: "heal", at: at + W.TAP_GUARD_MS }).night?.heal).toBe(false);
+    const poisoned = W.gameReducer(witch, { type: "choose", target: 5, at });
+    expect(poisoned.night?.poison).toBe(5);
+    expect(W.gameReducer(poisoned, { type: "choose", target: 5, at: at + W.TAP_GUARD_MS - 1 }).night?.poison).toBe(5);
+    expect(W.gameReducer(poisoned, { type: "choose", target: 5, at: at + W.TAP_GUARD_MS }).night?.poison).toBeNull();
+  });
+
+  it("lets Next follow the wolves', the seer's and the doctor's pick at once", () => {
+    let s = step(start(), { type: "next", rng: zero });
+    for (const [line, target] of [["wolves", 4], ["seer", 0], ["doctor", 2]] as const) {
+      expect(W.narratorLine(s)).toBe(line);
+      const at = s.lastActionAt + 1000;
+      const picked = W.gameReducer(s, { type: "choose", target, at });
+      s = W.gameReducer(picked, { type: "next", rng: zero, at: at + 1 });
+    }
+    expect(W.narratorLine(s)).toBe("witch");
+  });
+
   it("reads the lines of removed roles, marked, and goes on without a choice", () => {
     const out = dealAll({ ...dealt(roles, { night: "narrator" }), alive: [true, false, true, false, true, true, true] });
     let s = narratorNight(out, { victim: 4 }, "seer");

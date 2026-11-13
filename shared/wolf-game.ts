@@ -723,10 +723,13 @@ function nightStep(state: GameState, action: GameAction): GameState {
       const target = action.target;
       if (target === null || !canPick(state, target)) return state;
       const { kind } = picker(state)!;
-      // The narrator's pick moves no turn on, so it does not restart the tap guard: Next right
-      // after it counts. A poison pick takes the place of Heal: one potion a night.
+      // The wolves', seer's and doctor's picks move no turn on, so they do not restart the tap
+      // guard: Next right after them counts. The witch's potions are toggles, so they do restart
+      // it, or a bounced double tap would switch one on and off again. A poison pick takes the
+      // place of Heal: one potion a night.
       if (kind === "poison") {
-        return { ...state, night: { ...night, poison: night.poison === target ? null : target, heal: false } };
+        const poison = night.poison === target ? null : target;
+        return { ...state, night: { ...night, poison, heal: false }, lastActionAt: action.at };
       }
       if (kind === "victim") return { ...state, night: { ...night, victim: target } };
       if (kind === "seer") return { ...state, night: { ...night, seen: target } };
@@ -734,7 +737,7 @@ function nightStep(state: GameState, action: GameAction): GameState {
     }
     case "heal":
       if (!canHeal(state)) return state;
-      return { ...state, night: { ...night, heal: !night.heal, poison: null } };
+      return { ...state, night: { ...night, heal: !night.heal, poison: null }, lastActionAt: action.at };
     case "next":
       return nightNext(state, action.rng, action.at);
   }
