@@ -11,13 +11,23 @@ const MIN_PER_LEVEL = 90;
 
 describe.each(LANGS)("%s word list", (lang, locale) => {
   const norm = (s: string) => s.trim().toLocaleLowerCase(locale);
+  // Near-duplicates are the same card: "Flower pot" and "Flowerpot", and in English "Hiccup"
+  // and "Hiccups".
+  const key = (s: string) => {
+    const k = norm(s).replace(/[\s\-'’]/g, "");
+    return lang === "en" ? k.replace(/s$/, "") : k;
+  };
   const all: WordCard[] = WORD_CATEGORIES.flatMap((c) => WORD_GAME_WORDS[lang][c]);
 
-  it("uses every id and every word once across the language", () => {
+  it("uses every id and every word once across the language, near-duplicates included", () => {
     const ids = all.map((c) => c.id);
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
-    const words = all.map((c) => norm(c.word));
-    expect(all.filter((_, i) => words.indexOf(words[i]) !== i).map((c) => c.word)).toEqual([]);
+    const keys = all.map((c) => key(c.word));
+    const clashes = all.flatMap((c, i) => {
+      const first = keys.indexOf(keys[i]);
+      return first === i ? [] : [`${c.word} (${c.id}) ~ ${all[first].word} (${all[first].id})`];
+    });
+    expect(clashes).toEqual([]);
   });
 
   describe.each(WORD_CATEGORIES)(`${lang} %s`, (category) => {

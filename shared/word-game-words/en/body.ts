@@ -40,7 +40,7 @@ export const body = cards("body", [
   ["Beard", "easy", ["Mustache", "Shave", "Chin", "Hair"]],
   ["Wrist", "easy", ["Watch", "Hand", "Bracelet", "Arm"]],
   ["Face", "easy", ["Eyes", "Nose", "Mouth", "Smile"]],
-  ["Hiccups", "easy", ["Scare", "Water", "Breath", "Hold"]],
+  ["Toenail", "easy", ["Foot", "Clip", "Polish", "Cut"]],
   ["Pimple", "easy", ["Face", "Teenager", "Spot", "Acne"]],
   ["Freckles", "easy", ["Spots", "Face", "Sun", "Brown"]],
   ["Dimple", "easy", ["Cheek", "Smile", "Cute", "Dent"]],

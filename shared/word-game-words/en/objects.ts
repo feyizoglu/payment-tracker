@@ -173,7 +173,7 @@ export const objects = cards("objects", [
   ["Baseball cap", "easy", ["Visor", "Hat", "Brim", "Backwards"]],
   ["Beanie", "easy", ["Winter", "Wool", "Head", "Knitted"]],
   ["Whiteboard", "easy", ["Marker", "Erase", "Classroom", "Write"]],
-  ["Flower pot", "easy", ["Plant", "Soil", "Clay", "Window"]],
+  ["Water bottle", "easy", ["Drink", "Plastic", "Thirsty", "Gym"]],
   ["Lantern", "hard", ["Light", "Camping", "Candle", "Glow"]],
   ["Telescope", "hard", ["Stars", "Planets", "Lens", "Astronomer"]],
   ["Microscope", "hard", ["Tiny", "Lab", "Cells", "Lens"]],
