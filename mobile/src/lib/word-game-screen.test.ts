@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactElement } from "react";
 import { defaultWordSetup, teamColor, type WordSetup } from "@ptracker/shared/word-game";
 
+// Effects run, as in React, only when their dependencies changed since they last ran.
 const hooks = vi.hoisted(() => ({
   states: [] as unknown[],
-  effects: [] as (() => void | (() => void))[],
+  effects: [] as { slot: number; effect: () => void | (() => void); deps?: unknown[] }[],
+  ran: [] as (unknown[] | undefined)[],
   index: 0,
 }));
 const storage = vi.hoisted(() => ({
@@ -36,8 +38,8 @@ vi.mock("react", async (importOriginal) => {
       return [hooks.states[i], dispatch];
     },
     useCallback: (fn: unknown) => fn,
-    useEffect: (effect: () => void | (() => void)) => {
-      hooks.effects.push(effect);
+    useEffect: (effect: () => void | (() => void), deps?: unknown[]) => {
+      hooks.effects.push({ slot: hooks.index++, effect, deps });
     },
   };
 });
@@ -117,7 +119,12 @@ const call = (type: unknown, handler: string, ...args: unknown[]) =>
   (propsOf(type)[handler] as (...a: unknown[]) => void)(...args);
 
 async function runEffects() {
-  for (const effect of hooks.effects) effect();
+  for (const { slot, effect, deps } of hooks.effects) {
+    const last = hooks.ran[slot];
+    if (deps && last && deps.length === last.length && deps.every((d, k) => Object.is(d, last[k]))) continue;
+    hooks.ran[slot] = deps;
+    effect();
+  }
   await Promise.resolve();
   await Promise.resolve();
 }
@@ -134,6 +141,7 @@ async function start() {
 
 beforeEach(() => {
   hooks.states = [];
+  hooks.ran = [];
   vi.clearAllMocks();
   entry.pinReady = true;
   entry.lang = "tr";
@@ -198,8 +206,6 @@ describe("WordScreen", () => {
   });
 
   it("deals a New game after a finished one without the words that game showed", async () => {
-    // The seen list is read once per language, as the real effect only runs again when it changes.
-    storage.getStoredSeen.mockResolvedValueOnce([]).mockReturnValue(new Promise(() => {}));
     await start();
     call(WordHandoff, "onBegin");
     call(WordTurn, "onAnswer", "correct");
