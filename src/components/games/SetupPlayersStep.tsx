@@ -2,14 +2,15 @@
 
 import { X } from "lucide-react";
 import { useLang } from "@/lib/i18n";
-import { GAME_THEME, MAX_PLAYERS, playerColor, type ImposterSetup } from "@/lib/imposter";
+import { GAME_THEME, MAX_PLAYERS, playerColor } from "@/lib/imposter";
 
-export default function SetupPlayersStep({
+// Any game's setup with a player list: Imposter's and Wolf Night's.
+export default function SetupPlayersStep<S extends { players: string[] }>({
   value,
   onChange,
 }: {
-  value: ImposterSetup;
-  onChange: (next: ImposterSetup) => void;
+  value: S;
+  onChange: (next: S) => void;
 }) {
   const { t } = useLang();
   const setPlayers = (players: string[]) => onChange({ ...value, players });

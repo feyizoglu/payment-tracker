@@ -431,3 +431,39 @@ describe("DealTurn when the pointer mode changes", () => {
     expect(text(render(true))).toContain("SECRET");
   });
 });
+
+describe("DealTurn next label", () => {
+  it("says Next player unless the caller names the button", () => {
+    expect(button(render(true), "imposterNextPlayer")).toBeDefined();
+    hooks.index = 0;
+    hooks.effects = [];
+    const named = DealTurn({
+      name: "Ann",
+      revealed: true,
+      onReveal,
+      onNext,
+      nextLabel: "Continue",
+      children: createElement("p", null, "SECRET"),
+    }) as Node;
+    expect(button(named, "Continue")?.props.onClick).toBe(onNext);
+    expect(button(named, "imposterNextPlayer")).toBeUndefined();
+  });
+});
+
+describe("DealTurn title", () => {
+  it("asks for the phone to be passed unless the caller gives another title", () => {
+    expect(text(render(false))).toContain("Pass to Ann");
+    hooks.index = 0;
+    hooks.effects = [];
+    const titled = DealTurn({
+      name: "Ann",
+      revealed: false,
+      onReveal,
+      onNext,
+      title: "Ann's result",
+      children: createElement("p", null, "SECRET"),
+    }) as Node;
+    expect(text(titled)).toContain("Ann's result");
+    expect(text(titled)).not.toContain("Pass to Ann");
+  });
+});

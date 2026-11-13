@@ -1,14 +1,15 @@
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import { useLang } from "@ptracker/shared/i18n";
-import { GAME_THEME, MAX_PLAYERS, playerColor, type ImposterSetup } from "@ptracker/shared/imposter";
+import { GAME_THEME, MAX_PLAYERS, playerColor } from "@ptracker/shared/imposter";
 
-export function SetupPlayersStep({
+// Any game's setup with a player list: Imposter's and Wolf Night's.
+export function SetupPlayersStep<S extends { players: string[] }>({
   value,
   onChange,
 }: {
-  value: ImposterSetup;
-  onChange: (next: ImposterSetup) => void;
+  value: S;
+  onChange: (next: S) => void;
 }) {
   const { t } = useLang();
   const setPlayers = (players: string[]) => onChange({ ...value, players });

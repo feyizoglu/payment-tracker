@@ -25,6 +25,8 @@ export default function DealTurn({
   revealed,
   onReveal,
   onNext,
+  nextLabel,
+  title,
   children,
 }: {
   name: string;
@@ -32,6 +34,10 @@ export default function DealTurn({
   revealed: boolean;
   onReveal: () => void;
   onNext: () => void;
+  /** The Next button's label; "Next player" when not given. */
+  nextLabel?: string;
+  /** The line above the card; "Pass the phone to {name}" when not given. */
+  title?: string;
   children: ReactNode;
 }) {
   const { t } = useLang();
@@ -115,7 +121,7 @@ export default function DealTurn({
 
   return (
     <div className="space-y-6 text-center">
-      <p className="text-2xl font-bold">{t.imposterPassTo.replace("{name}", () => name)}</p>
+      <p className="text-2xl font-bold">{title ?? t.imposterPassTo.replace("{name}", () => name)}</p>
       <p className="text-sm opacity-80">{t.imposterPassHint}</p>
       <div
         data-card
@@ -148,7 +154,7 @@ export default function DealTurn({
         className="rounded-lg px-10 py-3 font-semibold disabled:opacity-40"
         style={{ backgroundColor: GAME_THEME.bg, color: GAME_THEME.text }}
       >
-        {t.imposterNextPlayer}
+        {nextLabel ?? t.imposterNextPlayer}
       </button>
     </div>
   );
