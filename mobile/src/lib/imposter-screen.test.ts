@@ -5,6 +5,7 @@ import {
   DEFAULT_SETUP,
   IMPOSTER_CATEGORIES,
   IMPOSTER_WORDS,
+  playerColor,
   type GameState,
   type ImposterSetup,
 } from "@ptracker/shared/imposter";
@@ -65,18 +66,19 @@ vi.mock("@/components/games/game-mode-entry", () => ({
 vi.mock("@/components/games/game-screen", () => ({ GameScreen: () => null }));
 vi.mock("@/components/games/imposter-discuss", () => ({ ImposterDiscuss: () => null }));
 vi.mock("@/components/games/imposter-result", () => ({ ImposterResult: () => null }));
-vi.mock("@/components/games/imposter-setup", () => ({ ImposterSetupForm: () => null }));
+vi.mock("@/components/games/imposter-setup", () => ({ ImposterSetupWizard: () => null }));
+vi.mock("@/components/games/deal-turn", () => ({ DealTurn: () => null }));
 vi.mock("@/components/games/pass-phone", () => ({ PassPhone: () => null }));
-vi.mock("@/components/ui/primary-button", () => ({ PrimaryButton: () => null }));
 vi.mock("@/lib/imposter-storage", () => storage);
 
 import { Pressable } from "react-native";
 import ImposterScreen from "@/app/games/imposter";
+import { DealTurn } from "@/components/games/deal-turn";
+import { GameScreen } from "@/components/games/game-screen";
 import { ImposterDiscuss } from "@/components/games/imposter-discuss";
 import { ImposterResult } from "@/components/games/imposter-result";
-import { ImposterSetupForm } from "@/components/games/imposter-setup";
+import { ImposterSetupWizard } from "@/components/games/imposter-setup";
 import { PassPhone } from "@/components/games/pass-phone";
-import { PrimaryButton } from "@/components/ui/primary-button";
 
 type Props = Record<string, unknown> & { children?: unknown };
 type Node = ReactElement<Props>;
@@ -110,16 +112,15 @@ function find(type: unknown): Node {
 }
 
 function pass(): Node {
-  return find(PassPhone);
+  return nodes(render()).find((n) => n.type === DealTurn || n.type === PassPhone)!;
 }
 
 function reveal() {
   (pass().props.onReveal as () => void)();
 }
 
-function hideNext() {
-  const next = nodes(pass().props.children).find((n) => n.type === PrimaryButton && n.props.label === "imposterHideNext")!;
-  (next.props.onPress as () => void)();
+function nextPlayer() {
+  (find(DealTurn).props.onNext as () => void)();
 }
 
 function ballot(): Node[] {
@@ -137,13 +138,13 @@ async function start(setup: ImposterSetup) {
   for (const effect of hooks.effects) effect();
   await Promise.resolve();
   await Promise.resolve();
-  (find(ImposterSetupForm).props.onStart as () => void)();
+  (find(ImposterSetupWizard).props.onStart as () => void)();
 }
 
 function dealAll(count: number) {
   for (let i = 0; i < count; i++) {
     reveal();
-    hideNext();
+    nextPlayer();
   }
 }
 
@@ -214,6 +215,68 @@ describe("ImposterScreen onEnd", () => {
     dealAll(3);
     (find(ImposterDiscuss).props.onFinish as () => void)();
     (find(ImposterResult).props.onEnd as () => void)();
-    expect(find(ImposterSetupForm).props.value).toEqual(valid);
+    expect(find(ImposterSetupWizard).props.value).toEqual(valid);
+  });
+});
+
+describe("ImposterScreen look", () => {
+  it("draws each turn on that player's colour without scrolling, and the other screens dark", async () => {
+    storage.getStoredSetup.mockResolvedValue(valid);
+    render();
+    expect(find(GameScreen).props).toMatchObject({ tone: "game", color: undefined, scroll: true });
+    await start(valid);
+    expect(find(GameScreen).props).toMatchObject({ tone: "game", color: playerColor(0), scroll: false });
+    dealAll(1);
+    expect(find(GameScreen).props.color).toBe(playerColor(1));
+    dealAll(2);
+    expect(find(GameScreen).props).toMatchObject({ color: undefined, scroll: true });
+    expect(find(ImposterDiscuss).props.starterColor).toBe(playerColor(0));
+  });
+
+  it("colours the vote screen by voter and each ballot button by candidate", async () => {
+    await start({ ...valid, voting: true });
+    dealAll(3);
+    (find(ImposterDiscuss).props.onFinish as () => void)();
+    expect(find(GameScreen).props).toMatchObject({ color: playerColor(0), scroll: true });
+    reveal();
+    expect(ballot().map((b) => (b.props.style as { backgroundColor: string }).backgroundColor)).toEqual([
+      playerColor(1),
+      playerColor(2),
+    ]);
+  });
+});
+
+describe("ImposterScreen wizard", () => {
+  it("offers quick start only when a valid setup was saved", async () => {
+    storage.getStoredSetup.mockResolvedValue(valid);
+    render();
+    for (const effect of hooks.effects) effect();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(find(ImposterSetupWizard).props.quickStart).toBe(true);
+
+    hooks.states = [];
+    storage.getStoredSetup.mockResolvedValue({ ...valid, players: [] });
+    render();
+    for (const effect of hooks.effects) effect();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(find(ImposterSetupWizard).props.quickStart).toBe(false);
+  });
+
+  it("keeps the step and opens on the first step again after a game", async () => {
+    storage.getStoredSetup.mockResolvedValue(valid);
+    render();
+    for (const effect of hooks.effects) effect();
+    await Promise.resolve();
+    await Promise.resolve();
+    (find(ImposterSetupWizard).props.onStep as (n: number) => void)(2);
+    expect(find(ImposterSetupWizard).props.step).toBe(2);
+    (find(ImposterSetupWizard).props.onStart as () => void)();
+    dealAll(3);
+    (find(ImposterDiscuss).props.onFinish as () => void)();
+    (find(ImposterResult).props.onEnd as () => void)();
+    expect(find(ImposterSetupWizard).props.step).toBe(0);
+    expect(find(ImposterSetupWizard).props.quickStart).toBe(true);
   });
 });

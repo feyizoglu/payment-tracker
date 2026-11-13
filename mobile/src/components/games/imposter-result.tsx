@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 
 import { useLang } from "@ptracker/shared/i18n";
-import type { GameState } from "@ptracker/shared/imposter";
+import { playerColor, type GameState } from "@ptracker/shared/imposter";
 import { PrimaryButton } from "@/components/ui/primary-button";
 
 export function ImposterResult({
@@ -45,7 +45,14 @@ export function ImposterResult({
         ) : null}
         <Text className="text-base text-gray-900">
           <Text className="text-gray-500">{t.imposterWere}: </Text>
-          <Text className="font-bold">{round.imposters.map((i) => names[i]).join(", ")}</Text>
+          <Text className="font-bold">
+            {round.imposters.flatMap((i, n) => [
+              n > 0 ? ", " : "",
+              <Text key={i} style={{ color: playerColor(i) }}>
+                {names[i]}
+              </Text>,
+            ])}
+          </Text>
         </Text>
       </View>
 
@@ -53,11 +60,13 @@ export function ImposterResult({
         <View className="rounded-xl border border-gray-100 p-4">
           <Text className="mb-2 text-sm font-medium text-gray-500">{t.imposterScores}</Text>
           {names
-            .map((name, i) => ({ name, score: scores[i] }))
+            .map((name, i) => ({ name, score: scores[i], color: playerColor(i) }))
             .sort((a, b) => b.score - a.score)
-            .map(({ name, score }) => (
+            .map(({ name, score, color }) => (
               <View key={name} className="flex-row justify-between py-1">
-                <Text className="text-base text-gray-900">{name}</Text>
+                <Text className="text-base font-semibold" style={{ color }}>
+                  {name}
+                </Text>
                 <Text className="text-base font-bold text-gray-900">{score}</Text>
               </View>
             ))}

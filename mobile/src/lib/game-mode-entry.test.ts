@@ -12,7 +12,7 @@ const state = vi.hoisted(() => ({
   storedSetup: null as unknown,
   setStoredSetup: vi.fn(async (_setup: unknown) => undefined),
   form: null as null | { value: unknown; onStart: () => void },
-  passPhones: 0,
+  dealTurns: 0,
   presses: [] as (() => void)[],
   pinScreens: [] as Array<{ onUnlock: (s: AppLockState) => Promise<void> | void }>,
   blur: null as null | (() => void),
@@ -41,7 +41,7 @@ vi.mock("@ptracker/shared/i18n", () => ({ useLang: () => ({ t: new Proxy({}, { g
 vi.mock("@/lib/app-lock-context", () => ({ useAppLock: () => ({ ready: true, lock: state.lock, update: state.update }) }));
 vi.mock("@/lib/app-lock-storage", () => ({ randomSalt: () => "salt", sha256Hex: async (s: string) => `h(${s})` }));
 vi.mock("@/lib/imposter-storage", () => ({
-  getStoredSetup: async () => state.storedSetup,
+  getStoredSetup: () => (state.storedSetup ? Promise.resolve(state.storedSetup) : new Promise(() => {})),
   setStoredSetup: state.setStoredSetup,
 }));
 vi.mock("@/components/games/game-screen", async () => {
@@ -49,7 +49,7 @@ vi.mock("@/components/games/game-screen", async () => {
   return { GameScreen: ({ children }: { children?: unknown }) => h(Fragment, null, children as never) };
 });
 vi.mock("@/components/games/imposter-setup", () => ({
-  ImposterSetupForm: (props: { value: unknown; onStart: () => void }) => {
+  ImposterSetupWizard: (props: { value: unknown; onStart: () => void }) => {
     state.setupForms++;
     state.form = props;
     return null;
@@ -57,12 +57,13 @@ vi.mock("@/components/games/imposter-setup", () => ({
 }));
 vi.mock("@/components/games/imposter-discuss", () => ({ ImposterDiscuss: () => null }));
 vi.mock("@/components/games/imposter-result", () => ({ ImposterResult: () => null }));
-vi.mock("@/components/games/pass-phone", () => ({
-  PassPhone: () => {
-    state.passPhones++;
+vi.mock("@/components/games/deal-turn", () => ({
+  DealTurn: () => {
+    state.dealTurns++;
     return null;
   },
 }));
+vi.mock("@/components/games/pass-phone", () => ({ PassPhone: () => null }));
 vi.mock("@/components/ui/primary-button", () => ({ PrimaryButton: () => null }));
 vi.mock("@/components/lock/pin-setup", () => ({
   PinSetup: () => {
@@ -118,7 +119,7 @@ beforeEach(() => {
   state.storedSetup = null;
   state.setStoredSetup.mockClear();
   state.form = null;
-  state.passPhones = 0;
+  state.dealTurns = 0;
   state.presses = [];
   vi.mocked(router.push).mockClear();
   state.pinScreens = [];
@@ -158,12 +159,12 @@ describe("ImposterScreen onStart", () => {
     state.storedSetup = setup;
     await render(ImposterScreen);
     expect(state.form?.value).toEqual(setup);
-    expect(state.passPhones).toBe(0);
+    expect(state.dealTurns).toBe(0);
 
     await act(async () => state.form?.onStart());
     expect(state.setStoredSetup).toHaveBeenCalledTimes(1);
     expect(state.setStoredSetup).toHaveBeenCalledWith(setup);
-    expect(state.passPhones).toBeGreaterThan(0);
+    expect(state.dealTurns).toBeGreaterThan(0);
   });
 
   it("shows no setup form until the stored setup has been read", async () => {

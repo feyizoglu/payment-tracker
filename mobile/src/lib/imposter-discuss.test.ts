@@ -41,16 +41,28 @@ vi.mock("@ptracker/shared/i18n", () => ({
 vi.mock("@/components/ui/primary-button", () => ({ PrimaryButton: () => null }));
 
 import { ImposterDiscuss } from "@/components/games/imposter-discuss";
+import type { ReactElement } from "react";
+import { GAME_THEME } from "@ptracker/shared/imposter";
+
+type StyledNode = ReactElement<Record<string, unknown> & { children?: unknown }>;
+
+function styledNodes(node: unknown): StyledNode[] {
+  if (Array.isArray(node)) return node.flatMap(styledNodes);
+  if (!node || typeof node !== "object" || !("props" in node)) return [];
+  const el = node as StyledNode;
+  return [...(el.props.style ? [el] : []), ...styledNodes(el.props.children)];
+}
 
 function renderAndRunEffects(timerMinutes: number) {
   hooks.index = 0;
   hooks.refIndex = 0;
   hooks.effects = [];
-  ImposterDiscuss({ starter: "Ann", timerMinutes, voting: true, onFinish: vi.fn() });
+  const tree = ImposterDiscuss({ starter: "Ann", starterColor: "#123456", timerMinutes, voting: true, onFinish: vi.fn() });
   for (const effect of hooks.effects) {
     const cleanup = effect();
     if (cleanup) hooks.cleanups.push(cleanup);
   }
+  return tree;
 }
 
 beforeEach(() => {
@@ -84,5 +96,14 @@ describe("ImposterDiscuss vibrate once", () => {
     vi.advanceTimersByTime(60_000);
     renderAndRunEffects(0);
     expect(rn.vibrate).not.toHaveBeenCalled();
+  });
+});
+
+describe("ImposterDiscuss starter", () => {
+  it("names who starts on that player's colour", () => {
+    const [chip, label] = styledNodes(renderAndRunEffects(0));
+    expect(chip.props.style).toEqual({ backgroundColor: "#123456" });
+    expect(label.props.children).toBe("imposterStarts");
+    expect(label.props.style).toEqual({ color: GAME_THEME.ink });
   });
 });
