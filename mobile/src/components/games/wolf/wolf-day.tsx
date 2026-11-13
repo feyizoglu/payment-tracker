@@ -41,6 +41,12 @@ export function WolfDay({
     return () => clearInterval(id);
   }, [ticking]);
 
+  // The clock stands still on the vote screen: read it again, so the talk never shows the old time.
+  const backToTalk = () => {
+    setNow(Date.now());
+    onTalk();
+  };
+
   const names = state.setup.players;
   const living = livingSeats(state);
   const ink = { color: GAME_THEME.ink };
@@ -61,7 +67,7 @@ export function WolfDay({
           className="rounded-xl border-2 border-gray-200 py-3">
           <Text className="text-center text-base font-semibold text-gray-900">{t.wolfNobody}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={onTalk} className="py-2">
+        <Pressable accessibilityRole="button" onPress={backToTalk} className="py-2">
           <Text className="text-center text-sm text-gray-500">{t.back}</Text>
         </Pressable>
       </View>

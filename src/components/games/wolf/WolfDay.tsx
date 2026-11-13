@@ -40,6 +40,12 @@ export default function WolfDay({
     return () => clearInterval(id);
   }, [ticking]);
 
+  // The clock stands still on the vote screen: read it again, so the talk never shows the old time.
+  const backToTalk = () => {
+    setNow(Date.now());
+    onTalk();
+  };
+
   const names = state.setup.players;
   const living = livingSeats(state);
   const chip = (seat: number) => ({ backgroundColor: playerColor(seat), color: GAME_THEME.ink });
@@ -61,7 +67,7 @@ export default function WolfDay({
         >
           {t.wolfNobody}
         </button>
-        <button type="button" onClick={onTalk} className="text-sm text-gray-500">
+        <button type="button" onClick={backToTalk} className="text-sm text-gray-500">
           {t.back}
         </button>
       </div>

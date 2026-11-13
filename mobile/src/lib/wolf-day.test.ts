@@ -163,6 +163,19 @@ describe("WolfDay", () => {
     expect(text(render(s))).toContain("imposterTimeUp");
   });
 
+  it("shows the time left at once when the talk comes back from the vote screen", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const talk = day({ dayEndsAt: 1_090_000 }, { timerMinutes: 2 });
+    expect(text(render(talk))).toContain("1:30");
+    const vote = render({ ...talk, dayStep: "vote" });
+    vi.setSystemTime(1_030_000);
+    press(pressable(vote, "back"));
+    expect(onTalk).toHaveBeenCalledTimes(1);
+    // No effect has run and no timer has fired: the first talk render is already right.
+    expect(text(render(talk))).toContain("1:00");
+  });
+
   it("shows no timer when it is off", () => {
     const tree = render(day());
     expect(text(tree)).not.toMatch(/\d:\d\d/);
