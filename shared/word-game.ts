@@ -216,3 +216,214 @@ export function buildDeck(
   const poolIds = new Set(pool.map((card) => card.id));
   return { deck: shuffle(pool, rng), seen: seen.filter((id) => !poolIds.has(id)) };
 }
+
+export const WORD_TAP_GUARD_MS = 300;
+
+export type WordPhase = "setup" | "handoff" | "play" | "summary" | "end";
+export type WordResult = "correct" | "pass" | "foul";
+
+export const RESULT_POINTS = { correct: 1, pass: 0, foul: -1 } as const satisfies Record<WordResult, number>;
+
+export interface TurnResult {
+  card: WordCard;
+  result: WordResult;
+}
+
+export interface WordGameState {
+  phase: WordPhase;
+  setup: WordSetup;
+  /** The language of the words, fixed when the game starts. */
+  lang: Lang;
+  /** The lists the game draws from; null before the first start. */
+  words: WordSource | null;
+  deck: WordCard[];
+  /** Words passed in this game that are not back in the deck yet. */
+  passed: WordCard[];
+  /** The word on screen during a turn. */
+  card: WordCard | null;
+  /** Ids shown on this device in `lang`; saved after every turn. */
+  seen: string[];
+  /** Finished turns. The team on turn is `turnsPlayed % 2`. */
+  turnsPlayed: number;
+  scores: [number, number];
+  /** This turn's words in the order they were shown. */
+  results: TurnResult[];
+  /** null means unlimited. */
+  passesLeft: number | null;
+  /** When the turn's clock runs out, in ms. */
+  endsAt: number;
+  /** The deck ran out: the game ends after this turn. */
+  outOfWords: boolean;
+  /** When the last accepted tap happened, in ms. */
+  lastActionAt: number;
+}
+
+/** `at` is the tap's (or, for timeUp, the clock's) timestamp in ms. */
+export type WordGameAction =
+  | { type: "start"; setup: WordSetup; lang: Lang; words: WordSource; seen: readonly string[]; rng: Rng; at: number }
+  | { type: "begin"; at: number }
+  | { type: "answer"; result: WordResult; rng: Rng; at: number }
+  | { type: "timeUp"; at: number }
+  | { type: "next"; at: number }
+  | { type: "endGame"; at: number }
+  | { type: "playAgain"; rng: Rng; at: number }
+  | { type: "newGame"; at: number };
+
+export function initialWordState(setup: WordSetup): WordGameState {
+  return {
+    phase: "setup",
+    setup,
+    lang: "en",
+    words: null,
+    deck: [],
+    passed: [],
+    card: null,
+    seen: [],
+    turnsPlayed: 0,
+    scores: [0, 0],
+    results: [],
+    passesLeft: setup.passLimit,
+    endsAt: 0,
+    outOfWords: false,
+    lastActionAt: 0,
+  };
+}
+
+export function currentTeam(state: Pick<WordGameState, "turnsPlayed">): 0 | 1 {
+  return state.turnsPlayed % 2 === 0 ? 0 : 1;
+}
+
+/** A team's n-th turn is played by `players[n % players.length]`. */
+export function describer(state: Pick<WordGameState, "setup" | "turnsPlayed">): string {
+  const { players } = state.setup.teams[currentTeam(state)];
+  return players[Math.floor(state.turnsPlayed / 2) % players.length];
+}
+
+/** Checked after each pair of turns: rounds played out, or a team ahead at the target. */
+export function isGameOver(setup: WordSetup, scores: readonly [number, number], turnsPlayed: number): boolean {
+  if (turnsPlayed === 0 || turnsPlayed % 2 !== 0) return false;
+  if (setup.endBy === "rounds") {
+    const longest = Math.max(setup.teams[0].players.length, setup.teams[1].players.length);
+    return turnsPlayed >= 2 * setup.rounds * longest;
+  }
+  return Math.max(scores[0], scores[1]) >= setup.target && scores[0] !== scores[1];
+}
+
+export function winner(scores: readonly [number, number]): 0 | 1 | null {
+  if (scores[0] === scores[1]) return null;
+  return scores[0] > scores[1] ? 0 : 1;
+}
+
+export function turnPoints(results: readonly TurnResult[]): number {
+  return results.reduce((sum, r) => sum + RESULT_POINTS[r.result], 0);
+}
+
+export function signedPoints(points: number): string {
+  return points > 0 ? `+${points}` : String(points);
+}
+
+// Every button moves the game on at once and the next screen's buttons sit where the last
+// ones were, so a double tap would otherwise skip a word or a screen.
+function tooSoon(state: WordGameState, at: number): boolean {
+  const d = at - state.lastActionAt;
+  return d >= 0 && d < WORD_TAP_GUARD_MS;
+}
+
+function markSeen(seen: string[], id: string): string[] {
+  return seen.includes(id) ? seen : [...seen, id];
+}
+
+function trimTeam(team: WordTeam): WordTeam {
+  return { name: team.name.trim(), players: team.players.map((p) => p.trim()) };
+}
+
+function dealGame(setup: WordSetup, lang: Lang, words: WordSource, seen: readonly string[], rng: Rng, at: number): WordGameState {
+  const built = buildDeck(words, setup.category, setup.difficulty, seen, rng);
+  const empty = built.deck.length === 0;
+  return {
+    ...initialWordState(setup),
+    phase: empty ? "end" : "handoff",
+    lang,
+    words,
+    deck: built.deck,
+    seen: built.seen,
+    outOfWords: empty,
+    lastActionAt: at,
+  };
+}
+
+export function wordGameReducer(state: WordGameState, action: WordGameAction): WordGameState {
+  switch (action.type) {
+    case "start": {
+      if (state.phase !== "setup" || validateWordSetup(action.setup).length > 0 || tooSoon(state, action.at)) return state;
+      const setup: WordSetup = { ...action.setup, teams: [trimTeam(action.setup.teams[0]), trimTeam(action.setup.teams[1])] };
+      return dealGame(setup, action.lang, action.words, action.seen, action.rng, action.at);
+    }
+    case "begin": {
+      if (state.phase !== "handoff" || tooSoon(state, action.at)) return state;
+      const [card, ...deck] = state.deck;
+      if (!card) return { ...state, phase: "end", outOfWords: true, lastActionAt: action.at };
+      return {
+        ...state,
+        phase: "play",
+        card,
+        deck,
+        seen: markSeen(state.seen, card.id),
+        results: [],
+        passesLeft: state.setup.passLimit,
+        endsAt: action.at + state.setup.turnSeconds * 1000,
+        lastActionAt: action.at,
+      };
+    }
+    case "answer": {
+      const { card } = state;
+      if (state.phase !== "play" || !card || tooSoon(state, action.at) || action.at >= state.endsAt) return state;
+      const pass = action.result === "pass";
+      if (pass && state.passesLeft === 0) return state;
+      const scores: [number, number] = [...state.scores];
+      scores[currentTeam(state)] += RESULT_POINTS[action.result];
+      let deck = state.deck;
+      let passed = pass ? [...state.passed, card] : state.passed;
+      if (deck.length === 0) {
+        deck = shuffle(passed, action.rng);
+        passed = [];
+      }
+      const [nextCard, ...rest] = deck;
+      const answered: WordGameState = {
+        ...state,
+        scores,
+        results: [...state.results, { card, result: action.result }],
+        passesLeft: pass && state.passesLeft !== null ? state.passesLeft - 1 : state.passesLeft,
+        lastActionAt: action.at,
+      };
+      if (!nextCard) return { ...answered, phase: "summary", card: null, deck: [], passed: [], outOfWords: true };
+      return { ...answered, card: nextCard, deck: rest, passed, seen: markSeen(state.seen, nextCard.id) };
+    }
+    case "timeUp":
+      // Not tap-guarded: the clock ends the turn even right after a tap.
+      if (state.phase !== "play" || action.at < state.endsAt) return state;
+      return {
+        ...state,
+        phase: "summary",
+        card: null,
+        deck: state.card ? [...state.deck, state.card] : state.deck,
+        lastActionAt: action.at,
+      };
+    case "next": {
+      if (state.phase !== "summary" || tooSoon(state, action.at)) return state;
+      const turnsPlayed = state.turnsPlayed + 1;
+      const over = state.outOfWords || isGameOver(state.setup, state.scores, turnsPlayed);
+      return { ...state, phase: over ? "end" : "handoff", turnsPlayed, lastActionAt: action.at };
+    }
+    case "endGame":
+      if ((state.phase !== "handoff" && state.phase !== "summary") || tooSoon(state, action.at)) return state;
+      return { ...state, phase: "end", lastActionAt: action.at };
+    case "playAgain":
+      if (state.phase !== "end" || !state.words || tooSoon(state, action.at)) return state;
+      return dealGame(state.setup, state.lang, state.words, state.seen, action.rng, action.at);
+    case "newGame":
+      if (state.phase !== "end" || tooSoon(state, action.at)) return state;
+      // The setup's Start can sit where New game was: keep the time so Start is guarded too.
+      return { ...initialWordState(state.setup), lastActionAt: action.at };
+  }
+}

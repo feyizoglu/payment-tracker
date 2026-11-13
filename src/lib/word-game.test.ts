@@ -5,20 +5,30 @@ import {
   WORD_DECK_MIN,
   WORD_MAX_TEAM,
   WORD_SETUP_STORAGE_KEY,
+  WORD_TAP_GUARD_MS,
   buildDeck,
+  currentTeam,
   defaultTeamNames,
   defaultWordSetup,
+  describer,
+  initialWordState,
   parseSavedSeen,
   parseSavedWordSetup,
   shuffleTeams,
+  signedPoints,
   teamColor,
+  turnPoints,
   validateWordSetup,
+  winner,
+  wordGameReducer,
   wordSeenKey,
   wordStepErrors,
   type Rng,
   type WordCard,
   type WordCategory,
+  type WordGameState,
   type WordLevel,
+  type WordResult,
   type WordSetup,
   type WordSource,
   type WordTeam,
@@ -251,5 +261,252 @@ describe("buildDeck", () => {
     const { deck } = buildDeck(words, "animals", "easy", [], () => 0);
     expect(ids(deck)).not.toEqual(ids(animals));
     expect([...ids(deck)].sort()).toEqual([...ids(animals)].sort());
+  });
+});
+
+const T0 = 1_800_000_000_000;
+let now = T0;
+const tick = (ms = 1000) => (now += ms);
+
+const SIX = source({ animals: cardsOf("animals", "easy", 6) });
+const MANY = source({ animals: cardsOf("animals", "easy", 100) });
+
+function start(setup: WordSetup = setupWith(), words: WordSource = SIX, seen: string[] = []): WordGameState {
+  now = T0;
+  return wordGameReducer(initialWordState(setup), { type: "start", setup, lang: "tr", words, seen, rng: keepOrder, at: now });
+}
+const begin = (s: WordGameState) => wordGameReducer(s, { type: "begin", at: tick() });
+const answer = (s: WordGameState, result: WordResult) =>
+  wordGameReducer(s, { type: "answer", result, rng: keepOrder, at: tick() });
+const timeUp = (s: WordGameState) => wordGameReducer(s, { type: "timeUp", at: (now = Math.max(now, s.endsAt)) });
+const next = (s: WordGameState) => wordGameReducer(s, { type: "next", at: tick() });
+const turn = (s: WordGameState, results: WordResult[] = []) => next(timeUp(results.reduce(answer, begin(s))));
+
+describe("wordGameReducer start", () => {
+  it("starts at the first hand-over with trimmed names, the words' language and no points", () => {
+    const s = start(
+      setupWith({
+        teams: [
+          { name: " Red ", players: [" Ann", "Bob "] },
+          { name: "Blue", players: ["Cem", "Dan"] },
+        ],
+      })
+    );
+    expect(s.phase).toBe("handoff");
+    expect(s.setup.teams[0]).toEqual({ name: "Red", players: ["Ann", "Bob"] });
+    expect(s.lang).toBe("tr");
+    expect(s.scores).toEqual([0, 0]);
+    expect(currentTeam(s)).toBe(0);
+    expect(describer(s)).toBe("Ann");
+    expect(ids(s.deck)).toEqual(ids(SIX.animals));
+  });
+
+  it("ignores an invalid setup", () => {
+    const setup = setupWith({ teams: teams(["Ann"], ["Cem", "Dan"]) });
+    const before = initialWordState(setup);
+    const action = { type: "start", setup, lang: "tr", words: SIX, seen: [], rng: keepOrder, at: T0 } as const;
+    expect(wordGameReducer(before, action)).toBe(before);
+  });
+
+  it("keeps the seen list it was given, without the choice's words when it ran low", () => {
+    expect(start(setupWith(), MANY, ["animals-1", "food-9"]).seen).toEqual(["animals-1", "food-9"]);
+    expect(start(setupWith(), SIX, ["animals-1", "food-9"]).seen).toEqual(["food-9"]);
+  });
+
+  it("ends at once with a note when the choice has no words", () => {
+    const s = start(setupWith({ category: "food" }));
+    expect(s.phase).toBe("end");
+    expect(s.outOfWords).toBe(true);
+  });
+});
+
+describe("wordGameReducer turn", () => {
+  it("shows the first word on Start, marks it seen and starts the clock", () => {
+    const s = begin(start());
+    expect(s.phase).toBe("play");
+    expect(s.card?.id).toBe("animals-1");
+    expect(s.seen).toEqual(["animals-1"]);
+    expect(s.endsAt).toBe(now + 60_000);
+    expect(s.passesLeft).toBe(3);
+    expect(s.results).toEqual([]);
+  });
+
+  it("scores Correct +1, Pass 0 and Foul -1 for the team on turn and moves on each time", () => {
+    let s = begin(start());
+    s = answer(s, "foul");
+    expect(s.scores).toEqual([-1, 0]);
+    s = answer(s, "correct");
+    s = answer(s, "pass");
+    s = answer(s, "correct");
+    expect(s.scores).toEqual([1, 0]);
+    expect(s.results.map((r) => [r.card.id, r.result])).toEqual([
+      ["animals-1", "foul"],
+      ["animals-2", "correct"],
+      ["animals-3", "pass"],
+      ["animals-4", "correct"],
+    ]);
+    expect(s.card?.id).toBe("animals-5");
+    expect(s.seen).toEqual(["animals-1", "animals-2", "animals-3", "animals-4", "animals-5"]);
+    expect(turnPoints(s.results)).toBe(1);
+  });
+
+  it("counts the passes down and refuses a pass when none are left", () => {
+    let s = begin(start(setupWith({ passLimit: 3 })));
+    for (let i = 0; i < 3; i++) s = answer(s, "pass");
+    expect(s.passesLeft).toBe(0);
+    expect(answer(s, "pass")).toBe(s);
+  });
+
+  it("refuses every pass with a limit of 0 and never runs out when unlimited", () => {
+    const none = begin(start(setupWith({ passLimit: 0 })));
+    expect(answer(none, "pass")).toBe(none);
+    let s = begin(start(setupWith({ passLimit: null }), MANY));
+    for (let i = 0; i < 10; i++) s = answer(s, "pass");
+    expect(s.passesLeft).toBeNull();
+    expect(s.results).toHaveLength(10);
+  });
+
+  it("gives every turn its passes back", () => {
+    let s = begin(start());
+    s = answer(s, "pass");
+    expect(begin(next(timeUp(s))).passesLeft).toBe(3);
+  });
+
+  it("ignores a second tap within the tap guard", () => {
+    const s = begin(start());
+    const first = wordGameReducer(s, { type: "answer", result: "correct", rng: keepOrder, at: now + 1000 });
+    const at = now + 1000 + WORD_TAP_GUARD_MS;
+    expect(wordGameReducer(first, { type: "answer", result: "correct", rng: keepOrder, at: at - 1 })).toBe(first);
+    expect(wordGameReducer(first, { type: "answer", result: "correct", rng: keepOrder, at }).scores).toEqual([2, 0]);
+  });
+
+  it("does not let a double tap on Start answer the first word", () => {
+    const s = begin(start());
+    expect(wordGameReducer(s, { type: "answer", result: "correct", rng: keepOrder, at: now + 50 })).toBe(s);
+    expect(wordGameReducer(start(), { type: "begin", at: T0 + 50 }).phase).toBe("handoff");
+  });
+
+  it("ends the turn at the clock: the word on screen does not count and goes to the bottom of the deck", () => {
+    let s = answer(begin(start()), "correct");
+    expect(s.card?.id).toBe("animals-2");
+    expect(wordGameReducer(s, { type: "timeUp", at: s.endsAt - 1 })).toBe(s);
+    expect(wordGameReducer(s, { type: "answer", result: "correct", rng: keepOrder, at: s.endsAt })).toBe(s);
+    s = wordGameReducer(s, { type: "timeUp", at: s.endsAt });
+    expect(s.phase).toBe("summary");
+    expect(s.card).toBeNull();
+    expect(s.results.map((r) => r.card.id)).toEqual(["animals-1"]);
+    expect(ids(s.deck)).toEqual(["animals-3", "animals-4", "animals-5", "animals-6", "animals-2"]);
+    expect(s.seen).toContain("animals-2");
+    expect(s.scores).toEqual([1, 0]);
+  });
+
+  it("takes the time-up right after a tap, and guards the summary's Next from that tap", () => {
+    let s = begin(start());
+    s = wordGameReducer(s, { type: "answer", result: "correct", rng: keepOrder, at: s.endsAt - 100 });
+    s = wordGameReducer(s, { type: "timeUp", at: s.endsAt });
+    expect(s.phase).toBe("summary");
+    expect(wordGameReducer(s, { type: "next", at: s.endsAt + 100 })).toBe(s);
+    expect(wordGameReducer(s, { type: "next", at: s.endsAt + WORD_TAP_GUARD_MS }).phase).toBe("handoff");
+  });
+});
+
+describe("wordGameReducer turn order and end of the game", () => {
+  it("alternates the teams from team 1 and rotates each team's describer in list order", () => {
+    let s = start(setupWith({ teams: teams(["Ann", "Bob", "Eve"], ["Cem", "Dan"]), rounds: 3 }), MANY);
+    const order: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      order.push(`${currentTeam(s)}:${describer(s)}`);
+      s = turn(s);
+    }
+    expect(order).toEqual(["0:Ann", "1:Cem", "0:Bob", "1:Dan", "0:Eve", "1:Cem"]);
+  });
+
+  it("gives each team rounds × the larger team's size turns and ends after team 2's last one", () => {
+    let s = start(setupWith({ teams: teams(["Ann", "Bob", "Eve"], ["Cem", "Dan"]), endBy: "rounds", rounds: 1 }), MANY);
+    for (let i = 0; i < 5; i++) s = turn(s, i % 2 === 0 ? ["correct"] : []);
+    expect(s.phase).toBe("handoff");
+    s = turn(s);
+    expect(s.phase).toBe("end");
+    expect(s.turnsPlayed).toBe(6);
+    expect(s.scores).toEqual([3, 0]);
+    expect(winner(s.scores)).toBe(0);
+  });
+
+  it("calls equal scores at the end of the rounds a draw", () => {
+    let s = start(setupWith({ endBy: "rounds", rounds: 1 }), MANY);
+    for (let i = 0; i < 4; i++) s = turn(s, ["correct"]);
+    expect(s.phase).toBe("end");
+    expect(s.scores).toEqual([2, 2]);
+    expect(winner(s.scores)).toBeNull();
+  });
+
+  it("ends on a target score only after team 2 has played, and only when the scores differ", () => {
+    const twenty = Array.from({ length: 20 }, (): WordResult => "correct");
+    let s = start(setupWith({ endBy: "target", target: 20 }), MANY);
+    s = turn(s, twenty);
+    expect(s.phase).toBe("handoff");
+    s = turn(s, twenty);
+    expect(s.scores).toEqual([20, 20]);
+    expect(s.phase).toBe("handoff");
+    s = turn(s, ["correct"]);
+    expect(s.phase).toBe("handoff");
+    s = turn(s);
+    expect(s.phase).toBe("end");
+    expect(winner(s.scores)).toBe(0);
+  });
+
+  it("writes the turn's points with a sign", () => {
+    expect([signedPoints(3), signedPoints(0), signedPoints(-2)]).toEqual(["+3", "0", "-2"]);
+  });
+});
+
+describe("wordGameReducer running out of words", () => {
+  it("shuffles the passed words back in, then ends after the turn with a note", () => {
+    let s = begin(start(setupWith(), source({ animals: cardsOf("animals", "easy", 3) })));
+    s = answer(s, "pass");
+    s = answer(s, "correct");
+    s = answer(s, "correct");
+    expect(s.card?.id).toBe("animals-1");
+    expect(s.passed).toEqual([]);
+    s = answer(s, "correct");
+    expect(s.phase).toBe("summary");
+    expect(s.outOfWords).toBe(true);
+    expect(s.results.map((r) => r.result)).toEqual(["pass", "correct", "correct", "correct"]);
+    expect(s.scores).toEqual([3, 0]);
+    s = next(s);
+    expect(s.phase).toBe("end");
+    expect(s.outOfWords).toBe(true);
+  });
+});
+
+describe("wordGameReducer ending and replaying", () => {
+  it("ends the game from the hand-over or the summary, not during a turn", () => {
+    expect(wordGameReducer(start(), { type: "endGame", at: tick() }).phase).toBe("end");
+    const playing = begin(start());
+    expect(wordGameReducer(playing, { type: "endGame", at: tick() })).toBe(playing);
+    const summary = timeUp(begin(start()));
+    expect(wordGameReducer(summary, { type: "endGame", at: tick() }).phase).toBe("end");
+  });
+
+  it("plays again with the same settings, no points and none of the words already shown", () => {
+    const sixty = source({ animals: cardsOf("animals", "easy", 60) });
+    let s = turn(start(setupWith(), sixty), ["correct", "correct"]);
+    s = wordGameReducer(s, { type: "endGame", at: tick() });
+    s = wordGameReducer(s, { type: "playAgain", rng: keepOrder, at: tick() });
+    expect(s.phase).toBe("handoff");
+    expect(s.scores).toEqual([0, 0]);
+    expect(s.turnsPlayed).toBe(0);
+    expect(s.lang).toBe("tr");
+    expect(s.setup.teams[0].players).toEqual(["Ann", "Bob"]);
+    expect(ids(s.deck)).toEqual(ids(sixty.animals.slice(3)));
+  });
+
+  it("goes back to the setup with the played settings and keeps the time, so a double tap cannot start", () => {
+    let s = wordGameReducer(start(), { type: "endGame", at: tick() });
+    s = wordGameReducer(s, { type: "newGame", at: tick() });
+    expect(s.phase).toBe("setup");
+    expect(s.setup.teams[0].players).toEqual(["Ann", "Bob"]);
+    const again = { type: "start", setup: s.setup, lang: "tr", words: SIX, seen: [], rng: keepOrder, at: now + 100 } as const;
+    expect(wordGameReducer(s, again)).toBe(s);
   });
 });
