@@ -6,13 +6,25 @@ import { GamesPinSetup, useEnterGameModeOnce } from "@/components/games/game-mod
 import { GameScreen } from "@/components/games/game-screen";
 
 export default function GamesScreen() {
-  const { t } = useLang();
+  const { t, lang, setLang } = useLang();
   const pinReady = useEnterGameModeOnce();
 
   if (!pinReady) return <GamesPinSetup title={t.games} />;
 
   return (
-    <GameScreen title={t.games}>
+    <GameScreen
+      title={t.games}
+      right={
+        // Settings is out of reach in game mode, so the language is changed here.
+        <Pressable
+          onPress={() => setLang(lang === "tr" ? "en" : "tr")}
+          accessibilityRole="button"
+          accessibilityLabel={t.language}
+          hitSlop={8}
+          className="w-14 items-end">
+          <Text className="text-2xl">{lang === "tr" ? "🇹🇷" : "🇬🇧"}</Text>
+        </Pressable>
+      }>
       <Pressable
         onPress={() => router.push("/games/imposter")}
         className="flex-row items-center gap-4 rounded-xl border border-gray-100 p-4">

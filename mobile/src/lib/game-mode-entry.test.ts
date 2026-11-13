@@ -12,10 +12,12 @@ const state = vi.hoisted(() => ({
   storedSetup: null as unknown,
   setStoredSetup: vi.fn(async (_setup: unknown) => undefined),
   form: null as null | { value: unknown; onStart: () => void },
-  passPhones: 0,
+  dealTurns: 0,
   presses: [] as (() => void)[],
   pinScreens: [] as Array<{ onUnlock: (s: AppLockState) => Promise<void> | void }>,
   blur: null as null | (() => void),
+  setLang: vi.fn((_lang: string) => undefined),
+  lang: "en",
 }));
 
 vi.mock("react-native", async () => {
@@ -37,19 +39,24 @@ vi.mock("expo-router", async () => {
       }, [cb]),
   };
 });
-vi.mock("@ptracker/shared/i18n", () => ({ useLang: () => ({ t: new Proxy({}, { get: (_, k) => String(k) }), lang: "en" }) }));
+vi.mock("@ptracker/shared/i18n", () => ({
+  useLang: () => ({ t: new Proxy({}, { get: (_, k) => String(k) }), lang: state.lang, setLang: state.setLang }),
+}));
 vi.mock("@/lib/app-lock-context", () => ({ useAppLock: () => ({ ready: true, lock: state.lock, update: state.update }) }));
 vi.mock("@/lib/app-lock-storage", () => ({ randomSalt: () => "salt", sha256Hex: async (s: string) => `h(${s})` }));
 vi.mock("@/lib/imposter-storage", () => ({
-  getStoredSetup: async () => state.storedSetup,
+  getStoredSetup: () => (state.storedSetup ? Promise.resolve(state.storedSetup) : new Promise(() => {})),
   setStoredSetup: state.setStoredSetup,
 }));
 vi.mock("@/components/games/game-screen", async () => {
   const { Fragment, createElement: h } = await import("react");
-  return { GameScreen: ({ children }: { children?: unknown }) => h(Fragment, null, children as never) };
+  return {
+    GameScreen: ({ children, right }: { children?: unknown; right?: unknown }) =>
+      h(Fragment, null, children as never, right as never),
+  };
 });
 vi.mock("@/components/games/imposter-setup", () => ({
-  ImposterSetupForm: (props: { value: unknown; onStart: () => void }) => {
+  ImposterSetupWizard: (props: { value: unknown; onStart: () => void }) => {
     state.setupForms++;
     state.form = props;
     return null;
@@ -57,12 +64,13 @@ vi.mock("@/components/games/imposter-setup", () => ({
 }));
 vi.mock("@/components/games/imposter-discuss", () => ({ ImposterDiscuss: () => null }));
 vi.mock("@/components/games/imposter-result", () => ({ ImposterResult: () => null }));
-vi.mock("@/components/games/pass-phone", () => ({
-  PassPhone: () => {
-    state.passPhones++;
+vi.mock("@/components/games/deal-turn", () => ({
+  DealTurn: () => {
+    state.dealTurns++;
     return null;
   },
 }));
+vi.mock("@/components/games/pass-phone", () => ({ PassPhone: () => null }));
 vi.mock("@/components/ui/primary-button", () => ({ PrimaryButton: () => null }));
 vi.mock("@/components/lock/pin-setup", () => ({
   PinSetup: () => {
@@ -118,11 +126,13 @@ beforeEach(() => {
   state.storedSetup = null;
   state.setStoredSetup.mockClear();
   state.form = null;
-  state.passPhones = 0;
+  state.dealTurns = 0;
   state.presses = [];
   vi.mocked(router.push).mockClear();
   state.pinScreens = [];
   state.blur = null;
+  state.setLang.mockClear();
+  state.lang = "en";
 });
 
 afterEach(async () => {
@@ -158,12 +168,12 @@ describe("ImposterScreen onStart", () => {
     state.storedSetup = setup;
     await render(ImposterScreen);
     expect(state.form?.value).toEqual(setup);
-    expect(state.passPhones).toBe(0);
+    expect(state.dealTurns).toBe(0);
 
     await act(async () => state.form?.onStart());
     expect(state.setStoredSetup).toHaveBeenCalledTimes(1);
     expect(state.setStoredSetup).toHaveBeenCalledWith(setup);
-    expect(state.passPhones).toBeGreaterThan(0);
+    expect(state.dealTurns).toBeGreaterThan(0);
   });
 
   it("shows no setup form until the stored setup has been read", async () => {
@@ -187,7 +197,7 @@ describe("GamesScreen", () => {
     state.lock = { ...withPin, gameMode: true };
     await render(GamesScreen);
     expect(state.pinSetups).toBe(0);
-    expect(state.presses).toHaveLength(1);
+    expect(state.presses).toHaveLength(2);
     state.presses[0]();
     expect(router.push).toHaveBeenCalledTimes(1);
     expect(router.push).toHaveBeenCalledWith("/games/imposter");
@@ -198,6 +208,19 @@ describe("GamesScreen", () => {
     await render(GamesScreen);
     expect(state.update).toHaveBeenCalledTimes(1);
     expect(state.update).toHaveBeenCalledWith({ ...withPin, gameMode: true });
+  });
+
+  it.each([
+    ["en", "tr"],
+    ["tr", "en"],
+  ])("switches the language from %s to %s with the header's flag, as Settings is out of reach in game mode", async (from, to) => {
+    state.lock = { ...withPin, gameMode: true };
+    state.lang = from;
+    await render(GamesScreen);
+    state.presses[1]();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(state.setLang).toHaveBeenCalledTimes(1);
+    expect(state.setLang).toHaveBeenCalledWith(to);
   });
 });
 

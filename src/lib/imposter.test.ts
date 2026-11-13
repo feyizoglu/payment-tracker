@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
 import {
+  CATEGORY_CHOICES,
+  CATEGORY_EMOJI,
+  GAME_THEME,
+  MAX_PLAYERS,
+  PLAYER_COLORS,
+  SETUP_ERROR_KEYS,
+  SETUP_STEPS,
+  playerColor,
+  stepErrors,
+  type SetupError,
   DEFAULT_SETUP,
   IMPOSTER_WORDS,
   applyScore,
@@ -295,12 +305,14 @@ describe("gameReducer", () => {
   });
 
   it("ends back at setup, clearing scores but keeping the setup and used words", () => {
-    const s = gameReducer(started(), { type: "end", at: at() });
+    const game = started();
+    const endedAt = at();
+    const s = gameReducer(game, { type: "end", at: endedAt });
     expect(s.phase).toBe("setup");
     expect(s.scores).toEqual([]);
     expect(s.setup.players).toEqual(["Ayşe", "Mehmet", "Can", "Deniz"]);
     expect(s.used).toHaveLength(1);
-    expect(s.lastActionAt).toBe(0);
+    expect(s.lastActionAt).toBe(endedAt);
   });
 
   describe("tap guard", () => {
@@ -399,6 +411,35 @@ describe("gameReducer", () => {
       expect(gameReducer(result, { type: "nextRound", lang: "tr", rng: zero, at: votedAt + TAP_GUARD_MS }).phase).toBe("deal");
       expect(gameReducer(result, { type: "end", at: votedAt + TAP_GUARD_MS }).phase).toBe("setup");
     });
+
+    const startAt = (state: GameState, when: number) =>
+      gameReducer(state, { type: "start", setup: setup({ category: "animals" }), lang: "tr", rng: zero, at: when });
+
+    it("ignores a start right after the game was ended", () => {
+      const endedAt = T + 1000;
+      const ended = gameReducer(dealing(), { type: "end", at: endedAt });
+      expect(ended.phase).toBe("setup");
+      expect(startAt(ended, endedAt)).toBe(ended);
+      expect(startAt(ended, endedAt + 100)).toBe(ended);
+      expect(startAt(ended, endedAt + TAP_GUARD_MS - 1)).toBe(ended);
+    });
+
+    it("starts a new game once the tap guard after the end has passed", () => {
+      const endedAt = T + 1000;
+      const ended = gameReducer(dealing(), { type: "end", at: endedAt });
+      expect(startAt(ended, endedAt + TAP_GUARD_MS)).toMatchObject({
+        phase: "deal",
+        turn: 0,
+        lastActionAt: endedAt + TAP_GUARD_MS,
+      });
+      expect(startAt(ended, endedAt + 60_000).phase).toBe("deal");
+    });
+
+    it("starts the very first game whatever the time of day", () => {
+      for (const when of [TAP_GUARD_MS, 1_800_000_000_000, 1_800_000_000_000 + TAP_GUARD_MS - 1]) {
+        expect(startAt(initialGameState(), when)).toMatchObject({ phase: "deal", lastActionAt: when });
+      }
+    });
   });
 });
 
@@ -453,5 +494,91 @@ describe("countdown helpers", () => {
     expect(formatCountdown(600)).toBe("10:00");
     expect(formatCountdown(65)).toBe("1:05");
     expect(formatCountdown(0)).toBe("0:00");
+  });
+});
+
+function luminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5]
+    .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+describe("player colours", () => {
+  it("has a distinct colour for every seat", () => {
+    expect(PLAYER_COLORS).toHaveLength(MAX_PLAYERS);
+    expect(new Set(PLAYER_COLORS).size).toBe(PLAYER_COLORS.length);
+    for (const c of PLAYER_COLORS) expect(c).toMatch(/^#[0-9A-F]{6}$/);
+  });
+
+  it("gives each seat its colour and wraps after the last one", () => {
+    expect(playerColor(0)).toBe(PLAYER_COLORS[0]);
+    expect(playerColor(11)).toBe(PLAYER_COLORS[11]);
+    expect(playerColor(12)).toBe(PLAYER_COLORS[0]);
+  });
+
+  it("keeps dark text readable on every player colour and light text on the game background", () => {
+    for (const c of PLAYER_COLORS) expect(contrast(c, GAME_THEME.ink)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(GAME_THEME.text, GAME_THEME.bg)).toBeGreaterThanOrEqual(7);
+    expect(contrast(GAME_THEME.muted, GAME_THEME.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("category emoji", () => {
+  it("has one distinct emoji per category choice", () => {
+    expect(Object.keys(CATEGORY_EMOJI).sort()).toEqual([...CATEGORY_CHOICES].sort());
+    for (const c of CATEGORY_CHOICES) expect(CATEGORY_EMOJI[c]).toBeTruthy();
+    expect(new Set(Object.values(CATEGORY_EMOJI)).size).toBe(CATEGORY_CHOICES.length);
+  });
+});
+
+describe("stepErrors", () => {
+  it("returns nothing on any step for a valid setup", () => {
+    for (const step of SETUP_STEPS) expect(stepErrors(setup(), step)).toEqual([]);
+  });
+
+  it("puts player errors on the players step", () => {
+    expect(stepErrors(setup({ players: ["Ayşe", "ayşe", ""] }), "players")).toEqual(["blankName", "duplicateName"]);
+    expect(stepErrors(setup({ players: ["A"] }), "players")).toEqual(["tooFewPlayers"]);
+    const thirteen = Array.from({ length: 13 }, (_, i) => `P${i}`);
+    expect(stepErrors(setup({ players: thirteen }), "players")).toEqual(["tooManyPlayers"]);
+  });
+
+  it("puts imposter count and scoreboard errors on the rules step", () => {
+    const s = setup({ imposterCount: 3, scoreboard: true, voting: false });
+    expect(stepErrors(s, "rules")).toEqual(["imposterCount", "scoreboardNeedsVoting"]);
+    expect(stepErrors(s, "players")).toEqual([]);
+  });
+
+  it("has no errors of its own on the category step", () => {
+    expect(stepErrors(setup({ players: [], imposterCount: 9, scoreboard: true }), "category")).toEqual([]);
+  });
+
+  it("assigns every setup error to exactly one step", () => {
+    const few = setup({ players: [""], imposterCount: 9, scoreboard: true });
+    const many = setup({ players: Array.from({ length: 13 }, (_, i) => (i < 2 ? "Same" : `P${i}`)) });
+    const seen = new Set<SetupError>();
+    for (const s of [few, many]) {
+      const perStep = SETUP_STEPS.flatMap((step) => stepErrors(s, step));
+      expect([...perStep].sort()).toEqual([...validateSetup(s)].sort());
+      perStep.forEach((e) => seen.add(e));
+    }
+    expect([...seen].sort()).toEqual(Object.keys(SETUP_ERROR_KEYS).sort());
+  });
+});
+
+describe("hold to see and the tap guard", () => {
+  // No reducer change is needed for this; it pins the behaviour the hold card relies on.
+  it("does not count a press inside the tap guard as seen, and counts the next one", () => {
+    const dealt = gameReducer(initialGameState(), { type: "start", setup: setup(), lang: "en", rng: zero, at: 1000 });
+    const early = gameReducer(dealt, { type: "reveal", at: 1000 + TAP_GUARD_MS - 1 });
+    expect(early.revealed).toBe(false);
+    const later = gameReducer(early, { type: "reveal", at: 1000 + TAP_GUARD_MS });
+    expect(later.revealed).toBe(true);
   });
 });

@@ -50,6 +50,45 @@ export const CATEGORY_LABEL_KEYS = {
   sports: "imposterCategorySports",
 } as const satisfies Record<CategoryChoice, string>;
 
+export const CATEGORY_EMOJI = {
+  mixed: "🎲",
+  animals: "🐾",
+  food: "🍕",
+  jobs: "🧑‍🚒",
+  places: "🏝️",
+  objects: "📦",
+  sports: "⚽",
+} as const satisfies Record<CategoryChoice, string>;
+
+/** One colour per seat. All are light enough for `GAME_THEME.ink` text on top. */
+export const PLAYER_COLORS = [
+  "#FF6B6B",
+  "#4ECDC4",
+  "#FFD93D",
+  "#A78BFA",
+  "#6BCB77",
+  "#FF9F43",
+  "#54A0FF",
+  "#F78FB3",
+  "#C4E538",
+  "#48DBFB",
+  "#E2B07E",
+  "#B2BEC3",
+] as const;
+
+export function playerColor(index: number): string {
+  return PLAYER_COLORS[index % PLAYER_COLORS.length];
+}
+
+/** Fixed colours of the game screens; they do not follow the app's light or dark theme. */
+export const GAME_THEME = {
+  bg: "#0B1020",
+  text: "#FFFFFF",
+  muted: "#A3ACC2",
+  /** Text on a player's colour. */
+  ink: "#111827",
+} as const;
+
 export type SetupError =
   | "tooFewPlayers"
   | "tooManyPlayers"
@@ -66,6 +105,18 @@ export const SETUP_ERROR_KEYS = {
   imposterCount: "imposterErrCount",
   scoreboardNeedsVoting: "imposterErrScoreboard",
 } as const satisfies Record<SetupError, string>;
+
+export const SETUP_STEPS = ["players", "category", "rules"] as const;
+export type SetupStep = (typeof SETUP_STEPS)[number];
+
+const ERROR_STEP = {
+  tooFewPlayers: "players",
+  tooManyPlayers: "players",
+  blankName: "players",
+  duplicateName: "players",
+  imposterCount: "rules",
+  scoreboardNeedsVoting: "rules",
+} as const satisfies Record<SetupError, SetupStep>;
 
 type Rng = () => number;
 
@@ -87,6 +138,11 @@ export function validateSetup(setup: ImposterSetup): SetupError[] {
   if (setup.imposterCount < 1 || setup.imposterCount > limit) errors.push("imposterCount");
   if (setup.scoreboard && !setup.voting) errors.push("scoreboardNeedsVoting");
   return errors;
+}
+
+/** The `validateSetup` errors the given wizard step can fix. */
+export function stepErrors(setup: ImposterSetup, step: SetupStep): SetupError[] {
+  return validateSetup(setup).filter((e) => ERROR_STEP[e] === step);
 }
 
 function pickIndex(length: number, rng: Rng): number {
@@ -243,6 +299,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "start": {
       if (state.phase !== "setup" || validateSetup(action.setup).length > 0) return state;
+      if (tooSoon(state, action.at)) return state;
       const setup = { ...action.setup, players: action.setup.players.map((p) => p.trim()) };
       const { round, used } = dealRound(setup, action.lang, state.used, action.rng);
       return {
@@ -313,7 +370,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "end":
       if (tooSoon(state, action.at)) return state;
-      return { ...initialGameState(state.setup), used: state.used };
+      // The setup screen's start button can sit where "End game" was: keep the time so start is guarded too.
+      return { ...initialGameState(state.setup), used: state.used, lastActionAt: action.at };
   }
 }
 

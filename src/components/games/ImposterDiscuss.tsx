@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useLang } from "@/lib/i18n";
-import { formatCountdown, remainingSeconds } from "@/lib/imposter";
+import { GAME_THEME, formatCountdown, remainingSeconds } from "@/lib/imposter";
 
 export default function ImposterDiscuss({
   starter,
+  starterColor,
   timerMinutes,
   voting,
   onFinish,
 }: {
   starter: string;
+  starterColor: string;
   timerMinutes: number;
   voting: boolean;
   onFinish: () => void;
@@ -27,7 +29,12 @@ export default function ImposterDiscuss({
 
   return (
     <div className="space-y-6 py-6 text-center">
-      <p className="text-2xl font-bold text-gray-900">{t.imposterStarts.replace("{name}", () => starter)}</p>
+      <p
+        className="inline-block rounded-full px-5 py-2 text-2xl font-bold"
+        style={{ backgroundColor: starterColor, color: GAME_THEME.ink }}
+      >
+        {t.imposterStarts.replace("{name}", () => starter)}
+      </p>
       {timerMinutes > 0 && (
         <p className={`text-5xl font-mono ${left === 0 ? "text-red-600" : "text-gray-900"}`}>
           {left === 0 ? t.imposterTimeUp : formatCountdown(left)}

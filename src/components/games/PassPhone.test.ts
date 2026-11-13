@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createElement, type ReactElement } from "react";
+import { GAME_THEME } from "@/lib/imposter";
 
 vi.mock("@/lib/i18n", () => ({
   useLang: () => ({ t: { imposterPassTo: "Pass to {name}", imposterPassHint: "HINT" } }),
@@ -62,5 +63,12 @@ describe("PassPhone reveal gate", () => {
     const tree = render(true);
     expect(text(tree)).toContain("SECRET");
     expect(button(tree)).toBeUndefined();
+  });
+
+  it("draws on the voter's colour with fixed colours, not themed ones", () => {
+    const tree = render(false);
+    expect(button(tree)!.props.style).toEqual({ backgroundColor: GAME_THEME.bg, color: GAME_THEME.text });
+    const classes = nodes(tree).map((n) => String(n.props.className ?? "")).join(" ");
+    expect(classes).not.toMatch(/text-gray-|bg-blue-/);
   });
 });

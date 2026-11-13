@@ -6,6 +6,7 @@ import { Field, inputBoxClass } from "@/components/ui/field";
 export interface SelectOption {
   value: string;
   label: string;
+  disabled?: boolean;
 }
 
 // React Native has no native <select>, so the closed state is a Pressable that looks

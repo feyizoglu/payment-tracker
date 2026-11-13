@@ -5,10 +5,11 @@ vi.mock("react-native", () => ({ Text: () => null, View: () => null }));
 vi.mock("@ptracker/shared/i18n", () => ({
   useLang: () => ({ t: { imposterPassTo: "Pass to {name}", imposterPassHint: "HINT" } }),
 }));
-vi.mock("@/components/ui/primary-button", () => ({ PrimaryButton: () => null }));
+vi.mock("@/components/games/game-button", () => ({ GameButton: () => null }));
 
 import { PassPhone } from "@/components/games/pass-phone";
-import { PrimaryButton } from "@/components/ui/primary-button";
+import { GameButton } from "@/components/games/game-button";
+import { GAME_THEME } from "@ptracker/shared/imposter";
 
 type Props = Record<string, unknown> & { children?: unknown };
 type Node = ReactElement<Props>;
@@ -40,7 +41,7 @@ function text(node: unknown): string {
 }
 
 function button(tree: Node) {
-  return nodes(tree).find((n) => n.type === PrimaryButton);
+  return nodes(tree).find((n) => n.type === GameButton);
 }
 
 describe("PassPhone reveal gate", () => {
@@ -60,5 +61,11 @@ describe("PassPhone reveal gate", () => {
     const tree = render(true);
     expect(text(tree)).toContain("SECRET");
     expect(button(tree)).toBeUndefined();
+  });
+
+  it("writes on the voter's colour in the fixed dark ink, not a themed colour", () => {
+    const texts = nodes(render(false)).filter((n) => typeof n.props.children === "string");
+    expect(texts).toHaveLength(2);
+    for (const n of texts) expect(n.props.style).toMatchObject({ color: GAME_THEME.ink });
   });
 });

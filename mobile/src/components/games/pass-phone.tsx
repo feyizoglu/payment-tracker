@@ -2,8 +2,11 @@ import type { ReactNode } from "react";
 import { Text, View } from "react-native";
 
 import { useLang } from "@ptracker/shared/i18n";
-import { PrimaryButton } from "@/components/ui/primary-button";
+import { GAME_THEME } from "@ptracker/shared/imposter";
+import { GameButton } from "@/components/games/game-button";
 
+// The hand-over screen of the secret vote: the ballot only appears after the named player
+// presses the button. It sits on that player's colour, so it sets no themed colours.
 export function PassPhone({
   name,
   revealed,
@@ -21,10 +24,14 @@ export function PassPhone({
   if (revealed) return <View className="items-stretch gap-6 py-6">{children}</View>;
   return (
     <View className="items-center gap-6 py-16">
-      <Text className="text-center text-2xl font-bold text-gray-900">{t.imposterPassTo.replace("{name}", () => name)}</Text>
-      <Text className="text-center text-sm text-gray-500">{t.imposterPassHint}</Text>
+      <Text className="text-center text-2xl font-bold" style={{ color: GAME_THEME.ink }}>
+        {t.imposterPassTo.replace("{name}", () => name)}
+      </Text>
+      <Text className="text-center text-sm" style={{ color: GAME_THEME.ink, opacity: 0.8 }}>
+        {t.imposterPassHint}
+      </Text>
       <View className="w-full">
-        <PrimaryButton label={revealLabel} onPress={onReveal} />
+        <GameButton label={revealLabel} onPress={onReveal} />
       </View>
     </View>
   );

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ReactElement } from "react";
-import { DEFAULT_SETUP, initialGameState, type GameState, type Outcome } from "@/lib/imposter";
+import { DEFAULT_SETUP, initialGameState, playerColor, type GameState, type Outcome } from "@/lib/imposter";
 
 vi.mock("@/lib/i18n", () => ({
   useLang: () => ({
@@ -88,5 +88,39 @@ describe("ImposterResult buttons", () => {
     (button(render(game(null)), "imposterNextRound")!.props.onClick as () => void)();
     expect(onNextRound).toHaveBeenCalledTimes(1);
     expect(onEnd).not.toHaveBeenCalled();
+  });
+});
+
+describe("ImposterResult colours", () => {
+  it("writes each name in that player's colour, imposters and scoreboard alike", () => {
+    const names = ["Ann", "Bob", "Cem"];
+    const coloured = nodes(render(game(null, true))).filter((n) => (n.props.style as { color?: string })?.color);
+    // Two imposters, then the three scoreboard rows (highest score first).
+    expect(coloured.map(text)).toEqual(["Ann", "Cem", "Bob", "Cem", "Ann"]);
+    for (const n of coloured) {
+      expect((n.props.style as { color: string }).color).toBe(playerColor(names.indexOf(text(n))));
+    }
+  });
+
+  function accusedLine(state: GameState, line: string) {
+    const p = nodes(render(state)).find((n) => text(n) === line)!;
+    return { p, coloured: nodes(p.props.children).filter((n) => (n.props.style as { color?: string })?.color) };
+  }
+
+  it("writes the accused player's name in that player's colour and the rest of the line in grey", () => {
+    const { p, coloured } = accusedLine(game({ accused: 1, crewWins: false }), "accused Bob");
+    expect(String(p.props.className)).toContain("text-gray-500");
+    expect(coloured.map(text)).toEqual(["Bob"]);
+    expect((coloured[0].props.style as { color: string }).color).toBe(playerColor(1));
+  });
+
+  it("writes an accused name that looks like a pattern as it was typed", () => {
+    for (const name of ["$& $1 $`", "{name}"]) {
+      const state = game({ accused: 1, crewWins: false });
+      state.setup = { ...state.setup, players: ["Ann", name, "Cem"] };
+      const { coloured } = accusedLine(state, `accused ${name}`);
+      expect(coloured.map(text)).toEqual([name]);
+      expect((coloured[0].props.style as { color: string }).color).toBe(playerColor(1));
+    }
   });
 });

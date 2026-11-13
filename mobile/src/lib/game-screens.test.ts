@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { ReactElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { EMPTY_LOCK, type AppLockState } from "@ptracker/shared/app-lock";
 
 const s = vi.hoisted(() => ({
@@ -22,6 +22,7 @@ vi.mock("react-native", () => ({
   View: () => null,
 }));
 vi.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) }));
+vi.mock("@/lib/game-theme", () => ({ gameDarkVars: { dark: true } }));
 vi.mock("@ptracker/shared/i18n", () => ({ useLang: () => ({ t: { back: "BACK", gameModeExit: "EXIT" } }) }));
 vi.mock("@/lib/app-lock-context", () => ({ useAppLock: () => ({ ready: true, lock: s.lock, update: s.update }) }));
 vi.mock("@/lib/app-lock-storage", () => ({
@@ -32,12 +33,14 @@ vi.mock("@/components/lock/pin-setup", () => ({ PinSetup: () => null }));
 vi.mock("@/components/lock/pin-screen", () => ({ PinScreen: () => null }));
 
 import { router } from "expo-router";
-import { Pressable } from "react-native";
+import { KeyboardAvoidingView, Pressable, ScrollView, View } from "react-native";
 import AppLockScreen from "@/app/app-lock";
 import { GameScreen } from "@/components/games/game-screen";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
 import { PinScreen } from "@/components/lock/pin-screen";
 import { PinSetup } from "@/components/lock/pin-setup";
+import { GAME_THEME } from "@ptracker/shared/imposter";
+import { gameDarkVars } from "@/lib/game-theme";
 
 type Props = Record<string, unknown> & { children?: unknown };
 type Node = ReactElement<Props>;
@@ -115,6 +118,34 @@ describe("GameScreen back fallback", () => {
   });
 });
 
+describe("GameScreen header slots", () => {
+  const header = (props: { right?: ReactElement } = {}) => {
+    const tree = GameScreen({ title: "Game", children: null, ...props }) as Node;
+    const row = nodes(tree).find((n) => n.type === View && String(n.props.className).includes("border-b"))!;
+    return (row.props.children as unknown[]).map((child) => text(child));
+  };
+
+  it("puts the exit on the left on the games list in game mode, where there is no back", () => {
+    s.lock = { ...withPin, gameMode: true };
+    expect(header()).toEqual(["EXIT", "Game", ""]);
+  });
+
+  it("keeps the back on the left and the exit on the right on the other game screens", () => {
+    s.lock = { ...withPin, gameMode: true };
+    s.path = "/games/imposter";
+    expect(header()).toEqual(["‹ BACK", "Game", "EXIT"]);
+  });
+
+  it("shows the screen's own action on the right", () => {
+    s.lock = { ...withPin, gameMode: true };
+    expect(header({ right: createElement(Pressable, null, "FLAG") })).toEqual(["EXIT", "Game", "FLAG"]);
+  });
+
+  it("has no exit outside game mode", () => {
+    expect(header()).toEqual(["‹ BACK", "Game", ""]);
+  });
+});
+
 describe("GameScreen exit button", () => {
   it("opens the lock screen from the games list in game mode", () => {
     s.lock = { ...withPin, gameMode: true };
@@ -126,5 +157,39 @@ describe("GameScreen exit button", () => {
     s.lock = { ...withPin, gameMode: true };
     s.path = "/app-lock";
     expect(pressable("EXIT")).toBeUndefined();
+  });
+});
+
+describe("GameScreen tone and body", () => {
+  type ScreenProps = Parameters<typeof GameScreen>[0];
+  const screen = (props: Partial<ScreenProps> = {}) => GameScreen({ title: "Game", children: "BODY", ...props }) as Node;
+  const styles = (node: Node) => [node.props.style].flat();
+
+  it("follows the app theme by default", () => {
+    const tree = screen();
+    expect(tree.type).toBe(KeyboardAvoidingView);
+    expect(String(tree.props.className)).toContain("bg-surface");
+    expect(nodes(tree).some((n) => n.props.style === gameDarkVars)).toBe(false);
+  });
+
+  it("draws the game tone on the fixed dark background with the dark palette", () => {
+    const tree = screen({ tone: "game" });
+    expect(String(tree.props.className)).not.toContain("bg-surface");
+    expect(styles(tree)).toContainEqual({ backgroundColor: GAME_THEME.bg });
+    const themed = nodes(tree).find((n) => n.type === View && n.props.style === gameDarkVars)!;
+    expect(text(themed)).toContain("BODY");
+  });
+
+  it("fills the body with the player's colour", () => {
+    const body = nodes(screen({ tone: "game", color: "#FF6B6B" })).find((n) => n.type === ScrollView)!;
+    expect(body.props.style).toEqual({ backgroundColor: "#FF6B6B" });
+    expect(nodes(screen({ tone: "game" })).find((n) => n.type === ScrollView)!.props.style).toBeNull();
+  });
+
+  it("does not scroll when asked, so holding the card is never taken for a scroll", () => {
+    const tree = screen({ tone: "game", color: "#FF6B6B", scroll: false });
+    expect(nodes(tree).some((n) => n.type === ScrollView)).toBe(false);
+    const body = nodes(tree).find((n) => n.type === View && styles(n).some((s) => s && (s as { backgroundColor?: string }).backgroundColor === "#FF6B6B"))!;
+    expect(text(body)).toBe("BODY");
   });
 });

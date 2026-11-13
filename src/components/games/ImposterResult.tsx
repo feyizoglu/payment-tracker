@@ -1,7 +1,7 @@
 "use client";
 
 import { useLang } from "@/lib/i18n";
-import type { GameState } from "@/lib/imposter";
+import { playerColor, type GameState } from "@/lib/imposter";
 
 export default function ImposterResult({
   state,
@@ -17,13 +17,22 @@ export default function ImposterResult({
   if (!round) return null;
   const names = setup.players;
   const accused = outcome?.accused ?? null;
+  const [beforeName, afterName = ""] = t.imposterAccused.split("{name}");
 
   return (
     <div className="space-y-5 text-center">
       {outcome && (
         <div className="space-y-1">
           <p className="text-sm text-gray-500">
-            {accused === null ? t.imposterTie : t.imposterAccused.replace("{name}", () => names[accused])}
+            {accused === null ? (
+              t.imposterTie
+            ) : (
+              <>
+                {beforeName}
+                <span style={{ color: playerColor(accused) }}>{names[accused]}</span>
+                {afterName}
+              </>
+            )}
           </p>
           <p className={`text-2xl font-bold ${outcome.crewWins ? "text-green-600" : "text-red-600"}`}>
             {outcome.crewWins ? t.imposterCrewWins : t.imposterImpostersWin}
@@ -44,7 +53,14 @@ export default function ImposterResult({
         )}
         <p className="text-gray-900">
           <span className="text-gray-500">{t.imposterWere}: </span>
-          <b>{round.imposters.map((i) => names[i]).join(", ")}</b>
+          <b>
+            {round.imposters.flatMap((i, n) => [
+              n > 0 ? ", " : "",
+              <span key={i} style={{ color: playerColor(i) }}>
+                {names[i]}
+              </span>,
+            ])}
+          </b>
         </p>
       </div>
 
@@ -52,11 +68,13 @@ export default function ImposterResult({
         <div className="rounded-xl border border-gray-100 bg-surface p-4 text-left">
           <p className="mb-2 text-sm font-medium text-gray-500">{t.imposterScores}</p>
           {names
-            .map((name, i) => ({ name, score: scores[i] }))
+            .map((name, i) => ({ name, score: scores[i], color: playerColor(i) }))
             .sort((a, b) => b.score - a.score)
-            .map(({ name, score }) => (
+            .map(({ name, score, color }) => (
               <div key={name} className="flex justify-between py-1 text-gray-900">
-                <span>{name}</span>
+                <span className="font-semibold" style={{ color }}>
+                  {name}
+                </span>
                 <b>{score}</b>
               </div>
             ))}

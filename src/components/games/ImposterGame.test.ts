@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRequire } from "node:module";
-import { act, createElement, type ReactElement } from "react";
+import { act, createElement, useEffect, type ReactElement } from "react";
 import {
   CATEGORY_LABEL_KEYS,
   DEFAULT_SETUP,
+  GAME_THEME,
   IMPOSTER_CATEGORIES,
   IMPOSTER_WORDS,
+  playerColor,
+  SETUP_STORAGE_KEY,
   type GameState,
   type ImposterSetup,
 } from "@/lib/imposter";
@@ -14,10 +17,20 @@ type Props = Record<string, unknown> & { children?: unknown };
 type Node = ReactElement<Props>;
 
 const state = vi.hoisted(() => ({
-  form: null as null | { value: unknown; onChange: (v: unknown) => void; onStart: () => void },
-  passPhoneRenders: 0,
-  pass: null as null | { name: string; revealed: boolean; onReveal: () => void; children?: unknown },
-  discuss: null as null | { onFinish: () => void },
+  form: null as null | {
+    value: unknown;
+    onChange: (v: unknown) => void;
+    onStart: () => void;
+    step: number;
+    onStep: (step: number) => void;
+    quickStart: boolean;
+  },
+  turnRenders: 0,
+  turnMounts: 0,
+  turnKind: null as null | "deal" | "vote",
+  frameColor: undefined as string | undefined,
+  pass: null as null | { name: string; revealed: boolean; onReveal: () => void; onNext?: () => void; children?: unknown },
+  discuss: null as null | { onFinish: () => void; starterColor: string },
   result: null as null | { state: GameState; onEnd: () => void; onNextRound: () => void },
 }));
 
@@ -29,21 +42,39 @@ vi.mock("@/lib/i18n", () => ({
     lang: "tr",
   }),
 }));
-vi.mock("./ImposterSetupForm", () => ({
-  default: (props: { value: unknown; onChange: (v: unknown) => void; onStart: () => void }) => {
+vi.mock("./ImposterSetupWizard", () => ({
+  default: (props: NonNullable<typeof state.form>) => {
     state.form = props;
     return null;
   },
 }));
+vi.mock("./GameFrame", () => ({
+  default: (props: { color?: string; children?: unknown }) => {
+    state.frameColor = props.color;
+    return props.children;
+  },
+}));
+vi.mock("./DealTurn", () => ({
+  default: function DealTurn(props: NonNullable<typeof state.pass>) {
+    useEffect(() => {
+      state.turnMounts++;
+    }, []);
+    state.turnRenders++;
+    state.turnKind = "deal";
+    state.pass = props;
+    return null;
+  },
+}));
 vi.mock("./PassPhone", () => ({
-  default: (props: { name: string; revealed: boolean; onReveal: () => void; children?: unknown }) => {
-    state.passPhoneRenders++;
+  default: (props: NonNullable<typeof state.pass>) => {
+    state.turnRenders++;
+    state.turnKind = "vote";
     state.pass = props;
     return null;
   },
 }));
 vi.mock("./ImposterDiscuss", () => ({
-  default: (props: { onFinish: () => void }) => {
+  default: (props: { onFinish: () => void; starterColor: string }) => {
     state.discuss = props;
     return null;
   },
@@ -114,7 +145,7 @@ async function start(setup: ImposterSetup) {
 async function dealAll(count: number) {
   for (let i = 0; i < count; i++) {
     await reveal();
-    await click(buttons().find((b) => text(b) === "imposterHideNext"));
+    await act(async () => state.pass!.onNext!());
   }
 }
 
@@ -122,7 +153,10 @@ const valid: ImposterSetup = { ...DEFAULT_SETUP, players: ["Ann", "Bob", "Cem"] 
 
 beforeEach(() => {
   state.form = null;
-  state.passPhoneRenders = 0;
+  state.turnRenders = 0;
+  state.turnMounts = 0;
+  state.turnKind = null;
+  state.frameColor = undefined;
   state.pass = null;
   state.discuss = null;
   state.result = null;
@@ -160,7 +194,7 @@ describe("saveSetup", () => {
     await render();
     await act(async () => state.form?.onChange(valid));
     await act(async () => state.form?.onStart());
-    expect(state.passPhoneRenders).toBeGreaterThan(0);
+    expect(state.turnRenders).toBeGreaterThan(0);
   });
 });
 
@@ -193,7 +227,7 @@ describe("ImposterGame rounds", () => {
     expect(card).toContain(entry.pair);
   });
 
-  it("shows the crew word to the next player after hide and next", async () => {
+  it("shows the crew word to the next player after Next player", async () => {
     await start(valid);
     await dealAll(1);
     expect(state.pass?.name).toBe("Bob");
@@ -227,5 +261,146 @@ describe("ImposterGame rounds", () => {
     await act(async () => state.discuss!.onFinish());
     await act(async () => state.result!.onEnd());
     expect(state.form?.value).toEqual({ ...valid, players: ["Ann", "Bob", "Cem"] });
+  });
+
+  it("draws each turn on that player's colour and the other screens on the dark frame", async () => {
+    await render();
+    expect(state.frameColor).toBeUndefined();
+    await act(async () => state.form?.onChange(valid));
+    await act(async () => state.form?.onStart());
+    expect(state.frameColor).toBe(playerColor(0));
+    await dealAll(1);
+    expect(state.frameColor).toBe(playerColor(1));
+    await dealAll(2);
+    expect(state.frameColor).toBeUndefined();
+    expect(state.discuss?.starterColor).toBe(playerColor(0));
+  });
+
+  it("draws the imposter card and the crew card the same way", async () => {
+    await start(valid);
+    const colourUtility = /\b(?:text|bg)-(?:red|green)\b|\b(?:text|bg)-[a-z]+-\d+\b/;
+    const inspect = () => {
+      const all = nodes(state.pass?.children);
+      const classes = all.map((n) => String(n.props.className ?? ""));
+      const colours = all.flatMap((n) => {
+        const colour = (n.props.style as { color?: string } | undefined)?.color;
+        return colour === undefined ? [] : [colour];
+      });
+      return { classes, colours };
+    };
+    const cards = [];
+    await reveal();
+    expect(text(state.pass?.children)).toContain("imposterYouAre");
+    cards.push(inspect());
+    await dealAll(1);
+    await reveal();
+    expect(text(state.pass?.children)).not.toContain("imposterYouAre");
+    cards.push(inspect());
+    for (const { classes, colours } of cards) {
+      expect(classes.length).toBeGreaterThan(0);
+      for (const cls of classes) expect(cls).not.toMatch(colourUtility);
+      expect(colours.length).toBeGreaterThan(0);
+      for (const colour of colours) expect(colour).toBe(GAME_THEME.muted);
+    }
+  });
+
+  it("mounts a fresh deal turn for each player", async () => {
+    await start(valid);
+    const first = state.turnMounts;
+    expect(first).toBe(1);
+    await reveal();
+    expect(state.turnMounts).toBe(first);
+    await dealAll(1);
+    expect(state.turnMounts).toBe(first + 1);
+    await dealAll(1);
+    expect(state.turnMounts).toBe(first + 2);
+  });
+
+  it("saves the setup on screen when a game starts", async () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", { getItem: () => null, setItem });
+    await start(valid);
+    expect(setItem).toHaveBeenCalledWith(SETUP_STORAGE_KEY, JSON.stringify(valid));
+  });
+
+  it("uses the deal component in the deal phase and the pass component in the vote phase", async () => {
+    await start({ ...valid, voting: true });
+    expect(state.turnKind).toBe("deal");
+    await dealAll(3);
+    await act(async () => state.discuss!.onFinish());
+    expect(state.turnKind).toBe("vote");
+  });
+
+  it("draws each voter's turn on that voter's colour and the result on the dark frame", async () => {
+    await start({ ...valid, voting: true });
+    await dealAll(3);
+    await act(async () => state.discuss!.onFinish());
+    expect(state.frameColor).toBe(playerColor(0));
+    await reveal();
+    await click(buttons()[0]);
+    expect(state.frameColor).toBe(playerColor(1));
+    await reveal();
+    await click(buttons()[0]);
+    expect(state.frameColor).toBe(playerColor(2));
+    await reveal();
+    await click(buttons()[0]);
+    expect(state.result).not.toBeNull();
+    expect(state.frameColor).toBeUndefined();
+  });
+
+  it("keeps the wizard step in the game and opens on the first step again after a game", async () => {
+    await render();
+    expect(state.form?.step).toBe(0);
+    await act(async () => state.form?.onStep(2));
+    expect(state.form?.step).toBe(2);
+    await act(async () => state.form?.onChange(valid));
+    await act(async () => state.form?.onStart());
+    await dealAll(3);
+    await act(async () => state.discuss!.onFinish());
+    await act(async () => state.result!.onEnd());
+    expect(state.form?.step).toBe(0);
+  });
+});
+
+describe("ImposterGame quick start", () => {
+  it("is off on a device that has no saved game", async () => {
+    vi.stubGlobal("localStorage", { getItem: () => null, setItem: vi.fn() });
+    await render();
+    expect(state.form?.quickStart).toBe(false);
+  });
+
+  it("is on when a valid setup was saved", async () => {
+    vi.stubGlobal("localStorage", { getItem: () => JSON.stringify(valid), setItem: vi.fn() });
+    await render();
+    expect(state.form?.value).toEqual(valid);
+    expect(state.form?.quickStart).toBe(true);
+  });
+
+  it("starts with the names on screen, not the saved ones", async () => {
+    vi.stubGlobal("localStorage", { getItem: () => JSON.stringify(valid), setItem: vi.fn() });
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    let clock = 1_800_000_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => (clock += 1000));
+    await render();
+    const edited = { ...valid, players: ["Ann", "Zed", "Cem"] };
+    await act(async () => state.form?.onChange(edited));
+    await act(async () => state.form?.onStart());
+    await dealAll(1);
+    expect(state.pass?.name).toBe("Zed");
+    await dealAll(2);
+    await act(async () => state.discuss!.onFinish());
+    expect(state.result?.state.setup.players).toEqual(["Ann", "Zed", "Cem"]);
+  });
+
+  it("turns on after the first game on this device", async () => {
+    vi.stubGlobal("localStorage", { getItem: () => null, setItem: vi.fn() });
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    let clock = 1_800_000_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => (clock += 1000));
+    await start(valid);
+    await dealAll(3);
+    await act(async () => state.discuss!.onFinish());
+    await act(async () => state.result!.onEnd());
+    expect(state.form?.quickStart).toBe(true);
   });
 });
