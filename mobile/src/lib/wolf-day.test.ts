@@ -132,6 +132,13 @@ describe("WolfRemoval", () => {
     expect(text(tree)).toContain("wolfNobodyVotedOut");
     expect(find(tree, WolfRulesButton)).toBeUndefined();
   });
+
+  it("lists who the vote put out under the voted-out heading", () => {
+    const tree = render(game({ phase: "day", dayStep: "result", alive: [true, true, false, true, true], removal: { removed: [2], hunter: null, shot: null } }));
+    expect(text(tree)).toContain("wolfVotedOut");
+    expect(text(tree)).not.toContain("wolfRemovedTonight");
+    expect(rows(tree)).toEqual(["CemwolfRoleVillager"]);
+  });
 });
 
 describe("WolfDay", () => {

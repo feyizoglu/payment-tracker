@@ -199,6 +199,11 @@ describe("WolfWitch", () => {
     expect(find(tree, WolfPicker)!.props.options).toEqual(pickOptions(s));
   });
 
+  it("poisons the player picked on the Poison picker", () => {
+    (find(render(witchLine({})), WolfPicker)!.props.onPick as (seat: number) => void)(3);
+    expect(onPick).toHaveBeenCalledWith(3);
+  });
+
   it("marks the heal and leaves out the potions that are used", () => {
     const healed = render(witchLine({ heal: true }, { potions: { heal: true, poison: false } }));
     expect(text(nodes(healed).find((n) => n.type === "button"))).toBe("✓ heal Eda");
@@ -241,6 +246,12 @@ describe("WolfNarrator", () => {
     expect(lastButton(render(narrated({ line: 1, victim: 4 }))).props.disabled).toBe(false);
   });
 
+  it("passes the wolves' pick on and goes to the next line with Next", () => {
+    expect(find(render(narrated({ line: 1 })), WolfPicker)!.props.onPick).toBe(onPick);
+    click(lastButton(render(narrated({ line: 1, victim: 4 }))));
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
   it("shows the seer's answer for the narrator to show with a thumb", () => {
     const out = text(render(narrated({ line: 2, victim: 4, seen: 0 })));
     expect(out).toContain("wolfIsWolf");
@@ -257,7 +268,7 @@ describe("WolfNarrator", () => {
 
   it("calls Next Nothing on the witch's line until she heals or poisons", () => {
     const witch = render(narrated({ line: 4, victim: 4 }));
-    expect(find(witch, WolfWitch)).toBeDefined();
+    expect(find(witch, WolfWitch)!.props).toMatchObject({ onHeal, onPick });
     expect(text(lastButton(witch))).toBe("wolfNothing");
     expect(text(lastButton(render(narrated({ line: 4, victim: 4, heal: true }))))).toBe("wolfNext");
   });
