@@ -60,6 +60,19 @@ describe("SetupCategoryStep", () => {
     expect(selected).toEqual(CATEGORY_CHOICES.map((c) => c === "food"));
   });
 
+  it("outlines the selected tile in white and dims the others", () => {
+    const classes = tiles(valid).map((n) => String(n.props.className));
+    CATEGORY_CHOICES.forEach((c, i) => {
+      if (c === "food") {
+        expect(classes[i]).toContain("border-white");
+        expect(classes[i]).not.toContain("opacity-60");
+      } else {
+        expect(classes[i]).toContain("opacity-60");
+        expect(classes[i]).toContain("border-transparent");
+      }
+    });
+  });
+
   it("picks the category of the tile that was pressed", () => {
     const animals = CATEGORY_CHOICES.indexOf("animals");
     (tiles(valid)[animals].props.onPress as () => void)();

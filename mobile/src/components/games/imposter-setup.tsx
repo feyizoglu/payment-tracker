@@ -48,6 +48,7 @@ export function ImposterSetupWizard({
         <Text className="text-xl font-bold text-gray-900">{titles[name]}</Text>
         <View
           className="flex-row gap-1.5"
+          accessible
           accessibilityLabel={t.imposterStep.replace("{n}", String(step + 1)).replace("{total}", String(SETUP_STEPS.length))}>
           {SETUP_STEPS.map((s, i) => (
             <View

@@ -76,6 +76,7 @@ describe("SetupPlayersStep accessibility", () => {
     }
     for (const remove of nodes(tree).filter((n) => n.type === Pressable && text(n) === "✕")) {
       expect(remove.props.accessibilityRole).toBe("button");
+      expect(remove.props.hitSlop).toBe(8);
     }
     expect(addButton(tree).props.accessibilityRole).toBe("button");
   });

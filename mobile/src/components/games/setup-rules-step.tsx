@@ -73,7 +73,7 @@ export function SetupRulesStep({
           />
         </View>
         <View className={`flex-row items-center justify-between ${value.voting ? "" : "opacity-50"}`}>
-          <View>
+          <View className="flex-1">
             <Text className="text-base text-gray-900">{t.imposterScoreboard}</Text>
             {!value.voting ? <Text className="text-xs text-gray-400">{t.imposterScoreboardHint}</Text> : null}
           </View>

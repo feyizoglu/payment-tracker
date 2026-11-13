@@ -83,6 +83,7 @@ describe("SetupRulesStep mode", () => {
 describe("SetupRulesStep imposter count and timer", () => {
   it("offers only the counts the player count allows", () => {
     const options = (tree: Node) => (toggle(tree, "imposterCount").props.options as { value: string }[]).map((o) => o.value);
+    expect(options(render({ ...valid, players: ["A", "B"] }))).toEqual(["1"]);
     expect(options(render(valid))).toEqual(["1"]);
     expect(options(render({ ...valid, players: ["A", "B", "C", "D", "E", "F", "G"] }))).toEqual(["1", "2", "3"]);
   });

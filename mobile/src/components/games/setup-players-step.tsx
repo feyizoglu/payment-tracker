@@ -31,6 +31,7 @@ export function SetupPlayersStep({
             onPress={() => setPlayers(value.players.filter((_, j) => j !== i))}
             accessibilityRole="button"
             accessibilityLabel={t.imposterRemovePlayer}
+            hitSlop={8}
             className="px-2 py-2">
             <Text className="text-lg" style={{ color: GAME_THEME.ink }}>
               ✕

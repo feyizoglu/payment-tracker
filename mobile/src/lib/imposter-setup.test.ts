@@ -72,6 +72,7 @@ describe("ImposterSetupWizard steps", () => {
   it("says which step of how many is showing", () => {
     const dots = nodes(render(valid, 1)).find((n) => n.type === View && n.props.accessibilityLabel)!;
     expect(dots.props.accessibilityLabel).toBe("imposterStep".replace("{n}", "2").replace("{total}", "3"));
+    expect(dots.props.accessible).toBe(true);
   });
 
   it("has no Back on the first step and goes back from the others", () => {
