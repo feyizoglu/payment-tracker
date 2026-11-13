@@ -430,6 +430,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
   if (state.phase === "deal") return dealStep(state, action);
   if (state.phase === "night") return nightStep(state, action);
+  if (state.phase === "morning" || state.phase === "day") return dayStep(state, action);
   return state;
 }
 
@@ -687,4 +688,43 @@ function narratorNext(state: GameState, at: number): GameState {
     return { ...state, night: { ...night, line: night.line + 1 }, lastActionAt: at };
   }
   return toMorning(state, at);
+}
+
+export function pendingShot(state: GameState): boolean {
+  return state.removal !== null && state.removal.hunter !== null && state.removal.shot === null;
+}
+
+function dayStep(state: GameState, action: GameAction): GameState {
+  // The morning and the vote's result both show a removal, with a hunter's shot if any.
+  const showsRemoval = state.phase === "morning" || state.dayStep === "result";
+  switch (action.type) {
+    case "shoot": {
+      if (!showsRemoval || !pendingShot(state) || !state.alive[action.target]) return state;
+      const alive = state.alive.map((a, seat) => a && seat !== action.target);
+      return { ...state, alive, removal: { ...state.removal!, shot: action.target }, lastActionAt: action.at };
+    }
+    case "continue": {
+      if (!showsRemoval || pendingShot(state)) return state;
+      const won = winner(state.roles, state.alive);
+      if (won) return { ...state, phase: "end", winner: won, lastActionAt: action.at };
+      if (state.phase === "day") return beginNight(state, action.at);
+      const dayEndsAt = action.at + state.setup.timerMinutes * 60_000;
+      return { ...state, phase: "day", dayStep: "talk", dayEndsAt, lastActionAt: action.at };
+    }
+    case "vote":
+      if (state.phase !== "day" || state.dayStep !== "talk") return state;
+      return { ...state, dayStep: "vote", lastActionAt: action.at };
+    case "talk":
+      if (state.phase !== "day" || state.dayStep !== "vote") return state;
+      return { ...state, dayStep: "talk", lastActionAt: action.at };
+    case "voteOut": {
+      const { target } = action;
+      if (state.phase !== "day" || state.dayStep !== "vote") return state;
+      if (target !== null && !state.alive[target]) return state;
+      const alive = state.alive.map((a, seat) => a && seat !== target);
+      const removal = removalOf(state.roles, alive, target === null ? [] : [target]);
+      return { ...state, alive, removal, dayStep: "result", lastActionAt: action.at };
+    }
+  }
+  return state;
 }

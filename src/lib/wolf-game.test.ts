@@ -678,3 +678,95 @@ describe("night: narrator", () => {
     expect([W.lineRemoved(s), W.canHeal(s), W.canPick(s, 4), W.canGoOn(s)]).toEqual([false, false, false, true]);
   });
 });
+
+const toDay = (s: GameState) => step(s, { type: "continue" });
+const voteOut = (s: GameState, target: number | null) => step(step(s, { type: "vote" }), { type: "voteOut", target });
+
+describe("morning, day and vote", () => {
+  it("goes to the day after the morning, with the timer running from then", () => {
+    const s = toDay(passNight(night1(basic, { timerMinutes: 3 }), { picks: { 1: 4 } }));
+    expect([s.phase, s.dayStep]).toEqual(["day", "talk"]);
+    expect(s.dayEndsAt).toBe(s.lastActionAt + 3 * 60_000);
+    const back = step(step(s, { type: "vote" }), { type: "talk" });
+    expect([back.dayStep, back.dayEndsAt]).toEqual(["talk", s.dayEndsAt]);
+  });
+
+  it("removes nobody on a Nobody vote and starts the next night one seat later", () => {
+    let s = voteOut(toDay(passNight(night1(basic), { picks: { 1: 4 } })), null);
+    expect([s.dayStep, s.removal]).toEqual(["result", { removed: [], hunter: null, shot: null }]);
+    s = step(s, { type: "continue" });
+    expect(s.phase).toBe("night");
+    expect(s.night).toMatchObject({ number: 2, order: [1, 2, 3, 0], visit: 0, stage: "card", victim: null });
+  });
+
+  it("removes the voted-out player, who must still be in the game", () => {
+    const day = toDay(passNight(night1(basic), { picks: { 1: 4 } }));
+    expect(voteOut(day, 4).dayStep).toBe("vote");
+    const s = voteOut(day, 0);
+    expect(s.removal?.removed).toEqual([0]);
+    expect(s.alive).toEqual([false, true, true, true, false]);
+  });
+
+  it("ends with the village's win when the last wolf is voted out", () => {
+    const s = step(voteOut(toDay(passNight(night1(basic), { picks: { 1: 4 } })), 1), { type: "continue" });
+    expect([s.phase, s.winner]).toEqual(["end", "village"]);
+  });
+
+  it("ends with the wolves' win after the night that makes them as many as the others", () => {
+    const roles: Role[] = ["wolf", "villager", "villager", "seer", "villager"];
+    let s = step(voteOut(toDay(passNight(night1(roles), { picks: { 0: 1 } })), 2), { type: "continue" });
+    s = step(passNight(s, { picks: { 0: 3 } }), { type: "continue" });
+    expect([s.phase, s.winner]).toEqual(["end", "wolves"]);
+  });
+
+  // Ann wolf, Bob hunter, Cem villager, Dan seer, Eda villager, Fay wolf, Gil and Hal villagers.
+  const hunterRoles: Role[] = ["wolf", "hunter", "villager", "seer", "villager", "wolf", "villager", "villager"];
+
+  it("makes a hunter removed at night shoot before the day", () => {
+    let s = passNight(night1(hunterRoles), { picks: { 0: 1, 5: 1 } });
+    expect(s.removal).toEqual({ removed: [1], hunter: 1, shot: null });
+    expect(W.pendingShot(s)).toBe(true);
+    expect(step(s, { type: "continue" }).phase).toBe("morning");
+    expect(step(s, { type: "shoot", target: 1 }).removal?.shot).toBeNull();
+    s = step(s, { type: "shoot", target: 5 });
+    expect([s.removal?.shot, s.alive[5], W.pendingShot(s)]).toEqual([5, false, false]);
+    expect(step(s, { type: "continue" }).phase).toBe("day");
+  });
+
+  it("makes a voted-out hunter shoot, then starts the next night", () => {
+    let s = voteOut(toDay(passNight(night1(hunterRoles), { picks: { 0: 2, 5: 2 } })), 1);
+    expect(s.removal).toEqual({ removed: [1], hunter: 1, shot: null });
+    expect(step(s, { type: "continue" }).dayStep).toBe("result");
+    s = step(step(s, { type: "shoot", target: 4 }), { type: "continue" });
+    expect([s.phase, s.night?.number]).toEqual(["night", 2]);
+    expect(s.alive).toEqual([true, false, false, true, false, true, true, true]);
+  });
+
+  it("lets a hunter's shot end the game", () => {
+    let s = passNight(night1(["wolf", "hunter", "villager", "villager", "seer"]), { picks: { 0: 1 } });
+    s = step(step(s, { type: "shoot", target: 0 }), { type: "continue" });
+    expect([s.phase, s.winner]).toEqual(["end", "village"]);
+  });
+
+  it("shoots before the win check, so a shot can take the wolves' win away", () => {
+    let s = passNight(night1(["wolf", "wolf", "hunter", "villager", "seer"]), { picks: { 0: 2, 1: 2 } });
+    expect(W.winner(s.roles, s.alive)).toBe("wolves");
+    s = step(step(s, { type: "shoot", target: 0 }), { type: "continue" });
+    expect(s.phase).toBe("day");
+  });
+
+  it("asks for no shot once no wolf is left", () => {
+    let s = passNight(night1(["wolf", "hunter", "witch", "villager", "villager"]), { picks: { 0: 1 }, poison: 0 });
+    expect(s.removal).toEqual({ removed: [0, 1], hunter: null, shot: null });
+    s = step(s, { type: "continue" });
+    expect([s.phase, s.winner]).toEqual(["end", "village"]);
+  });
+
+  it("deals again from the This game screen after Play again, keeping the setup", () => {
+    const over = step(voteOut(toDay(passNight(night1(basic), { picks: { 1: 4 } })), 1), { type: "continue" });
+    const again = step(over, { type: "playAgain" });
+    expect(again.phase).toBe("rules");
+    expect(again.setup).toEqual(over.setup);
+    expect(step(again, { type: "deal", rng: zero }).phase).toBe("deal");
+  });
+});
