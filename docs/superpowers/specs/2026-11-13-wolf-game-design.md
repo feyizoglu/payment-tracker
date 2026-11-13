@@ -111,10 +111,13 @@ narrator, whose screen lists every player with their role.
   3. An open choice screen that looks the same for everyone: every living player as a button,
      all drawn alike and all tappable, in the visitor's colour, with the same heading.
   4. A second hold card with the result: the seer's answer "Wolf" / "Not a wolf", or "Your
-     choice is saved" for everyone else. A choice the rules do not allow (a wolf choosing a
-     wolf, the seer choosing themselves, the doctor repeating last night) is not taken: this
-     card says why, and its button goes back to the choice screen.
-  5. Next player.
+     choice is saved" for everyone else. A choice the rules do not allow is taken as doing
+     nothing, and this card says so and why: a wolf choosing a wolf casts no vote, the seer
+     choosing themselves learns nothing, the doctor repeating last night protects no one, the
+     witch choosing what her potions cannot do uses none. There is no going back to the
+     choice screen, because a visit that went back would show the table that the visitor has
+     a role with rules.
+  5. Next player. Every visit, allowed choice or not, takes the same steps and taps.
 - The wolves' victim is the player most of them chose; a tie is settled at random.
 - **Witch lap:** when a witch is alive and has a potion left, the phone goes round once more,
   with the same five steps for every visitor. The choice screen also has a **Nobody** button.
