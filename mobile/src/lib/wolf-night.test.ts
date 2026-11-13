@@ -57,6 +57,7 @@ function night(over: Partial<Night> = {}, n = 5): Night {
     order: Array.from({ length: n }, (_, i) => i),
     visit: 0,
     stage: "choose",
+    rejected: null,
     picks: Array.from({ length: n }, () => null),
     line: 0,
     victim: null,
@@ -127,9 +128,11 @@ describe("WolfCard", () => {
     for (const turn of [1, 2, 3]) expect(looks(game(roles, { phase: "deal", turn }))).toEqual(wolf);
   });
 
-  it("shows the visitor's task at night", () => {
+  it("shows the visitor's task at night, and the result on the second card", () => {
     const s = game(["villager", "wolf", "seer", "doctor", "villager"], { night: night({ visit: 2, stage: "card" }) });
     expect(text(WolfCard({ state: s }))).toBe("wolfNightNwolfRoleSeerwolfTaskSeer");
+    const result = { ...s, night: night({ visit: 2, stage: "result", seen: 1, picks: [null, null, 1, null, null] }) };
+    expect(text(WolfCard({ state: result }))).toBe("wolfNightNwolfRoleSeerBob: wolfIsWolf");
   });
 });
 
@@ -138,22 +141,37 @@ describe("WolfChoose", () => {
   const render = (s: GameState) => WolfChoose({ state: s, onPick, onHeal, onNext }) as Node;
   const next = (tree: Node) => find(tree, GameButton)!;
 
-  it("asks every role the same question and offers whom that role may pick", () => {
+  // What the table can see of the screen: every element with the visitor's name taken out.
+  const look = (s: GameState) => {
+    const name = s.setup.players[s.night!.order[s.night!.visit]];
+    return JSON.stringify(
+      nodes(render(s)).map((n) => [
+        (n.type as { name?: string }).name ?? String(n.type),
+        n.props.className,
+        n.props.style,
+        n.props.disabled,
+        n.type === WolfPicker ? [n.props.options, n.props.selected] : null,
+        typeof n.props.children === "string" ? n.props.children.replace(name, "NAME") : null,
+      ])
+    );
+  };
+
+  it("looks the same for a villager, a wolf, the seer and the doctor, on night 1 and night 2", () => {
+    const first = game(roles, { night: night({ visit: 0 }) });
+    const same = look(first);
+    for (const visit of [1, 2, 3]) expect(look(game(roles, { night: night({ visit }) }))).toBe(same);
     for (const visit of [0, 1, 2, 3]) {
-      const s = game(roles, { night: night({ visit }) });
-      const tree = render(s);
-      expect(text(tree)).toContain("wolfChoosePlayer");
-      expect(text(tree)).not.toContain("wolfTask");
-      expect(find(tree, WolfPicker)!.props.options).toEqual(pickOptions(s));
-      expect(find(tree, WolfPicker)!.props.onPick).toBe(onPick);
+      expect(look(game(roles, { lastProtected: 4, night: night({ number: 2, visit }) }))).toBe(same);
     }
+    const picker = find(render(first), WolfPicker)!;
+    expect(picker.props).toMatchObject({ selected: null, onPick });
+    expect(picker.props.options).toEqual([0, 1, 2, 3, 4].map((seat) => ({ seat, enabled: true })));
   });
 
-  it("shows the pick, the seer's answer at once, and allows Next only after a pick", () => {
-    expect(next(render(game(roles, { night: night({ visit: 2 }) }))).props.disabled).toBe(true);
-    const seen = render(game(roles, { night: night({ visit: 2, picks: [null, null, 1, null, null], seen: 1 }) }));
-    expect(text(seen)).toContain("Bob: wolfIsWolf");
-    expect(next(seen).props).toMatchObject({ label: "imposterNextPlayer", disabled: false, onPress: onNext });
+  it("moves on with the tap itself: no answer and no Next on the open screen", () => {
+    const tree = render(game(roles, { night: night({ visit: 2 }) }));
+    expect(text(tree)).toBe("CemwolfChoosePlayer");
+    expect(find(tree, GameButton)).toBeUndefined();
   });
 
   it("gives the witch her potions on the witch lap, in dark text on her colour", () => {

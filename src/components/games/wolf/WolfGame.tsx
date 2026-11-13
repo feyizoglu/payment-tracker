@@ -146,13 +146,15 @@ export default function WolfGame() {
 
   if (phase === "night" && night) {
     const seat = night.order[night.visit];
-    if (night.stage === "card") {
+    // The task card and the result card are both held; between them sits the open choice.
+    if (night.stage !== "choose") {
       return (
         <GameFrame color={playerColor(seat)}>
           <WolfRulesButton onClick={openRules} />
           <DealTurn
-            key={`night-${night.number}-${night.lap}-${seat}`}
+            key={`night-${night.number}-${night.lap}-${seat}-${night.stage}`}
             name={names[seat]}
+            title={night.stage === "result" ? names[seat] : undefined}
             revealed={state.revealed}
             onReveal={reveal}
             onNext={next}

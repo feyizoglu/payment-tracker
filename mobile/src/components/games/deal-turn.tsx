@@ -15,6 +15,7 @@ export function DealTurn({
   onReveal,
   onNext,
   nextLabel,
+  title,
   children,
 }: {
   name: string;
@@ -24,6 +25,8 @@ export function DealTurn({
   onNext: () => void;
   /** The Next button's label; "Next player" when not given. */
   nextLabel?: string;
+  /** The line above the card; "Pass the phone to {name}" when not given. */
+  title?: string;
   children: ReactNode;
 }) {
   const { t } = useLang();
@@ -65,7 +68,7 @@ export function DealTurn({
     <View className="flex-1 justify-between gap-6 py-4">
       <View className="items-center gap-2">
         <Text className="text-center text-2xl font-bold" style={{ color: GAME_THEME.ink }}>
-          {t.imposterPassTo.replace("{name}", () => name)}
+          {title ?? t.imposterPassTo.replace("{name}", () => name)}
         </Text>
         <Text className="text-center text-sm" style={{ color: GAME_THEME.ink, opacity: 0.8 }}>
           {t.imposterPassHint}

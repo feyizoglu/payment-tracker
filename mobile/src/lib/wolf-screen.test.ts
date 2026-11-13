@@ -125,7 +125,6 @@ function passNight() {
     } else {
       const s = find(WolfChoose)!.props.state as GameState;
       call(WolfChoose, "onPick", s.alive.findIndex((_, i) => canPick(s, i)));
-      call(WolfChoose, "onNext");
     }
   }
 }
@@ -211,13 +210,33 @@ describe("Wolf Night screen: turns", () => {
     dealAll(5);
     expect([find(DealTurn)!.props.nextLabel, find(DealTurn)!.key, screen().scroll]).toEqual([
       "wolfContinue",
-      "night-1-main-0",
+      "night-1-main-0-card",
       false,
     ]);
     call(DealTurn, "onReveal");
     call(DealTurn, "onNext");
     expect(has(WolfChoose)).toBe(true);
     expect([screen().color, screen().scroll]).toEqual([playerColor(0), true]);
+  });
+
+  it("shows the pick's result on a second held card under the visitor's name, then the next player", async () => {
+    await start();
+    call(WolfThisGame, "onDeal");
+    dealAll(5);
+    call(DealTurn, "onReveal");
+    call(DealTurn, "onNext");
+    call(WolfChoose, "onPick", 1);
+    const result = find(DealTurn)!;
+    expect([result.props.name, result.props.title, result.props.nextLabel, result.key]).toEqual([
+      "Ann",
+      "Ann",
+      "wolfContinue",
+      "night-1-main-0-result",
+    ]);
+    expect([screen().color, screen().scroll, find(WolfRulesButton)!.props.ink]).toEqual([playerColor(0), false, true]);
+    call(DealTurn, "onReveal");
+    call(DealTurn, "onNext");
+    expect([find(DealTurn)!.props.name, find(DealTurn)!.props.title]).toEqual(["Bob", undefined]);
   });
 
   it("gives the narrator the phone and the roster after the last card", async () => {

@@ -382,17 +382,20 @@ const firstPick = (s: GameState) => s.alive.findIndex((_, i) => W.canPick(s, i))
 const pickable = (s: GameState) => s.alive.flatMap((_, i) => (W.canPick(s, i) ? [i] : []));
 
 // One visit: the visitor holds the card, goes on, picks (the given target or the first one
-// allowed; on the witch lap the witch heals and poisons as told) and passes the phone on.
+// that is taken), holds the result card and passes the phone on. On the witch lap the witch
+// heals and poisons as told.
 function visitOnce(state: GameState, c: PassChoices = {}): GameState {
   const rng = c.rng ?? zero;
   const { lap, order, visit } = state.night!;
   const seat = order[visit];
   let s = step(step(state, { type: "reveal" }), { type: "next", rng });
   if (s.phase !== "night" || s.night!.stage !== "choose") return s;
-  if (lap === "main" && s.night!.picks[seat] === null) {
+  if (lap === "main") {
+    // The pick opens the result card, which is held before the phone moves on.
     s = step(s, { type: "choose", target: c.picks?.[seat] ?? firstPick(s) });
+    return step(step(s, { type: "reveal" }), { type: "next", rng });
   }
-  if (lap === "witch" && c.heal) s = step(s, { type: "heal" });
+  if (c.heal) s = step(s, { type: "heal" });
   if (lap === "witch" && c.poison !== undefined) s = step(s, { type: "choose", target: c.poison });
   return step(s, { type: "next", rng });
 }
@@ -420,7 +423,7 @@ function choosingAt(state: GameState, seat: number): GameState {
   let s = state;
   for (let guard = 0; s.night!.order[s.night!.visit] !== seat || s.night!.stage !== "choose"; guard++) {
     if (guard > 40) throw new Error(`seat ${seat} never got the phone`);
-    s = s.night!.stage === "card" ? step(step(s, { type: "reveal" }), { type: "next", rng: zero }) : visitOnce(s);
+    s = s.night!.stage === "choose" ? visitOnce(s) : step(step(s, { type: "reveal" }), { type: "next", rng: zero });
   }
   return s;
 }
@@ -437,19 +440,33 @@ describe("night: the phone goes round", () => {
     expect(W.canPick(s, 1)).toBe(true);
   });
 
-  it("needs a pick from every player before the phone moves on", () => {
+  it("moves on only after the pick's result card was held", () => {
     let s = choosingAt(night1(basic), 0);
     expect(W.canGoOn(s)).toBe(false);
     s = step(s, { type: "next", rng: zero });
-    expect(s.night?.visit).toBe(0);
+    expect(s.night?.stage).toBe("choose");
     s = step(s, { type: "choose", target: 2 });
-    expect(W.canGoOn(s)).toBe(true);
+    expect([s.night?.stage, s.night?.visit, s.revealed]).toEqual(["result", 0, false]);
+    expect(W.canGoOn(s)).toBe(false);
     s = step(s, { type: "next", rng: zero });
+    expect(s.night?.stage).toBe("result");
+    s = step(step(s, { type: "reveal" }), { type: "next", rng: zero });
     expect(s.night).toMatchObject({ visit: 1, stage: "card" });
     expect(s.revealed).toBe(false);
   });
 
-  it("lets the wolves pick only non-wolves, the seer anyone but themselves and the doctor anyone", () => {
+  it("offers every living player to every visitor, whatever the role and the night", () => {
+    const roles: Role[] = ["villager", "wolf", "seer", "doctor", "wolf", "villager", "villager"];
+    const everyone = [0, 1, 2, 3, 4, 5, 6].map((seat) => ({ seat, enabled: true }));
+    let s = night1(roles);
+    for (const seat of [0, 1, 2, 3]) {
+      s = choosingAt(s, seat);
+      expect(W.pickOptions(s)).toEqual(everyone);
+    }
+    expect(W.pickOptions({ ...choosingAt(night1(roles), 3), lastProtected: 4 })).toEqual(everyone);
+  });
+
+  it("takes a wolf's pick only on a non-wolf, the seer's only on someone else and anyone else's on anyone", () => {
     let s = choosingAt(night1(["villager", "wolf", "seer", "doctor", "wolf", "villager", "villager"]), 1);
     expect([W.visitTask(s), pickable(s)]).toEqual(["wolf", [0, 2, 3, 5, 6]]);
     s = choosingAt(s, 2);
@@ -457,16 +474,26 @@ describe("night: the phone goes round", () => {
     s = choosingAt(s, 3);
     expect([W.visitTask(s), pickable(s)]).toEqual(["doctor", [0, 1, 2, 3, 4, 5, 6]]);
     s = choosingAt(s, 5);
-    expect([W.visitTask(s), pickable(s)]).toEqual(["guess", [0, 1, 2, 3, 4, 6]]);
+    expect([W.visitTask(s), pickable(s)]).toEqual(["guess", [0, 1, 2, 3, 4, 5, 6]]);
+  });
+
+  it("turns down a wolf's pick of a wolf on the result card and brings the choice back", () => {
+    let s = step(choosingAt(night1(["villager", "wolf", "seer", "doctor", "wolf"]), 1), { type: "choose", target: 4 });
+    expect([s.night?.stage, s.night?.rejected, s.night?.picks[1]]).toEqual(["result", "wolf", null]);
+    expect(W.visitResult(s, en)).toBe("You cannot choose a wolf. Choose again.");
+    s = step(step(s, { type: "reveal" }), { type: "next", rng: zero });
+    expect([s.night?.stage, s.night?.visit, s.night?.rejected, s.revealed]).toEqual(["choose", 1, null, false]);
+    s = step(s, { type: "choose", target: 0 });
+    expect([s.night?.rejected, s.night?.picks[1]]).toEqual([null, 0]);
   });
 
   it("does not let the doctor protect last night's player again", () => {
-    let s = choosingAt({ ...night1(basic), lastProtected: 4 }, 3);
-    expect(W.canPick(s, 4)).toBe(false);
-    s = step(s, { type: "choose", target: 4 });
-    expect(s.night?.protect).toBeNull();
-    s = step(s, { type: "choose", target: 3 });
-    expect(s.night?.protect).toBe(3);
+    let s = step(choosingAt({ ...night1(basic), lastProtected: 4 }, 3), { type: "choose", target: 4 });
+    expect([s.night?.rejected, s.night?.protect]).toEqual(["repeat", null]);
+    expect(W.visitResult(s, en)).toBe("You protected Eda last night. Choose again.");
+    s = step(step(step(s, { type: "reveal" }), { type: "next", rng: zero }), { type: "choose", target: 3 });
+    expect([s.night?.rejected, s.night?.protect]).toEqual([null, 3]);
+    expect(W.visitResult(s, en)).toBe(en.wolfChoiceSaved);
   });
 
   it("shows a wolf the earlier wolves' picks of this night", () => {
@@ -476,13 +503,13 @@ describe("night: the phone goes round", () => {
     expect(W.wolfPicksSoFar(s)).toEqual([{ wolf: 1, target: 5 }]);
   });
 
-  it("tells the seer at once and keeps the first pick", () => {
-    let s = step(choosingAt(night1(basic), 2), { type: "choose", target: 1 });
+  it("gives the seer the answer on the result card, and asks again after a pick of themselves", () => {
+    let s = step(choosingAt(night1(basic), 2), { type: "choose", target: 2 });
+    expect([s.night?.rejected, s.night?.seen]).toEqual(["self", null]);
+    expect(W.visitResult(s, en)).toBe("You cannot choose yourself. Choose again.");
+    s = step(step(step(s, { type: "reveal" }), { type: "next", rng: zero }), { type: "choose", target: 1 });
     expect(s.night?.seen).toBe(1);
     expect(W.visitResult(s, en)).toBe("Bob: Wolf");
-    s = step(s, { type: "choose", target: 0 });
-    expect(s.night?.seen).toBe(1);
-    expect(pickable(s)).toEqual([]);
   });
 
   it("removes the wolves' victim in the morning and remembers the doctor's pick", () => {
@@ -504,14 +531,14 @@ describe("night: the phone goes round", () => {
     expect(passNight(night1(basic), { picks: { 1: 4, 3: 4 } }).removal?.removed).toEqual([]);
   });
 
-  it("does not let a pick restart the tap guard", () => {
+  it("guards the pick and the result card like any other move", () => {
     let s = W.gameReducer(night1(basic), { type: "reveal", at: 20_000 });
     s = W.gameReducer(s, { type: "next", rng: zero, at: 21_000 });
-    expect(W.gameReducer(s, { type: "choose", target: 1, at: 21_000 + W.TAP_GUARD_MS - 1 }).night?.picks[0]).toBeNull();
+    expect(W.gameReducer(s, { type: "choose", target: 1, at: 21_000 + W.TAP_GUARD_MS - 1 }).night?.stage).toBe("choose");
     s = W.gameReducer(s, { type: "choose", target: 1, at: 21_500 });
-    expect(s.night?.picks[0]).toBe(1);
-    s = W.gameReducer(s, { type: "next", rng: zero, at: 21_600 });
-    expect(s.night?.visit).toBe(1);
+    expect([s.night?.stage, s.night?.picks[0]]).toEqual(["result", 1]);
+    expect(W.gameReducer(s, { type: "reveal", at: 21_500 + W.TAP_GUARD_MS - 1 }).revealed).toBe(false);
+    expect(W.gameReducer(s, { type: "reveal", at: 21_500 + W.TAP_GUARD_MS }).revealed).toBe(true);
   });
 });
 
@@ -575,16 +602,20 @@ describe("card texts", () => {
     expect(W.cardText({ ...dealt(basic), turn: 1 }, en)?.lines).toEqual([en.wolfDescWolf, "You are the only wolf."]);
   });
 
-  it("shows each visitor's task", () => {
+  it("shows each visitor's task with its rules", () => {
     const roles: Role[] = ["villager", "wolf", "seer", "doctor", "wolf", "villager", "villager"];
+    const lines = (s: GameState) => W.cardText(s, en)?.lines;
     const s = night1(roles);
     expect(W.cardText(s, en)).toEqual({ heading: "Night 1", role: "villager", lines: [en.wolfTaskGuess] });
     const first = choosingAt(s, 1);
-    expect(W.cardText(first, en)?.lines).toEqual([en.wolfTaskWolf]);
+    expect(lines(first)).toEqual(["Choose a victim who is not a wolf."]);
     const second = choosingAt(step(first, { type: "choose", target: 6 }), 4);
-    expect(W.cardText(second, en)?.lines).toEqual([en.wolfTaskWolf, "Chosen so far tonight: Bob → Gil"]);
-    expect(W.cardText(choosingAt(s, 2), en)?.lines).toEqual([en.wolfTaskSeer]);
-    expect(W.cardText(choosingAt(s, 3), en)?.lines).toEqual([en.wolfTaskDoctor]);
+    expect(lines(second)).toEqual([en.wolfTaskWolf, "Chosen so far tonight: Bob → Gil"]);
+    expect(lines(choosingAt(s, 2))).toEqual(["Choose a player to learn whether they are a wolf; not yourself."]);
+    expect(lines(choosingAt(s, 3))).toEqual([en.wolfTaskDoctor]);
+    expect(lines(choosingAt({ ...s, lastProtected: 5 }, 3))).toEqual([
+      "Choose a player to protect from the wolves tonight; not the same as last night (Fay).",
+    ]);
   });
 
   it("shows the witch the victim and her potions, and everyone else that this lap has nothing", () => {
@@ -594,9 +625,12 @@ describe("card texts", () => {
     expect(W.cardText(s, en)?.lines).toEqual(["The wolves chose Eda.", "Potions left: healing, poison"]);
   });
 
-  it("shows a visitor's own pick under the choice", () => {
+  it("shows the result on the second card: the seer's answer, or that the choice is saved", () => {
     expect(W.visitResult(choosingAt(night1(basic), 0), en)).toBeNull();
-    expect(W.visitResult(step(choosingAt(night1(basic), 0), { type: "choose", target: 2 }), en)).toBe("Chosen: Cem");
+    const saved = step(choosingAt(night1(basic), 0), { type: "choose", target: 2 });
+    expect(W.cardText(saved, en)).toEqual({ heading: "Night 1", role: "villager", lines: ["Your choice is saved."] });
+    const seen = step(choosingAt(night1(basic), 2), { type: "choose", target: 4 });
+    expect(W.cardText(seen, en)?.lines).toEqual(["Eda: Not a wolf"]);
   });
 });
 

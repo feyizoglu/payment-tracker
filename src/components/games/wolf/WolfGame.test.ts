@@ -124,7 +124,6 @@ async function passNight() {
     } else {
       const s: GameState = p("choose").state;
       await call(() => p("choose").onPick(s.alive.findIndex((_, i) => canPick(s, i))));
-      await call(() => p("choose").onNext());
     }
   }
 }
@@ -220,6 +219,20 @@ describe("WolfGame turns", () => {
     await call(() => p("turn").onReveal());
     await call(() => p("turn").onNext());
     expect([ui.screen, ui.frameColor]).toEqual(["choose", playerColor(0)]);
+  });
+
+  it("shows the pick's result on a second held card under the visitor's name, then the next player", async () => {
+    await start();
+    await call(() => p("thisGame").onDeal());
+    await dealAll(5);
+    await call(() => p("turn").onReveal());
+    await call(() => p("turn").onNext());
+    await call(() => p("choose").onPick(1));
+    expect([ui.screen, p("turn").name, p("turn").title, p("turn").nextLabel]).toEqual(["turn", "Ann", "Ann", "wolfContinue"]);
+    expect([ui.frameColor, p("rules")]).toEqual([playerColor(0), expect.anything()]);
+    await call(() => p("turn").onReveal());
+    await call(() => p("turn").onNext());
+    expect([p("turn").name, p("turn").title, ui.frameColor]).toEqual(["Bob", undefined, playerColor(1)]);
   });
 
   it("gives the narrator the phone and the roster after the last card", async () => {

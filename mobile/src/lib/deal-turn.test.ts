@@ -287,3 +287,21 @@ describe("DealTurn next label", () => {
     expect(label(named)).toBe("Continue");
   });
 });
+
+describe("DealTurn title", () => {
+  it("asks for the phone to be passed unless the caller gives another title", () => {
+    expect(text(render(false))).toContain("Pass to Ann");
+    hooks.index = 0;
+    hooks.effects = [];
+    const titled = DealTurn({
+      name: "Ann",
+      revealed: false,
+      onReveal,
+      onNext,
+      title: "Ann's result",
+      children: createElement("p", null, "SECRET"),
+    }) as Node;
+    expect(text(titled)).toContain("Ann's result");
+    expect(text(titled)).not.toContain("Pass to Ann");
+  });
+});

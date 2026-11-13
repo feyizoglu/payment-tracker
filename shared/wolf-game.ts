@@ -277,6 +277,15 @@ export function narratorLines(setup: WolfSetup): NarratorLine[] {
 
 export type Phase = "setup" | "rules" | "deal" | "night" | "morning" | "day" | "end";
 
+/** Why a pick is not taken: a wolf chosen by a wolf, oneself, or the doctor's last night. */
+export type Rejection = "wolf" | "self" | "repeat";
+
+export const REJECTION_KEYS = {
+  wolf: "wolfRejectWolf",
+  self: "wolfRejectSelf",
+  repeat: "wolfRejectRepeat",
+} as const satisfies Record<Rejection, string>;
+
 export interface Night extends NightOutcome {
   /** Also the number of the day that follows. */
   number: number;
@@ -286,8 +295,10 @@ export interface Night extends NightOutcome {
   order: number[];
   /** Pass the phone: index into `order`. */
   visit: number;
-  /** Pass the phone: the held card, then the open choice. */
-  stage: "card" | "choose";
+  /** Pass the phone: the held card, the open choice, then the held result. */
+  stage: "card" | "choose" | "result";
+  /** Pass the phone: why the visitor's pick was not taken, shown on the result card. */
+  rejected: Rejection | null;
   /** Pass the phone: whom each seat chose on the main lap. */
   picks: (number | null)[];
   /** Narrator: index into `narratorLines(setup)`. */
@@ -382,6 +393,7 @@ function beginNight(state: GameState, at: number): GameState {
       order: visitOrder(state.alive, state.night ? state.night.order[0] : -1),
       visit: 0,
       stage: "card",
+      rejected: null,
       picks: state.roles.map(() => null),
       line: 0,
       victim: null,
@@ -461,14 +473,19 @@ function picker(state: GameState): { kind: PickKind; seat: number } | null {
   return { kind: "guess", seat };
 }
 
+// Why a pick is not taken, or null when it is.
+function rejectionFor(state: GameState, p: { kind: PickKind; seat: number }, target: number): Rejection | null {
+  if (p.kind === "victim") return state.roles[target] === "wolf" ? "wolf" : null;
+  if (p.kind === "doctor") return target === state.lastProtected ? "repeat" : null;
+  if (p.kind === "guess") return null;
+  return target === p.seat ? "self" : null;
+}
+
+/** Whether a pick of `target` is taken right now. */
 export function canPick(state: GameState, target: number): boolean {
   const p = picker(state);
   if (!p || !state.alive[target]) return false;
-  if (p.kind === "victim") return state.roles[target] !== "wolf";
-  if (p.kind === "doctor") return target !== state.lastProtected;
-  // The seer's first pick stands when the phone goes round, so one visit cannot test two players.
-  if (p.kind === "seer" && state.setup.night === "pass" && state.night!.picks[p.seat] !== null) return false;
-  return target !== p.seat;
+  return rejectionFor(state, p, target) === null;
 }
 
 export function canHeal(state: GameState): boolean {
@@ -480,8 +497,9 @@ export function canGoOn(state: GameState): boolean {
   const { night } = state;
   if (state.phase !== "night" || !night) return false;
   if (state.setup.night === "narrator") return narratorReady(state);
-  if (night.stage === "card") return state.revealed;
-  return night.lap === "witch" || night.picks[night.order[night.visit]] !== null;
+  // On the main lap the pick itself moves on to the result card.
+  if (night.stage === "choose") return night.lap === "witch";
+  return state.revealed;
 }
 
 export type VisitTask = "wolf" | "seer" | "doctor" | "guess" | "witch" | "idle";
@@ -510,9 +528,14 @@ export function livingSeats(state: GameState): number[] {
   return state.alive.flatMap((alive, seat) => (alive ? [seat] : []));
 }
 
-/** Every living player, and whether a tap on them counts right now. */
+/**
+ * Every living player, and whether a tap on them counts right now. When the phone goes round
+ * every one of them can be tapped, so the choice screen looks the same for every role; a pick
+ * the rules do not allow is turned down on the held result card instead.
+ */
 export function pickOptions(state: GameState): { seat: number; enabled: boolean }[] {
-  return livingSeats(state).map((seat) => ({ seat, enabled: canPick(state, seat) }));
+  const pass = state.setup.night === "pass";
+  return livingSeats(state).map((seat) => ({ seat, enabled: pass || canPick(state, seat) }));
 }
 
 export interface CardText {
@@ -540,6 +563,7 @@ export function cardText(state: GameState, t: Strings): CardText | null {
   if (!task || !night) return null;
   const role = state.roles[night.order[night.visit]];
   const heading = t.wolfNightN.replace("{n}", String(night.number));
+  if (night.stage === "result") return { heading, role, lines: [visitResult(state, t) ?? ""] };
   switch (task) {
     case "wolf": {
       const picks = wolfPicksSoFar(state).map(({ wolf, target }) => `${names[wolf]} → ${names[target]}`);
@@ -548,8 +572,11 @@ export function cardText(state: GameState, t: Strings): CardText | null {
     }
     case "seer":
       return { heading, role, lines: [t.wolfTaskSeer] };
-    case "doctor":
-      return { heading, role, lines: [t.wolfTaskDoctor] };
+    case "doctor": {
+      const last = state.lastProtected;
+      const rule = last !== null && state.alive[last] ? t.wolfTaskDoctorNot.replace("{name}", () => names[last]) : t.wolfTaskDoctor;
+      return { heading, role, lines: [rule] };
+    }
     case "guess":
       return { heading, role, lines: [t.wolfTaskGuess] };
     case "idle":
@@ -562,16 +589,20 @@ export function cardText(state: GameState, t: Strings): CardText | null {
   }
 }
 
-/** The line under the choice once the visitor has picked: the seer's answer, or the pick. */
+/** What the result card says: why a pick was not taken, the seer's answer, or that it is saved. */
 export function visitResult(state: GameState, t: Strings): string | null {
   const task = visitTask(state);
   const night = state.night;
-  if (!task || !night || night.lap !== "main") return null;
-  const pick = night.picks[night.order[night.visit]];
-  if (pick === null) return null;
-  const name = state.setup.players[pick];
-  if (task === "seer") return `${name}: ${state.roles[pick] === "wolf" ? t.wolfIsWolf : t.wolfNotWolf}`;
-  return t.wolfChosen.replace("{name}", () => name);
+  if (!task || !night || night.stage !== "result") return null;
+  const names = state.setup.players;
+  if (night.rejected) {
+    const last = state.lastProtected === null ? "" : names[state.lastProtected];
+    return `${t[REJECTION_KEYS[night.rejected]].replace("{name}", () => last)} ${t.wolfChooseAgain}`;
+  }
+  if (task === "seer" && night.seen !== null) {
+    return `${names[night.seen]}: ${state.roles[night.seen] === "wolf" ? t.wolfIsWolf : t.wolfNotWolf}`;
+  }
+  return t.wolfChoiceSaved;
 }
 
 function removalOf(roles: Role[], alive: boolean[], removed: number[]): Removal {
@@ -611,6 +642,10 @@ function nightNext(state: GameState, rng: Rng, at: number): GameState {
   if (night.stage === "card" && (night.lap === "main" || state.roles[seat] === "witch")) {
     return { ...state, night: { ...night, stage: "choose" }, lastActionAt: at };
   }
+  // A pick that was not taken brings the choice back to the same visitor.
+  if (night.stage === "result" && night.rejected) {
+    return { ...state, night: { ...night, stage: "choose", rejected: null }, revealed: false, lastActionAt: at };
+  }
   if (night.visit + 1 < night.order.length) {
     return { ...state, night: { ...night, visit: night.visit + 1, stage: "card" }, revealed: false, lastActionAt: at };
   }
@@ -625,14 +660,33 @@ function nightNext(state: GameState, rng: Rng, at: number): GameState {
   };
 }
 
+// A visitor's tap on the open choice screen. Every tap leads to the held result card, so every
+// visit takes the same steps; a pick the rules do not allow is only turned down there.
+function passChoose(state: GameState, target: number, at: number): GameState {
+  const night = state.night!;
+  const p = picker(state);
+  if (!p || !state.alive[target]) return state;
+  const rejected = rejectionFor(state, p, target);
+  const picked = rejected
+    ? night
+    : {
+        ...night,
+        picks: night.picks.map((pick, seat) => (seat === p.seat ? target : pick)),
+        seen: p.kind === "seer" ? target : night.seen,
+        protect: p.kind === "doctor" ? target : night.protect,
+      };
+  return { ...state, night: { ...picked, stage: "result", rejected }, revealed: false, lastActionAt: at };
+}
+
 function nightStep(state: GameState, action: GameAction): GameState {
   const night = state.night;
   if (!night) return state;
   switch (action.type) {
     case "reveal":
-      if (state.setup.night !== "pass" || night.stage !== "card" || state.revealed) return state;
+      if (state.setup.night !== "pass" || night.stage === "choose" || state.revealed) return state;
       return { ...state, revealed: true, lastActionAt: action.at };
     case "choose": {
+      if (state.setup.night === "pass" && night.lap === "main") return passChoose(state, action.target, action.at);
       if (!canPick(state, action.target)) return state;
       const { kind, seat } = picker(state)!;
       const target = action.target;
