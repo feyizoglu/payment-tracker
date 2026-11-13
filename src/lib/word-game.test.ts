@@ -469,18 +469,38 @@ describe("wordGameReducer turn order and end of the game", () => {
 });
 
 describe("wordGameReducer running out of words", () => {
-  it("shuffles the passed words back in, then ends after the turn with a note", () => {
+  const five: WordResult[] = ["correct", "correct", "correct", "correct", "correct"];
+
+  it("shuffles the words of earlier turns back in, so a small set still gives both teams every turn", () => {
+    let s = start(setupWith({ endBy: "rounds", rounds: 2 }), source({ animals: cardsOf("animals", "easy", 12) }));
+    for (let i = 0; i < 7; i++) s = turn(s, five);
+    expect(s.phase).toBe("handoff");
+    expect(s.outOfWords).toBe(false);
+    s = turn(s, five);
+    expect(s.phase).toBe("end");
+    expect(s.turnsPlayed).toBe(8);
+    expect(s.outOfWords).toBe(false);
+    expect(s.scores).toEqual([20, 20]);
+  });
+
+  it("takes back only the words of earlier turns, never those of the turn being played", () => {
+    let s = turn(start(setupWith(), source({ animals: cardsOf("animals", "easy", 4) })), ["correct", "correct"]);
+    expect(ids(s.deck)).toEqual(["animals-4", "animals-3"]);
+    s = answer(answer(begin(s), "correct"), "correct");
+    expect(s.phase).toBe("play");
+    expect(s.card?.id).toBe("animals-1");
+    expect(ids(s.deck)).toEqual(["animals-2"]);
+  });
+
+  it("ends the turn with a note when no earlier turn has words to give back", () => {
     let s = begin(start(setupWith(), source({ animals: cardsOf("animals", "easy", 3) })));
     s = answer(s, "pass");
     s = answer(s, "correct");
     s = answer(s, "correct");
-    expect(s.card?.id).toBe("animals-1");
-    expect(s.passed).toEqual([]);
-    s = answer(s, "correct");
     expect(s.phase).toBe("summary");
     expect(s.outOfWords).toBe(true);
-    expect(s.results.map((r) => r.result)).toEqual(["pass", "correct", "correct", "correct"]);
-    expect(s.scores).toEqual([3, 0]);
+    expect(s.results.map((r) => r.result)).toEqual(["pass", "correct", "correct"]);
+    expect(s.scores).toEqual([2, 0]);
     s = next(s);
     expect(s.phase).toBe("end");
     expect(s.outOfWords).toBe(true);

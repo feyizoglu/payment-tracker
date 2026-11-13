@@ -239,8 +239,8 @@ export interface WordGameState {
   /** The lists the game draws from; null before the first start. */
   words: WordSource | null;
   deck: WordCard[];
-  /** Words passed in this game that are not back in the deck yet. */
-  passed: WordCard[];
+  /** Words shown in earlier turns of this game that are not back in the deck. */
+  played: WordCard[];
   /** The word on screen during a turn. */
   card: WordCard | null;
   /** Ids shown on this device in `lang`; saved after every turn. */
@@ -278,7 +278,7 @@ export function initialWordState(setup: WordSetup): WordGameState {
     lang: "en",
     words: null,
     deck: [],
-    passed: [],
+    played: [],
     card: null,
     seen: [],
     turnsPlayed: 0,
@@ -335,6 +335,18 @@ function markSeen(seen: string[], id: string): string[] {
   return seen.includes(id) ? seen : [...seen, id];
 }
 
+/** `played` after a turn: its words join once each, unless they are back in the deck. */
+function afterTurn(played: WordCard[], results: readonly TurnResult[], deck: readonly WordCard[]): WordCard[] {
+  const skip = new Set([...played, ...deck].map((c) => c.id));
+  const next = [...played];
+  for (const { card } of results) {
+    if (skip.has(card.id)) continue;
+    skip.add(card.id);
+    next.push(card);
+  }
+  return next;
+}
+
 function trimTeam(team: WordTeam): WordTeam {
   return { name: team.name.trim(), players: team.players.map((p) => p.trim()) };
 }
@@ -385,10 +397,11 @@ export function wordGameReducer(state: WordGameState, action: WordGameAction): W
       const scores: [number, number] = [...state.scores];
       scores[currentTeam(state)] += RESULT_POINTS[action.result];
       let deck = state.deck;
-      let passed = pass ? [...state.passed, card] : state.passed;
+      let played = state.played;
+      // Out of fresh words: the words of earlier turns come back, so every turn can be played.
       if (deck.length === 0) {
-        deck = shuffle(passed, action.rng);
-        passed = [];
+        deck = shuffle(played, action.rng);
+        played = [];
       }
       const [nextCard, ...rest] = deck;
       const answered: WordGameState = {
@@ -398,19 +411,22 @@ export function wordGameReducer(state: WordGameState, action: WordGameAction): W
         passesLeft: pass && state.passesLeft !== null ? state.passesLeft - 1 : state.passesLeft,
         lastActionAt: action.at,
       };
-      if (!nextCard) return { ...answered, phase: "summary", card: null, deck: [], passed: [], outOfWords: true };
-      return { ...answered, card: nextCard, deck: rest, passed, seen: markSeen(state.seen, nextCard.id) };
+      if (!nextCard) return { ...answered, phase: "summary", card: null, deck: [], outOfWords: true };
+      return { ...answered, card: nextCard, deck: rest, played, seen: markSeen(state.seen, nextCard.id) };
     }
-    case "timeUp":
+    case "timeUp": {
       // Not tap-guarded: the clock ends the turn even right after a tap.
       if (state.phase !== "play" || action.at < state.endsAt) return state;
+      const deck = state.card ? [...state.deck, state.card] : state.deck;
       return {
         ...state,
         phase: "summary",
         card: null,
-        deck: state.card ? [...state.deck, state.card] : state.deck,
+        deck,
+        played: afterTurn(state.played, state.results, deck),
         lastActionAt: action.at,
       };
+    }
     case "next": {
       if (state.phase !== "summary" || tooSoon(state, action.at)) return state;
       const turnsPlayed = state.turnsPlayed + 1;
