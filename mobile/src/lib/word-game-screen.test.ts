@@ -196,6 +196,27 @@ describe("WordScreen", () => {
     expect(propsOf(GameScreen).color).toBe(teamColor(1));
   });
 
+  it("deals a New game after a finished one without the words that game showed", async () => {
+    // The seen list is read once per language, as the real effect only runs again when it changes.
+    storage.getStoredSeen.mockResolvedValueOnce([]).mockReturnValue(new Promise(() => {}));
+    await start();
+    call(WordHandoff, "onBegin");
+    call(WordTurn, "onAnswer", "correct");
+    clock = propsOf(WordTurn).endsAt as number;
+    call(WordTurn, "onTimeUp");
+    render();
+    await runEffects();
+    call(WordSummary, "onEnd");
+    render();
+    await runEffects();
+    call(WordEnd, "onNewGame");
+    render();
+    await runEffects();
+    call(WordSetupWizard, "onStart");
+    call(WordHandoff, "onBegin");
+    expect((propsOf(WordTurn).card as { id: string }).id).toBe("animals-3");
+  });
+
   it("plays again from the end screen, and New game goes back to the first step with the played setup", async () => {
     await start();
     call(WordHandoff, "onEnd");
