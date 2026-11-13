@@ -210,6 +210,15 @@ describe("DealTurn hold card from the keyboard", () => {
     expect(text(render(true))).toContain("SECRET");
   });
 
+  it("keeps a held Space from scrolling the page without toggling the card", () => {
+    expect(keyDown(render(false), { key: " ", repeat: true })).toHaveBeenCalledTimes(1);
+    expect(onReveal).not.toHaveBeenCalled();
+    expect(text(render(true))).not.toContain("SECRET");
+    keyDown(render(true), { key: " " });
+    expect(keyDown(render(true), { key: " ", repeat: true })).toHaveBeenCalledTimes(1);
+    expect(text(render(true))).toContain("SECRET");
+  });
+
   it("ignores every other key", () => {
     const preventDefault = keyDown(render(false), { key: "Tab" });
     expect(preventDefault).not.toHaveBeenCalled();
@@ -290,5 +299,30 @@ describe("DealTurn when the pointer mode changes", () => {
     const tree = render(true);
     expect(text(tree)).not.toContain("SECRET");
     expect(text(tree)).toContain("imposterHoldToSee");
+  });
+
+  it("keeps a held card closed when the device turns back into a touch pointer", () => {
+    press(render(true));
+    hooks.desktop = true;
+    expect(text(render(true))).not.toContain("SECRET");
+    hooks.desktop = false;
+    expect(text(render(true))).not.toContain("SECRET");
+    expect(text(render(true))).not.toContain("SECRET");
+    press(render(true));
+    expect(text(render(true))).toContain("SECRET");
+  });
+
+  it("keeps a card opened with Show closed when the device turns back into a desktop pointer", () => {
+    hooks.desktop = true;
+    (button(render(true), "imposterShow")!.props.onClick as () => void)();
+    hooks.desktop = false;
+    expect(text(render(true))).not.toContain("SECRET");
+    hooks.desktop = true;
+    const tree = render(true);
+    expect(text(tree)).not.toContain("SECRET");
+    expect(button(tree, "imposterShow")).toBeDefined();
+    expect(button(tree, "imposterHide")).toBeUndefined();
+    (button(tree, "imposterShow")!.props.onClick as () => void)();
+    expect(text(render(true))).toContain("SECRET");
   });
 });

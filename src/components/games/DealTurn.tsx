@@ -40,6 +40,12 @@ export default function DealTurn({
   // The pointer mode the card was opened in, null while it is closed. A card opened in one
   // mode is closed in the other: that mode's handlers would never see the release.
   const [openedIn, setOpenedIn] = useState<boolean | null>(null);
+  // Cleared on every mode change, or a flip back to the opening mode would show it again.
+  const [lastMode, setLastMode] = useState(desktop);
+  if (lastMode !== desktop) {
+    setLastMode(desktop);
+    setOpenedIn(null);
+  }
 
   useEffect(() => {
     const onVisibility = () => {
@@ -78,8 +84,9 @@ export default function DealTurn({
         onPointerCancel: hide,
         onPointerLeave: hide,
         onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
-          if ((e.key !== "Enter" && e.key !== " ") || e.repeat) return;
+          if (e.key !== "Enter" && e.key !== " ") return;
           e.preventDefault();
+          if (e.repeat) return;
           if (shown) hide();
           else show();
         },
