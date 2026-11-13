@@ -20,7 +20,7 @@ Name: **Anlat Bul** (TR) / **Describe It** (EN). Route `/games/word` on both pla
 | Mode | Chosen in setup: free, forbidden words, or mime |
 | Scoring | Correct +1, Pass 0 with a pass limit, Foul −1 |
 | End | Chosen in setup: a number of rounds, or a target score |
-| Words | A new built-in list per language, about 1200 words, each easy or hard, each with 4 forbidden words |
+| Words | A new built-in list per language, about 3200 words, each easy or hard, each with 4 forbidden words |
 | Repeats | Words seen on this device do not come back until the chosen set is used up |
 | Not included | Own word packs, downloaded packs, sound or vibration, fixing a wrong tap afterwards |
 
@@ -95,8 +95,8 @@ scores so far.
   are shared. Words follow the app language at game start, as in Imposter.
 - Categories (13): animals, food, jobs, places, objects, sports, home, nature, body, transport,
   arts, actions, idioms. The first six reuse Imposter's labels and emoji.
-- Each category has at least 90 words per language, with at least 35 easy and 35 hard ones:
-  about 1200 words per language.
+- Each category has at least 220 words per language, with at least 90 easy and 90 hard ones:
+  about 3200 words per language. Rows are only ever appended, so ids stay stable.
 - Each word has exactly 4 forbidden words: the words a describer would reach for first.
 - Easy: an everyday word a child knows. Hard: rarer, abstract, or hard to describe without
   the obvious words.
@@ -123,13 +123,20 @@ scores so far.
 
 - At game start the deck is every word of the chosen language, category and difficulty that
   is not in the device's **seen list**, shuffled. When fewer than 50 unseen words are left,
-  the seen list is cleared for that category and difficulty first, and the deck is built
-  again.
+  the seen list is cleared for that category and difficulty, and the deck is the unseen words
+  shuffled, followed by the words that were seen, shuffled: words seen recently still come
+  last.
 - A word is added to the seen list when it is shown in a turn. The seen list is saved at the
   end of every turn: one list per language, stored like Imposter's settings (web
   `localStorage`, mobile `AsyncStorage`, fail-soft).
-- If the deck runs out during a game, the words passed earlier in this game are shuffled back
-  in. If there are none, the game ends with a "No words left" note on the end screen.
+- If the deck runs out during a game, every word shown in earlier turns of this game is
+  shuffled back in (not the words of the turn being played), so the game always reaches its
+  end rule and both teams get their turns; some words may repeat. A word passed when the deck
+  is empty goes to the end of the refilled deck, never straight back. Only when nothing can
+  be shuffled back in (the pool is smaller than one turn) does the turn end, and the game ends
+  with a "No words left" note on the end screen.
+- Name checks in setup (repeated player names, equal team names) compare names lowercased
+  with the app language's locale, so Turkish İ/ı are handled the same on every device.
 
 ## Code structure
 
