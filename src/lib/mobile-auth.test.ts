@@ -16,8 +16,18 @@ describe("app token", () => {
 
   it("rejects a tampered token", async () => {
     const token = await signAppToken({ userId: "user-123", email: "a@b.com" });
-    const tampered = token.slice(0, -2) + "xx";
+    // Change the signature's first character: it maps to the top bits of the first byte, so
+    // the decoded signature always differs. The last characters can carry padding bits only.
+    const [header, payload, signature] = token.split(".");
+    const tampered = `${header}.${payload}.${signature[0] === "A" ? "B" : "A"}${signature.slice(1)}`;
     expect(await verifyAppToken(tampered)).toBeNull();
+  });
+
+  it("rejects a token whose claims were changed after signing", async () => {
+    const token = await signAppToken({ userId: "user-123", email: "a@b.com" });
+    const [header, , signature] = token.split(".");
+    const forged = Buffer.from(JSON.stringify({ sub: "someone-else", email: "a@b.com" })).toString("base64url");
+    expect(await verifyAppToken(`${header}.${forged}.${signature}`)).toBeNull();
   });
 
   it("rejects garbage input", async () => {
