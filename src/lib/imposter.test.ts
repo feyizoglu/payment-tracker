@@ -305,12 +305,14 @@ describe("gameReducer", () => {
   });
 
   it("ends back at setup, clearing scores but keeping the setup and used words", () => {
-    const s = gameReducer(started(), { type: "end", at: at() });
+    const game = started();
+    const endedAt = at();
+    const s = gameReducer(game, { type: "end", at: endedAt });
     expect(s.phase).toBe("setup");
     expect(s.scores).toEqual([]);
     expect(s.setup.players).toEqual(["Ayşe", "Mehmet", "Can", "Deniz"]);
     expect(s.used).toHaveLength(1);
-    expect(s.lastActionAt).toBe(0);
+    expect(s.lastActionAt).toBe(endedAt);
   });
 
   describe("tap guard", () => {
@@ -408,6 +410,35 @@ describe("gameReducer", () => {
       expect(gameReducer(result, { type: "end", at: votedAt + 100 })).toBe(result);
       expect(gameReducer(result, { type: "nextRound", lang: "tr", rng: zero, at: votedAt + TAP_GUARD_MS }).phase).toBe("deal");
       expect(gameReducer(result, { type: "end", at: votedAt + TAP_GUARD_MS }).phase).toBe("setup");
+    });
+
+    const startAt = (state: GameState, when: number) =>
+      gameReducer(state, { type: "start", setup: setup({ category: "animals" }), lang: "tr", rng: zero, at: when });
+
+    it("ignores a start right after the game was ended", () => {
+      const endedAt = T + 1000;
+      const ended = gameReducer(dealing(), { type: "end", at: endedAt });
+      expect(ended.phase).toBe("setup");
+      expect(startAt(ended, endedAt)).toBe(ended);
+      expect(startAt(ended, endedAt + 100)).toBe(ended);
+      expect(startAt(ended, endedAt + TAP_GUARD_MS - 1)).toBe(ended);
+    });
+
+    it("starts a new game once the tap guard after the end has passed", () => {
+      const endedAt = T + 1000;
+      const ended = gameReducer(dealing(), { type: "end", at: endedAt });
+      expect(startAt(ended, endedAt + TAP_GUARD_MS)).toMatchObject({
+        phase: "deal",
+        turn: 0,
+        lastActionAt: endedAt + TAP_GUARD_MS,
+      });
+      expect(startAt(ended, endedAt + 60_000).phase).toBe("deal");
+    });
+
+    it("starts the very first game whatever the time of day", () => {
+      for (const when of [TAP_GUARD_MS, 1_800_000_000_000, 1_800_000_000_000 + TAP_GUARD_MS - 1]) {
+        expect(startAt(initialGameState(), when)).toMatchObject({ phase: "deal", lastActionAt: when });
+      }
     });
   });
 });

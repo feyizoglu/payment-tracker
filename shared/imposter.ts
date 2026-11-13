@@ -299,6 +299,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "start": {
       if (state.phase !== "setup" || validateSetup(action.setup).length > 0) return state;
+      if (tooSoon(state, action.at)) return state;
       const setup = { ...action.setup, players: action.setup.players.map((p) => p.trim()) };
       const { round, used } = dealRound(setup, action.lang, state.used, action.rng);
       return {
@@ -369,7 +370,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "end":
       if (tooSoon(state, action.at)) return state;
-      return { ...initialGameState(state.setup), used: state.used };
+      // The setup screen's start button can sit where "End game" was: keep the time so start is guarded too.
+      return { ...initialGameState(state.setup), used: state.used, lastActionAt: action.at };
   }
 }
 
