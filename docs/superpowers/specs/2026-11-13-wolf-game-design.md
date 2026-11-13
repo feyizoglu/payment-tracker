@@ -36,7 +36,7 @@ The texts below are what the game shows (translated in `shared/i18n.ts`).
 | Seer | Village | Each night picks one other player and learns whether they are a wolf. |
 | Doctor | Village | Each night protects one player from the wolves, themselves included, but not the same player two nights in a row. |
 | Hunter | Village | When removed, by night or by vote, at once takes one other player with them. |
-| Witch | Village | Has one healing potion (saves the wolves' victim) and one poison potion (removes any player), each once per game; both may be used on the same night. |
+| Witch | Village | Has one healing potion (saves the wolves' victim) and one poison potion (removes any player), each once per game and at most one of them per night. |
 
 Rules of play:
 - Wolves can only choose a player who is not a wolf. The seer cannot pick themselves. The
@@ -51,8 +51,9 @@ Rules of play:
 - **The wolves win** when the living wolves are as many as or more than the other living
   players.
 - Checked after every removal: after the night's results, after the vote and after each
-  hunter shot. When both are true at once (the last wolf and the last villagers fall
-  together), the village wins.
+  hunter shot. A removed hunter shoots first and the check runs after the shot, so the shot
+  can still stop a wolf win. When both are true at once (the last wolf and the last
+  villagers fall together), the village wins.
 
 ## Setup wizard
 
@@ -96,20 +97,35 @@ narrator, whose screen lists every player with their role.
 
 ## Night: Pass the phone
 
-- The phone visits every living player in seat order, starting one seat later each night.
-  Each visit: Imposter's hand-over screen ("Give the phone to Ayşe") and a hold-to-see screen
-  with that player's night task:
-  - **Wolf:** choose a victim among the non-wolves. The screen shows the earlier wolves'
-    choices this night.
-  - **Seer:** choose a player; the answer "Wolf" / "Not a wolf" is shown at once.
-  - **Doctor:** choose a player to protect (last night's choice is disabled).
-  - **Villager, Hunter, Witch:** "Who do you think is a wolf?": a choice that changes
-    nothing, so every visit looks the same from across the table.
+- The phone visits every living player in seat order. Each night starts one living player
+  later than the night before (dead seats are skipped, so no one starts two nights running).
+- **Every visit has the same shape and the same number of taps, whatever the role**, because
+  the table can see any screen that is not held:
+  1. Imposter's hand-over screen ("Give the phone to Ayşe").
+  2. A hold card with the role, tonight's task and its rules:
+     - **Wolf:** "Choose a victim who is not a wolf", plus the earlier wolves' choices tonight.
+     - **Seer:** "Choose a player to learn whether they are a wolf; not yourself."
+     - **Doctor:** "Choose a player to protect; not the same as last night (X)."
+     - **Villager, Hunter, Witch:** "Who do you think is a wolf?": a choice that changes
+       nothing.
+  3. An open choice screen that looks the same for everyone: every living player as a button,
+     all drawn alike and all tappable, in the visitor's colour, with the same heading.
+  4. A second hold card with the result: the seer's answer "Wolf" / "Not a wolf", or "Your
+     choice is saved" for everyone else. A choice the rules do not allow (a wolf choosing a
+     wolf, the seer choosing themselves, the doctor repeating last night) is not taken: this
+     card says why, and its button goes back to the choice screen.
+  5. Next player.
 - The wolves' victim is the player most of them chose; a tie is settled at random.
-- **Witch lap:** when a witch is alive and has a potion left, the phone goes round once more.
-  On this lap the witch sees the victim and may heal and/or poison; everyone else sees
-  "Nothing to do this lap" and taps Continue. The second lap shows the table only that a
-  witch with a potion is alive, which the This game screen already implies.
+- **Witch lap:** when a witch is alive and has a potion left, the phone goes round once more,
+  with the same five steps for every visitor. The choice screen also has a **Nobody** button.
+  - The witch's first hold card shows the victim and the potions left: choosing the victim
+    uses the healing potion, choosing anyone else uses the poison, Nobody uses neither. Only
+    one potion per night.
+  - Everyone else's card says "Nothing to do this lap; choose anyone", and their choice
+    changes nothing.
+  The lap tells the table only that a witch with a potion is alive. With "show roles" off,
+  a lap that stops coming still tells the table that the witch was removed or has used both
+  potions; that cannot be hidden.
 
 ## Night: Narrator
 
@@ -120,7 +136,7 @@ The narrator's screen walks through the night one line at a time, with a Next bu
    to show with a thumb.
 4. "Doctor, wake up and choose who to protect." The narrator taps them.
 5. "Witch, wake up." The screen shows the victim; the narrator taps Heal, Poison (then a
-   player) or Nothing.
+   player) or Nothing: one potion per night, as in Pass the phone.
 6. "Everyone wake up."
 
 Lines for roles not in the game are skipped. A role that is in the game but already removed is
@@ -170,7 +186,7 @@ still read out, marked "(removed: wait a moment, then go on)", so the table cann
 
 - `src/lib/wolf-game.test.ts`: setup validation and wolf suggestion; dealing (counts, every
   role once, wolves told about each other); night resolution for every combination (doctor
-  save, heal, poison, heal and poison together, doctor's repeat rule, wolf tie); hunter shots
+  save, heal, poison, only one potion per night, doctor's repeat rule, wolf tie); hunter shots
   at night and after a vote, including a hunter shot that ends the game; both win conditions
   and the simultaneous case; the witch lap only when a potion is left; narrator mode steps
   including lines read for removed roles; tap guard.
