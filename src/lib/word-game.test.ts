@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { PLAYER_COLORS } from "@/lib/imposter";
 import {
+  WORD_CATEGORIES,
+  WORD_DECK_MIN,
   WORD_MAX_TEAM,
   WORD_SETUP_STORAGE_KEY,
+  buildDeck,
   defaultTeamNames,
   defaultWordSetup,
   parseSavedSeen,
@@ -12,7 +15,12 @@ import {
   validateWordSetup,
   wordSeenKey,
   wordStepErrors,
+  type Rng,
+  type WordCard,
+  type WordCategory,
+  type WordLevel,
   type WordSetup,
+  type WordSource,
   type WordTeam,
 } from "@/lib/word-game";
 
@@ -193,5 +201,55 @@ describe("parseSavedSeen", () => {
   it("drops anything that is not an id list", () => {
     expect(parseSavedSeen(JSON.stringify(["animals-1", 3, null]))).toEqual(["animals-1"]);
     for (const raw of [null, "", "{oops", "{}", '"animals-1"']) expect(parseSavedSeen(raw)).toEqual([]);
+  });
+});
+
+const keepOrder: Rng = () => 0.999999;
+
+function cardsOf(category: WordCategory, level: WordLevel, count: number, from = 1): WordCard[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `${category}-${from + i}`,
+    word: `${category} ${from + i}`,
+    forbidden: ["w", "x", "y", "z"],
+    level,
+  }));
+}
+
+function source(lists: Partial<Record<WordCategory, WordCard[]>>): WordSource {
+  return Object.fromEntries(WORD_CATEGORIES.map((c) => [c, lists[c] ?? []])) as unknown as WordSource;
+}
+
+const ids = (cards: readonly WordCard[]) => cards.map((c) => c.id);
+
+describe("buildDeck", () => {
+  const animals = cardsOf("animals", "easy", 60);
+  const words = source({
+    animals: [...animals, ...cardsOf("animals", "hard", 60, 61)],
+    food: cardsOf("food", "easy", 60),
+  });
+
+  it("deals the unseen words of the chosen category and difficulty", () => {
+    const { deck, seen } = buildDeck(words, "animals", "easy", ["animals-1", "animals-2", "food-1"], keepOrder);
+    expect(ids(deck)).toEqual(ids(animals.slice(2)));
+    expect(seen).toEqual(["animals-1", "animals-2", "food-1"]);
+  });
+
+  it("takes every category for Mixed and both levels for Mixed difficulty", () => {
+    expect(buildDeck(words, "mixed", "easy", [], keepOrder).deck).toHaveLength(120);
+    expect(buildDeck(words, "animals", "mixed", [], keepOrder).deck).toHaveLength(120);
+    expect(buildDeck(words, "animals", "hard", [], keepOrder).deck.every((c) => c.level === "hard")).toBe(true);
+  });
+
+  it(`clears the seen list of that choice when fewer than ${WORD_DECK_MIN} of its words are unseen`, () => {
+    const seen = [...ids(animals.slice(0, 11)), "food-1", "animals-61"];
+    const built = buildDeck(words, "animals", "easy", seen, keepOrder);
+    expect(ids(built.deck)).toEqual(ids(animals));
+    expect(built.seen).toEqual(["food-1", "animals-61"]);
+  });
+
+  it("shuffles with the random source", () => {
+    const { deck } = buildDeck(words, "animals", "easy", [], () => 0);
+    expect(ids(deck)).not.toEqual(ids(animals));
+    expect([...ids(deck)].sort()).toEqual([...ids(animals)].sort());
   });
 });

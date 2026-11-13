@@ -1,6 +1,6 @@
 import type { Lang } from "./i18n";
 import { PLAYER_COLORS } from "./imposter";
-import { WORD_CATEGORIES, type WordCategory } from "./word-game-words/types";
+import { WORD_CATEGORIES, type WordCard, type WordCategory } from "./word-game-words/types";
 
 export { WORD_CATEGORIES };
 export type { WordCard, WordCategory, WordLevel } from "./word-game-words/types";
@@ -190,4 +190,29 @@ export function parseSavedSeen(raw: string | null): string[] {
   } catch {
     return [];
   }
+}
+
+/** One language's word lists, as `WORD_GAME_WORDS[lang]`. */
+export type WordSource = Readonly<Record<WordCategory, readonly WordCard[]>>;
+
+export const WORD_DECK_MIN = 50;
+
+// The deck skips words this device has shown before. When the choice runs low, its part of
+// the seen list is forgotten so the game still has enough words.
+export function buildDeck(
+  words: WordSource,
+  category: WordCategoryChoice,
+  difficulty: WordDifficulty,
+  seen: readonly string[],
+  rng: Rng
+): { deck: WordCard[]; seen: string[] } {
+  const categories: readonly WordCategory[] = category === "mixed" ? WORD_CATEGORIES : [category];
+  const pool = categories
+    .flatMap((c) => words[c])
+    .filter((card) => difficulty === "mixed" || card.level === difficulty);
+  const seenIds = new Set(seen);
+  const unseen = pool.filter((card) => !seenIds.has(card.id));
+  if (unseen.length >= WORD_DECK_MIN) return { deck: shuffle(unseen, rng), seen: [...seen] };
+  const poolIds = new Set(pool.map((card) => card.id));
+  return { deck: shuffle(pool, rng), seen: seen.filter((id) => !poolIds.has(id)) };
 }
