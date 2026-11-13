@@ -67,3 +67,13 @@ body {
 input, select, textarea {
   color: var(--foreground);
 }
+
+/* The imposter card fades in when it is shown; it hides at once. */
+@keyframes game-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
