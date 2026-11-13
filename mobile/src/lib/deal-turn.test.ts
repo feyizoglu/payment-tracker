@@ -269,3 +269,21 @@ describe("DealTurn next player", () => {
     expect(next(render(true)).props).toMatchObject({ label: "imposterNextPlayer", onPress: onNext, disabled: false });
   });
 });
+
+describe("DealTurn next label", () => {
+  it("says Next player unless the caller names the button", () => {
+    const label = (tree: Node) => nodes(tree).find((n) => n.type === GameButton)!.props.label;
+    expect(label(render(true))).toBe("imposterNextPlayer");
+    hooks.index = 0;
+    hooks.effects = [];
+    const named = DealTurn({
+      name: "Ann",
+      revealed: true,
+      onReveal,
+      onNext,
+      nextLabel: "Continue",
+      children: createElement("p", null, "SECRET"),
+    }) as Node;
+    expect(label(named)).toBe("Continue");
+  });
+});

@@ -102,3 +102,11 @@ describe("SetupPlayersStep colours", () => {
     }
   });
 });
+
+describe("SetupPlayersStep with another game's setup", () => {
+  it("keeps the other fields of any setup with a player list", () => {
+    const other = { players: ["Ann"], wolves: 2, night: "pass" };
+    (addButton(SetupPlayersStep({ value: other, onChange }) as Node).props.onPress as () => void)();
+    expect(onChange).toHaveBeenCalledWith({ players: ["Ann", ""], wolves: 2, night: "pass" });
+  });
+});

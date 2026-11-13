@@ -14,6 +14,7 @@ export function DealTurn({
   revealed,
   onReveal,
   onNext,
+  nextLabel,
   children,
 }: {
   name: string;
@@ -21,6 +22,8 @@ export function DealTurn({
   revealed: boolean;
   onReveal: () => void;
   onNext: () => void;
+  /** The Next button's label; "Next player" when not given. */
+  nextLabel?: string;
   children: ReactNode;
 }) {
   const { t } = useLang();
@@ -92,7 +95,7 @@ export function DealTurn({
           </Text>
         )}
       </Pressable>
-      <GameButton label={t.imposterNextPlayer} onPress={onNext} disabled={!revealed} />
+      <GameButton label={nextLabel ?? t.imposterNextPlayer} onPress={onNext} disabled={!revealed} />
     </View>
   );
 }

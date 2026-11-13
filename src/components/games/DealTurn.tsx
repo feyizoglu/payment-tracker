@@ -25,6 +25,7 @@ export default function DealTurn({
   revealed,
   onReveal,
   onNext,
+  nextLabel,
   children,
 }: {
   name: string;
@@ -32,6 +33,8 @@ export default function DealTurn({
   revealed: boolean;
   onReveal: () => void;
   onNext: () => void;
+  /** The Next button's label; "Next player" when not given. */
+  nextLabel?: string;
   children: ReactNode;
 }) {
   const { t } = useLang();
@@ -148,7 +151,7 @@ export default function DealTurn({
         className="rounded-lg px-10 py-3 font-semibold disabled:opacity-40"
         style={{ backgroundColor: GAME_THEME.bg, color: GAME_THEME.text }}
       >
-        {t.imposterNextPlayer}
+        {nextLabel ?? t.imposterNextPlayer}
       </button>
     </div>
   );

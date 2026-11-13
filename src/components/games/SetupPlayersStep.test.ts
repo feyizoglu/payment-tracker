@@ -92,3 +92,12 @@ describe("SetupPlayersStep accessibility", () => {
     }
   });
 });
+
+describe("SetupPlayersStep with another game's setup", () => {
+  it("keeps the other fields of any setup with a player list", () => {
+    const other = { players: ["Ann"], wolves: 2, night: "pass" };
+    const add = button(SetupPlayersStep({ value: other, onChange }) as Node, "imposterAddPlayer")!;
+    (add.props.onClick as () => void)();
+    expect(onChange).toHaveBeenCalledWith({ players: ["Ann", ""], wolves: 2, night: "pass" });
+  });
+});
