@@ -11,6 +11,11 @@ describe("games offline helper", () => {
     expect(sw).toContain(`const GAMES_CACHE = "${GAMES_CACHE}";`);
     expect(sw).toContain(`const GAMES_PAGES = ${JSON.stringify(GAMES_PAGES).replace(/,/g, ", ")};`);
   });
+
+  it("keeps the three games pages in the second cache version", () => {
+    expect(GAMES_PAGES).toEqual(["/games", "/games/imposter", "/games/word"]);
+    expect(GAMES_CACHE).toBe("games-v2");
+  });
 });
 
 describe("staticAssetsIn", () => {
@@ -39,8 +44,14 @@ describe("syncGamesCache", () => {
   const pages: Record<string, string> = {
     "/games": `<script src="/_next/static/chunks/main.js?dpl=1"></script><link href="/_next/static/css/app.css?dpl=1">`,
     "/games/imposter": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/imposter.js?dpl=1\"]"])</script>`,
+    "/games/word": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/word.js?dpl=1\"]"])</script>`,
   };
-  const assets = ["/_next/static/chunks/main.js?dpl=1", "/_next/static/css/app.css?dpl=1", "/_next/static/chunks/imposter.js?dpl=1"];
+  const assets = [
+    "/_next/static/chunks/main.js?dpl=1",
+    "/_next/static/css/app.css?dpl=1",
+    "/_next/static/chunks/imposter.js?dpl=1",
+    "/_next/static/chunks/word.js?dpl=1",
+  ];
 
   function fakeCache(initial: string[] = [], failing: string[] = []) {
     const store = new Map<string, Response>(initial.map((path) => [`${ORIGIN}${path}`, new Response("old")]));
@@ -62,7 +73,7 @@ describe("syncGamesCache", () => {
 
   const fetchPage = (path: string) => Promise.resolve(new Response(pages[path], { status: 200 }));
 
-  it("stores both pages and all their files, and drops files no page uses any more", async () => {
+  it("stores every games page and all their files, and drops files no page uses any more", async () => {
     const { cache, store, paths } = fakeCache(["/_next/static/chunks/old.js?dpl=0", "/games"]);
 
     await expect(syncGamesCache(cache, fetchPage)).resolves.toBe(true);
@@ -119,7 +130,7 @@ describe("prepareGamesOffline", () => {
     const { register, open } = stubBrowser(async () => ({}));
     await prepareGamesOffline();
     expect(register).toHaveBeenCalledWith("/sw.js", { scope: "/", updateViaCache: "none" });
-    expect(open).toHaveBeenCalledWith("games-v1");
+    expect(open).toHaveBeenCalledWith("games-v2");
   });
 
   it("resolves without opening the cache when registration fails", async () => {

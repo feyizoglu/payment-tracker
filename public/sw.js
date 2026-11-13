@@ -1,8 +1,8 @@
 // Games are meant to work offline. The games pages fill GAMES_CACHE themselves (see
 // src/lib/games-offline.ts) and this worker only reads it; every other request goes
 // straight to the network as before.
-const GAMES_CACHE = "games-v1";
-const GAMES_PAGES = ["/games", "/games/imposter"];
+const GAMES_CACHE = "games-v2";
+const GAMES_PAGES = ["/games", "/games/imposter", "/games/word"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
