@@ -197,12 +197,23 @@ describe("winner", () => {
 });
 
 describe("visitOrder", () => {
-  it("visits the living players in seat order, starting one seat later each night", () => {
+  it("visits the living players in seat order, from the first living seat after the last start", () => {
     const all = [true, true, true, true, true];
-    expect(W.visitOrder(all, 1)).toEqual([0, 1, 2, 3, 4]);
-    expect(W.visitOrder(all, 2)).toEqual([1, 2, 3, 4, 0]);
-    expect(W.visitOrder(all, 7)).toEqual([1, 2, 3, 4, 0]);
-    expect(W.visitOrder([true, false, true, true, false], 2)).toEqual([2, 3, 0]);
+    expect(W.visitOrder(all, -1)).toEqual([0, 1, 2, 3, 4]);
+    expect(W.visitOrder(all, 0)).toEqual([1, 2, 3, 4, 0]);
+    expect(W.visitOrder(all, 4)).toEqual([0, 1, 2, 3, 4]);
+    expect(W.visitOrder([true, false, true, true, false], 0)).toEqual([2, 3, 0]);
+  });
+
+  it("never lets one player start two nights running when a seat is out", () => {
+    const alive = [true, false, true, true, true, true];
+    const starts: number[] = [];
+    let last = -1;
+    for (let night = 0; night < 6; night++) {
+      last = W.visitOrder(alive, last)[0];
+      starts.push(last);
+    }
+    expect(starts).toEqual([0, 2, 3, 4, 5, 0]);
   });
 });
 
@@ -768,5 +779,21 @@ describe("morning, day and vote", () => {
     expect(again.phase).toBe("rules");
     expect(again.setup).toEqual(over.setup);
     expect(step(again, { type: "deal", rng: zero }).phase).toBe("deal");
+  });
+});
+
+describe("visit order across nights", () => {
+  it("starts each night one living player later, so no one starts two nights running", () => {
+    // Bob is out from the start; every night the doctor saves the wolves' victim.
+    const roles: Role[] = ["villager", "villager", "wolf", "doctor", "seer", "villager"];
+    let s = dealAll({ ...dealt(roles), alive: [true, false, true, true, true, true] });
+    const starts: number[] = [];
+    for (const target of [0, 4, 0, 4]) {
+      starts.push(s.night!.order[0]);
+      s = passNight(s, { picks: { 2: target, 3: target } });
+      expect(s.removal?.removed).toEqual([]);
+      s = step(voteOut(toDay(s), null), { type: "continue" });
+    }
+    expect(starts).toEqual([0, 2, 3, 4]);
   });
 });

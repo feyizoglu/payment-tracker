@@ -217,11 +217,14 @@ export function winner(roles: Role[], alive: boolean[]): Side | null {
   return null;
 }
 
-/** The living seats in the order the phone visits them on night `nightNumber` (from 1). */
-export function visitOrder(alive: boolean[], nightNumber: number): number[] {
+/**
+ * The living seats in the order the phone visits them: from the first living seat after
+ * `after`, the seat that started the night before (-1 before the first night).
+ */
+export function visitOrder(alive: boolean[], after: number): number[] {
   const n = alive.length;
   if (n === 0) return [];
-  const start = (nightNumber - 1) % n;
+  const start = (after + 1 + n) % n;
   return Array.from({ length: n }, (_, k) => (start + k) % n).filter((seat) => alive[seat]);
 }
 
@@ -376,7 +379,7 @@ function beginNight(state: GameState, at: number): GameState {
     night: {
       number,
       lap: "main",
-      order: visitOrder(state.alive, number),
+      order: visitOrder(state.alive, state.night ? state.night.order[0] : -1),
       visit: 0,
       stage: "card",
       picks: state.roles.map(() => null),
