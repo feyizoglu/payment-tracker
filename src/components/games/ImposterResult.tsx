@@ -17,13 +17,22 @@ export default function ImposterResult({
   if (!round) return null;
   const names = setup.players;
   const accused = outcome?.accused ?? null;
+  const [beforeName, afterName = ""] = t.imposterAccused.split("{name}");
 
   return (
     <div className="space-y-5 text-center">
       {outcome && (
         <div className="space-y-1">
           <p className="text-sm text-gray-500">
-            {accused === null ? t.imposterTie : t.imposterAccused.replace("{name}", () => names[accused])}
+            {accused === null ? (
+              t.imposterTie
+            ) : (
+              <>
+                {beforeName}
+                <span style={{ color: playerColor(accused) }}>{names[accused]}</span>
+                {afterName}
+              </>
+            )}
           </p>
           <p className={`text-2xl font-bold ${outcome.crewWins ? "text-green-600" : "text-red-600"}`}>
             {outcome.crewWins ? t.imposterCrewWins : t.imposterImpostersWin}
