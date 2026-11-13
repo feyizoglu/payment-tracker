@@ -7,9 +7,13 @@ const sw = readFileSync(fileURLToPath(new URL("../../public/sw.js", import.meta.
 const ORIGIN = "https://paytrack.example";
 
 describe("games offline helper", () => {
-  it("uses the same cache name and pages as the service worker", () => {
-    expect(sw).toContain(`const GAMES_CACHE = "${GAMES_CACHE}";`);
+  it("uses the same pages as the service worker", () => {
     expect(sw).toContain(`const GAMES_PAGES = ${JSON.stringify(GAMES_PAGES).replace(/,/g, ", ")};`);
+  });
+
+  it("keeps the three games pages in the second cache version", () => {
+    expect(GAMES_PAGES).toEqual(["/games", "/games/imposter", "/games/word"]);
+    expect(GAMES_CACHE).toBe("games-v2");
   });
 });
 
@@ -39,8 +43,14 @@ describe("syncGamesCache", () => {
   const pages: Record<string, string> = {
     "/games": `<script src="/_next/static/chunks/main.js?dpl=1"></script><link href="/_next/static/css/app.css?dpl=1">`,
     "/games/imposter": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/imposter.js?dpl=1\"]"])</script>`,
+    "/games/word": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/word.js?dpl=1\"]"])</script>`,
   };
-  const assets = ["/_next/static/chunks/main.js?dpl=1", "/_next/static/css/app.css?dpl=1", "/_next/static/chunks/imposter.js?dpl=1"];
+  const assets = [
+    "/_next/static/chunks/main.js?dpl=1",
+    "/_next/static/css/app.css?dpl=1",
+    "/_next/static/chunks/imposter.js?dpl=1",
+    "/_next/static/chunks/word.js?dpl=1",
+  ];
 
   function fakeCache(initial: string[] = [], failing: string[] = []) {
     const store = new Map<string, Response>(initial.map((path) => [`${ORIGIN}${path}`, new Response("old")]));
@@ -62,7 +72,7 @@ describe("syncGamesCache", () => {
 
   const fetchPage = (path: string) => Promise.resolve(new Response(pages[path], { status: 200 }));
 
-  it("stores both pages and all their files, and drops files no page uses any more", async () => {
+  it("stores every games page and all their files, and drops files no page uses any more", async () => {
     const { cache, store, paths } = fakeCache(["/_next/static/chunks/old.js?dpl=0", "/games"]);
 
     await expect(syncGamesCache(cache, fetchPage)).resolves.toBe(true);
@@ -100,14 +110,19 @@ describe("syncGamesCache", () => {
 });
 
 describe("prepareGamesOffline", () => {
-  function stubBrowser(register: () => Promise<unknown>) {
+  function stubBrowser(register: () => Promise<unknown>, { status = 503, names = [] as string[] } = {}) {
     const open = vi.fn(async () => ({ add: vi.fn(), put: vi.fn(), keys: vi.fn(async () => []), delete: vi.fn() }));
+    const remove = vi.fn(async () => true);
     vi.stubEnv("NODE_ENV", "production");
     vi.stubGlobal("navigator", { serviceWorker: { register: vi.fn(register) } });
-    vi.stubGlobal("caches", { open });
+    vi.stubGlobal("caches", { open, keys: vi.fn(async () => names), delete: remove });
     vi.stubGlobal("window", { caches: { open } });
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 503 })));
-    return { register: (navigator as unknown as { serviceWorker: { register: () => void } }).serviceWorker.register, open };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status })));
+    return {
+      register: (navigator as unknown as { serviceWorker: { register: () => void } }).serviceWorker.register,
+      open,
+      remove,
+    };
   }
 
   afterEach(() => {
@@ -119,7 +134,19 @@ describe("prepareGamesOffline", () => {
     const { register, open } = stubBrowser(async () => ({}));
     await prepareGamesOffline();
     expect(register).toHaveBeenCalledWith("/sw.js", { scope: "/", updateViaCache: "none" });
-    expect(open).toHaveBeenCalledWith("games-v1");
+    expect(open).toHaveBeenCalledWith("games-v2");
+  });
+
+  it("drops the older games caches once the new one is complete", async () => {
+    const { remove } = stubBrowser(async () => ({}), { status: 200, names: ["games-v0", "games-v1", "games-v2", "other"] });
+    await prepareGamesOffline();
+    expect(remove.mock.calls).toEqual([["games-v0"], ["games-v1"]]);
+  });
+
+  it("keeps the older games cache when the new one could not be filled", async () => {
+    const { remove } = stubBrowser(async () => ({}), { status: 503, names: ["games-v1", "games-v2"] });
+    await prepareGamesOffline();
+    expect(remove).not.toHaveBeenCalled();
   });
 
   it("resolves without opening the cache when registration fails", async () => {
