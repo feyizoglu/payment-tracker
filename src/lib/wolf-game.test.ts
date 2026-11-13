@@ -256,3 +256,106 @@ describe("narratorLines", () => {
     }
   });
 });
+
+type GameState = W.GameState;
+type Act = { [K in W.GameAction["type"]]: Omit<Extract<W.GameAction, { type: K }>, "at"> }[W.GameAction["type"]];
+
+let clock = 1_800_000_000_000;
+// Applies one action a second after the last one, well outside the tap guard.
+function step(state: GameState, action: Act): GameState {
+  clock += 1000;
+  return W.gameReducer(state, { ...action, at: clock } as W.GameAction);
+}
+
+// A game whose cards were dealt as `roles`, seat by seat.
+function dealt(roles: Role[], over: Partial<WolfSetup> = {}): GameState {
+  const s = setup({
+    players: players(roles.length),
+    wolves: roles.filter((r) => r === "wolf").length,
+    specials: W.SPECIAL_ROLES.filter((r) => roles.includes(r)),
+    ...over,
+  });
+  return { ...W.initialGameState(s), phase: "deal", roles, alive: roles.map(() => true) };
+}
+
+// Every player sees their card (and the narrator the roster) until the first night.
+function dealAll(state: GameState): GameState {
+  let s = state;
+  while (s.phase === "deal") s = step(step(s, { type: "reveal" }), { type: "next", rng: zero });
+  return s;
+}
+
+const night1 = (roles: Role[], over: Partial<WolfSetup> = {}) => dealAll(dealt(roles, over));
+// Ann villager, Bob wolf, Cem seer, Dan doctor, Eda villager.
+const basic: Role[] = ["villager", "wolf", "seer", "doctor", "villager"];
+
+describe("before the night", () => {
+  it("shows the This game screen after the setup and deals only from there", () => {
+    let s = step(W.initialGameState(), { type: "start", setup: setup({ players: [" Ann", "Bob ", "Cem", "Dan", "Eda"] }) });
+    expect(s.phase).toBe("rules");
+    expect(s.setup.players).toEqual(players(5));
+    expect(s.roles).toEqual([]);
+    s = step(s, { type: "deal", rng: zero });
+    expect(s.phase).toBe("deal");
+    expect(s.roles).toEqual(["seer", "doctor", "villager", "villager", "wolf"]);
+    expect(s.alive).toEqual([true, true, true, true, true]);
+    expect([s.turn, s.revealed]).toEqual([0, false]);
+  });
+
+  it("does not start from an invalid setup", () => {
+    expect(step(W.initialGameState(), { type: "start", setup: setup({ players: players(4) }) }).phase).toBe("setup");
+  });
+
+  it("passes the phone on only after the card was seen", () => {
+    let s = step(dealt(basic), { type: "next", rng: zero });
+    expect(s.turn).toBe(0);
+    s = step(step(s, { type: "reveal" }), { type: "next", rng: zero });
+    expect([s.turn, s.revealed]).toEqual([1, false]);
+  });
+
+  it("starts the first night after the last card when the phone goes round", () => {
+    const s = night1(basic);
+    expect(s.phase).toBe("night");
+    expect(s.night).toMatchObject({ number: 1, lap: "main", order: [0, 1, 2, 3, 4], visit: 0, stage: "card" });
+    expect(s.revealed).toBe(false);
+  });
+
+  it("gives the phone to the narrator after the last card in narrator mode", () => {
+    let s = dealt(basic, { night: "narrator" });
+    for (let i = 0; i < 5; i++) s = step(step(s, { type: "reveal" }), { type: "next", rng: zero });
+    expect([s.phase, s.turn, s.revealed]).toEqual(["deal", 5, false]);
+    s = step(s, { type: "next", rng: zero });
+    expect(s.phase).toBe("deal");
+    s = step(step(s, { type: "reveal" }), { type: "next", rng: zero });
+    expect(s.phase).toBe("night");
+    expect(s.night?.line).toBe(0);
+  });
+
+  it("goes back to the setup with the same settings on New game", () => {
+    const s = step(dealt(basic), { type: "newGame" });
+    expect(s).toMatchObject({ phase: "setup", roles: [], night: null });
+    expect(s.setup).toEqual(dealt(basic).setup);
+  });
+
+  it("deals again only from the This game screen after Play again", () => {
+    const over: GameState = { ...dealt(basic), phase: "end", winner: "village" };
+    expect(step(over, { type: "deal", rng: zero }).phase).toBe("end");
+    const again = step(over, { type: "playAgain" });
+    expect(again).toMatchObject({ phase: "rules", roles: [], alive: [], night: null, winner: null });
+    expect(again.potions).toEqual({ heal: true, poison: true });
+    expect(again.setup).toEqual(over.setup);
+  });
+});
+
+describe("tap guard", () => {
+  it("ignores a tap that comes too soon after the last accepted one", () => {
+    const shown = W.gameReducer(dealt(basic), { type: "reveal", at: 10_000 });
+    expect(W.gameReducer(shown, { type: "next", rng: zero, at: 10_000 + W.TAP_GUARD_MS - 1 }).turn).toBe(0);
+    expect(W.gameReducer(shown, { type: "next", rng: zero, at: 10_000 + W.TAP_GUARD_MS }).turn).toBe(1);
+  });
+
+  it("does not let a second reveal restart the guard", () => {
+    const shown = W.gameReducer(dealt(basic), { type: "reveal", at: 10_000 });
+    expect(W.gameReducer(shown, { type: "reveal", at: 10_500 }).lastActionAt).toBe(10_000);
+  });
+});

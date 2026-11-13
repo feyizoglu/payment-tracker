@@ -1,5 +1,5 @@
 import type { translationsFor } from "./i18n";
-import { MAX_PLAYERS, MAX_TIMER_MINUTES } from "./imposter";
+import { MAX_PLAYERS, MAX_TIMER_MINUTES, TAP_GUARD_MS } from "./imposter";
 
 export {
   GAME_THEME,
@@ -270,4 +270,164 @@ export const NARRATOR_LINE_KEYS = {
 export function narratorLines(setup: WolfSetup): NarratorLine[] {
   const called = (["seer", "doctor", "witch"] as const).filter((role) => setup.specials.includes(role));
   return ["sleep", "wolves", ...called, "wake"];
+}
+
+export type Phase = "setup" | "rules" | "deal" | "night" | "morning" | "day" | "end";
+
+export interface Night extends NightOutcome {
+  /** Also the number of the day that follows. */
+  number: number;
+  /** Pass the phone: the witch lap comes only while a living witch has a potion left. */
+  lap: "main" | "witch";
+  /** Pass the phone: the living seats in visiting order. */
+  order: number[];
+  /** Pass the phone: index into `order`. */
+  visit: number;
+  /** Pass the phone: the held card, then the open choice. */
+  stage: "card" | "choose";
+  /** Pass the phone: whom each seat chose on the main lap. */
+  picks: (number | null)[];
+  /** Narrator: index into `narratorLines(setup)`. */
+  line: number;
+  /** The seer's pick. */
+  seen: number | null;
+}
+
+export interface Removal {
+  /** In seat order. */
+  removed: number[];
+  /** A removed hunter who takes a player with them. */
+  hunter: number | null;
+  shot: number | null;
+}
+
+export interface GameState {
+  phase: Phase;
+  setup: WolfSetup;
+  /** By seat. */
+  roles: Role[];
+  alive: boolean[];
+  /** Deal: whose card it is; `players.length` is the narrator's roster. */
+  turn: number;
+  /** The card of this deal turn or night visit has been seen. */
+  revealed: boolean;
+  night: Night | null;
+  /** The doctor's pick of the night before, which may not be protected again. */
+  lastProtected: number | null;
+  /** The witch's potions still unused. */
+  potions: { heal: boolean; poison: boolean };
+  /** Whom the night or the vote removed, shown in the morning and after the vote. */
+  removal: Removal | null;
+  dayStep: "talk" | "vote" | "result";
+  /** When the day's discussion timer runs out, in ms. */
+  dayEndsAt: number;
+  winner: Side | null;
+  /** When the last accepted move happened, in ms. */
+  lastActionAt: number;
+}
+
+/** `at` is the tap's timestamp in ms (Date.now()). */
+export type GameAction =
+  | { type: "start"; setup: WolfSetup; at: number }
+  | { type: "deal"; rng: Rng; at: number }
+  | { type: "reveal"; at: number }
+  | { type: "next"; rng: Rng; at: number }
+  | { type: "choose"; target: number; at: number }
+  | { type: "heal"; at: number }
+  | { type: "shoot"; target: number; at: number }
+  | { type: "vote"; at: number }
+  | { type: "talk"; at: number }
+  | { type: "voteOut"; target: number | null; at: number }
+  | { type: "continue"; at: number }
+  | { type: "playAgain"; at: number }
+  | { type: "newGame"; at: number };
+
+export function initialGameState(setup: WolfSetup = DEFAULT_SETUP): GameState {
+  return {
+    phase: "setup",
+    setup,
+    roles: [],
+    alive: [],
+    turn: 0,
+    revealed: false,
+    night: null,
+    lastProtected: null,
+    potions: { heal: true, poison: true },
+    removal: null,
+    dayStep: "talk",
+    dayEndsAt: 0,
+    winner: null,
+    lastActionAt: 0,
+  };
+}
+
+// The buttons that move a turn on sit where the next screen's buttons appear, so a
+// double tap would otherwise also press the next one, often for the next player.
+function tooSoon(state: GameState, at: number): boolean {
+  const d = at - state.lastActionAt;
+  return d >= 0 && d < TAP_GUARD_MS;
+}
+
+function beginNight(state: GameState, at: number): GameState {
+  const number = (state.night?.number ?? 0) + 1;
+  return {
+    ...state,
+    phase: "night",
+    night: {
+      number,
+      lap: "main",
+      order: visitOrder(state.alive, number),
+      visit: 0,
+      stage: "card",
+      picks: state.roles.map(() => null),
+      line: 0,
+      victim: null,
+      seen: null,
+      protect: null,
+      heal: false,
+      poison: null,
+    },
+    removal: null,
+    revealed: false,
+    lastActionAt: at,
+  };
+}
+
+function dealStep(state: GameState, action: GameAction): GameState {
+  if (action.type === "reveal") {
+    if (state.revealed) return state;
+    return { ...state, revealed: true, lastActionAt: action.at };
+  }
+  if (action.type !== "next" || !state.revealed) return state;
+  const turn = state.turn + 1;
+  const n = state.setup.players.length;
+  // In narrator mode the phone then goes back to the narrator: one more turn, the roster.
+  if (turn < n || (turn === n && state.setup.night === "narrator")) {
+    return { ...state, turn, revealed: false, lastActionAt: action.at };
+  }
+  return beginNight(state, action.at);
+}
+
+export function gameReducer(state: GameState, action: GameAction): GameState {
+  if (tooSoon(state, action.at)) return state;
+  switch (action.type) {
+    case "start": {
+      if (state.phase !== "setup" || validateSetup(action.setup).length > 0) return state;
+      const setup = { ...action.setup, players: action.setup.players.map((p) => p.trim()) };
+      return { ...initialGameState(setup), phase: "rules", lastActionAt: action.at };
+    }
+    case "deal": {
+      if (state.phase !== "rules") return state;
+      const roles = dealRoles(state.setup, action.rng);
+      return { ...initialGameState(state.setup), phase: "deal", roles, alive: roles.map(() => true), lastActionAt: action.at };
+    }
+    case "playAgain":
+      if (state.phase !== "end") return state;
+      return { ...initialGameState(state.setup), phase: "rules", lastActionAt: action.at };
+    case "newGame":
+      // The setup's buttons can sit where this one was: keep the time so they are guarded too.
+      return { ...initialGameState(state.setup), lastActionAt: action.at };
+  }
+  if (state.phase === "deal") return dealStep(state, action);
+  return state;
 }
