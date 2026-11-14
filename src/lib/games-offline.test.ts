@@ -11,9 +11,9 @@ describe("games offline helper", () => {
     expect(sw).toContain(`const GAMES_PAGES = ${JSON.stringify(GAMES_PAGES).replace(/,/g, ", ")};`);
   });
 
-  it("keeps the five games pages in the fourth cache version", () => {
-    expect(GAMES_PAGES).toEqual(["/games", "/games/imposter", "/games/word", "/games/wolf", "/games/potato"]);
-    expect(GAMES_CACHE).toBe("games-v4");
+  it("keeps the six games pages in the fifth cache version", () => {
+    expect(GAMES_PAGES).toEqual(["/games", "/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who"]);
+    expect(GAMES_CACHE).toBe("games-v5");
   });
 });
 
@@ -46,6 +46,7 @@ describe("syncGamesCache", () => {
     "/games/word": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/word.js?dpl=1\"]"])</script>`,
     "/games/wolf": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/wolf.js?dpl=1\"]"])</script>`,
     "/games/potato": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/potato.js?dpl=1\"]"])</script>`,
+    "/games/who": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/who.js?dpl=1\"]"])</script>`,
   };
   const assets = [
     "/_next/static/chunks/main.js?dpl=1",
@@ -54,6 +55,7 @@ describe("syncGamesCache", () => {
     "/_next/static/chunks/word.js?dpl=1",
     "/_next/static/chunks/wolf.js?dpl=1",
     "/_next/static/chunks/potato.js?dpl=1",
+    "/_next/static/chunks/who.js?dpl=1",
   ];
 
   function fakeCache(initial: string[] = [], failing: string[] = []) {
@@ -138,17 +140,17 @@ describe("prepareGamesOffline", () => {
     const { register, open } = stubBrowser(async () => ({}));
     await prepareGamesOffline();
     expect(register).toHaveBeenCalledWith("/sw.js", { scope: "/", updateViaCache: "none" });
-    expect(open).toHaveBeenCalledWith("games-v4");
+    expect(open).toHaveBeenCalledWith("games-v5");
   });
 
   it("drops the older games caches once the new one is complete", async () => {
-    const { remove } = stubBrowser(async () => ({}), { status: 200, names: ["games-v0", "games-v1", "games-v2", "games-v3", "games-v4", "other"] });
+    const { remove } = stubBrowser(async () => ({}), { status: 200, names: ["games-v0", "games-v1", "games-v2", "games-v3", "games-v4", "games-v5", "other"] });
     await prepareGamesOffline();
-    expect(remove.mock.calls).toEqual([["games-v0"], ["games-v1"], ["games-v2"], ["games-v3"]]);
+    expect(remove.mock.calls).toEqual([["games-v0"], ["games-v1"], ["games-v2"], ["games-v3"], ["games-v4"]]);
   });
 
   it("keeps the older games cache when the new one could not be filled", async () => {
-    const { remove } = stubBrowser(async () => ({}), { status: 503, names: ["games-v3", "games-v4"] });
+    const { remove } = stubBrowser(async () => ({}), { status: 503, names: ["games-v4", "games-v5"] });
     await prepareGamesOffline();
     expect(remove).not.toHaveBeenCalled();
   });
