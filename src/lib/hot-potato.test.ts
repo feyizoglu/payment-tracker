@@ -175,6 +175,13 @@ describe("pickTask", () => {
     expect(pickTask(pool, "prompts", [], zero)!.task).toEqual({ kind: "prompt", id: "en-1", text: "Something round" });
   });
 
+  it("draws the task itself at random, not in list order", () => {
+    expect(pickTask(pool, "prompts", [], () => 0.99)!.task.id).toBe("en-3");
+    expect(pickTask(pool, "prompts", [], () => 0.5)!.task.id).toBe("en-2");
+    expect(pickTask(pool, "prompts", ["en-2"], () => 0.99)!.task.id).toBe("en-3");
+    expect(pickTask(pool, "letters", [], () => 0.99)!.task.id).toBe("en:food:B");
+  });
+
   it("draws each kind with equal chance in a mixed game", () => {
     expect(pickTask(pool, "mixed", [], seq(0.49, 0))!.task.kind).toBe("letter");
     expect(pickTask(pool, "mixed", [], seq(0.5, 0))!.task.kind).toBe("prompt");
