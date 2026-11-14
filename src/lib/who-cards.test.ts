@@ -7,6 +7,7 @@ import {
   WHO_REGIONS,
   type WhoCard,
 } from "./who-cards";
+import SHIPPED_IDS from "./who-card-ids.json";
 
 const LOCALES = { tr: "tr-TR", en: "en-US" } as const;
 const MAX_NAME = 40;
@@ -121,5 +122,17 @@ describe("Who Am I? characters", () => {
 
   it("has enough characters", () => {
     expect(WHO_CHARACTERS.length).toBeGreaterThanOrEqual(MIN_CHARACTERS);
+  });
+});
+
+describe("Who Am I? card ids", () => {
+  // Devices store seen card ids, so a shipped id must keep naming the same card. New rows may be
+  // appended; deleting or reordering a row shifts the ids after it and fails here.
+  it("keeps every shipped id on the same card", () => {
+    const current = new Map([...WHO_PEOPLE, ...WHO_CHARACTERS].map((c) => [c.id, c.name.en]));
+    const moved = Object.entries(SHIPPED_IDS as Record<string, string>).flatMap(([id, name]) =>
+      current.get(id) === name ? [] : [`${id}: was ${name}, now ${current.get(id) ?? "missing"}`]
+    );
+    expect(moved).toEqual([]);
   });
 });
