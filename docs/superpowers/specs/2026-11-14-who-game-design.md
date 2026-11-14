@@ -83,6 +83,10 @@ has at least 150 cards.
   - drop people the rules exclude and names a party table would not know;
   - set the region and level;
   - write both names and both hint lines.
+- Wikidata's occupation tags wrongly excluded many famous people (a writer also tagged as a
+  politician) and some famous names were in no batch, so the curators also added well-known
+  people and characters from their own knowledge. Hints are written by the curators; a review
+  pass checked them, but not every hint against a source.
 - Wikidata data is CC0. The script stays in the repository so the list can be pulled and grown
   again; the raw candidates are not committed.
 
