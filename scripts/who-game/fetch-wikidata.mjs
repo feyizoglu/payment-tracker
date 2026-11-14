@@ -145,7 +145,7 @@ const BIG_OCCUPATIONS = new Set([
 ]);
 
 const EXCLUDED_OCCUPATION_ROOTS = [
-  "Q82955", "Q116", "Q189290", "Q4991371", "Q1402561", "Q48352", "Q2285706",
+  "Q82955", "Q116", "Q1402561", "Q48352", "Q2285706",
   "Q2259532", "Q42603", "Q250867", "Q125482", "Q133485", "Q15995642", "Q1423891", "Q152002", "Q219477",
   "Q733786", "Q191808", "Q488111", "Q2159907", "Q12414919",
 ];
@@ -154,6 +154,7 @@ const EXCLUDED_OCCUPATION_PRUNE_ROOTS = [
   "Q135268101", "Q18810149", "Q16185210", "Q8125919", "Q27044075", "Q125360586", "Q4594605", "Q16009129",
   "Q6731168", "Q335757",
 ];
+const MILITARY_OCCUPATION_ROOTS = ["Q189290", "Q4991371"];
 const EXCLUDED_POSITION_ROOTS = ["Q48352", "Q2285706", "Q116"];
 
 const CHARACTER_BATCHES = [
@@ -537,7 +538,17 @@ const PEOPLE_PROPERTIES = [
 async function collectPeople(meta) {
   const { groups, classGroup } = await buildPeopleGroups();
   const excludedOccupations = await closureSet(EXCLUDED_OCCUPATION_ROOTS, "excluded occupations");
-  for (const cls of await closureSet(EXCLUDED_OCCUPATION_PRUNE_ROOTS, "excluded occupation prunes")) excludedOccupations.delete(cls);
+  const militaryOccupations = await closureSet(MILITARY_OCCUPATION_ROOTS, "military occupations");
+  for (const cls of await closureSet(EXCLUDED_OCCUPATION_PRUNE_ROOTS, "excluded occupation prunes")) {
+    excludedOccupations.delete(cls);
+    militaryOccupations.delete(cls);
+  }
+  for (const cls of excludedOccupations) militaryOccupations.delete(cls);
+  const militaryOnly = (occupations) => {
+    const military = occupations.filter((o) => militaryOccupations.has(o));
+    const civilian = occupations.some((o) => classGroup.has(o) && !militaryOccupations.has(o));
+    return military.length && !civilian ? military : [];
+  };
   const excludedPositions = await closureSet(EXCLUDED_POSITION_ROOTS, "excluded positions");
   log(`occupation classes: ${classGroup.size}, excluded occupation classes: ${excludedOccupations.size}, excluded positions: ${excludedPositions.size}`);
 
@@ -546,6 +557,8 @@ async function collectPeople(meta) {
     if (!details.p31.includes("Q5")) return "not human";
     const badOccupations = details.occ.filter((o) => excludedOccupations.has(o));
     if (badOccupations.length) return { occupations: badOccupations };
+    const soldierOnly = militaryOnly(details.occ);
+    if (soldierOnly.length) return { occupations: soldierOnly };
     const badPositions = details.pos.filter((p) => excludedPositions.has(p));
     if (badPositions.length) return { positions: badPositions };
     const born = yearOf(details.born, Math.min);
@@ -587,7 +600,9 @@ async function collectPeople(meta) {
   log(`tr people harvest: ${tr.size} people`);
   const trPools = new Map(groups.map((g) => [g.index, []]));
   for (const entry of tr.values()) {
-    const badOccupations = [...entry.classes].filter((c) => excludedOccupations.has(c));
+    const occupations = [...entry.classes];
+    const badOccupations = occupations.filter((c) => excludedOccupations.has(c));
+    if (!badOccupations.length) badOccupations.push(...militaryOnly(occupations));
     if (badOccupations.length) {
       const group = groupOf(entry.classes, classGroup);
       if (group !== null) excluded.set(entry.qid, { qid: entry.qid, sl: entry.sl, group: groups[group].id, region: "tr", reason: { occupations: badOccupations } });

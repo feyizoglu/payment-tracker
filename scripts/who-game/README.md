@@ -49,7 +49,9 @@ one JSON array per batch, sorted by Wikipedia sitelinks:
   same batch. YouTubers and other internet personalities from Turkey go to `tr-other`.
 - Excluded people:
   - politicians, monarchs, and heads of state or government (by occupation or by position held);
-  - military officers, soldiers and military leaders;
+  - military leaders, and military officers or soldiers who have no other occupation from the
+    batch domains (James Cook, Yuri Gagarin and Neil Armstrong stay unless another rule drops
+    them);
   - clergy and religious leaders;
   - pornographic actors, criminals and terrorists;
   - anyone born after 2008.
