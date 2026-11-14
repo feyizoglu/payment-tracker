@@ -619,3 +619,8 @@ export function sideColor(mode: WhoMode, side: number): string {
 export function sideName(setup: WhoSetup, side: number): string {
   return setup.mode === "solo" ? setup.players[side] : setup.teams[side].name;
 }
+
+/** Every side's name, in turn order. */
+export function sideNames(setup: WhoSetup): string[] {
+  return Array.from({ length: sides(setup) }, (_, side) => sideName(setup, side));
+}

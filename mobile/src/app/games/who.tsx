@@ -10,6 +10,7 @@ import {
   WHO_SUMMARY_LOCK_MS,
   initialWhoState,
   sideColor,
+  sideNames,
   validateWhoSetup,
   whoGuesser,
   whoPool,
@@ -105,7 +106,7 @@ export default function WhoScreen() {
 
   if (!pinReady) return <GamesPinSetup title={t.whoTitle} />;
 
-  const names = setup.mode === "solo" ? setup.players : setup.teams.map((team) => team.name);
+  const names = sideNames(setup);
   const colors = names.map((_, i) => sideColor(setup.mode, i));
   const side = whoSide(state);
   let body: ReactNode = null;

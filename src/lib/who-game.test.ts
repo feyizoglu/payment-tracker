@@ -15,6 +15,7 @@ import {
   parseSavedWhoSeen,
   parseSavedWhoSetup,
   sideName,
+  sideNames,
   totalTurns,
   turnPoints,
   whoGuesser,
@@ -654,5 +655,10 @@ describe("sideName", () => {
 
   it("names the team in teams", () => {
     expect(sideName({ ...setup, mode: "teams" }, 1)).toBe("Blue");
+  });
+
+  it("names every side, players in solo and the two teams in teams", () => {
+    expect(sideNames({ ...setup, mode: "solo" })).toEqual(["Ann", "Bob", "Cem"]);
+    expect(sideNames({ ...setup, mode: "teams" })).toEqual(["Red", "Blue"]);
   });
 });

@@ -12,6 +12,7 @@ import {
   parseSavedWhoSeen,
   parseSavedWhoSetup,
   sideColor,
+  sideNames,
   validateWhoSetup,
   whoGuesser,
   whoPool,
@@ -92,7 +93,7 @@ export default function WhoGame() {
     if (pool.length > 0 && (phase === "summary" || phase === "end")) write(whoSeenKey(state.lang), JSON.stringify(seen));
   }, [phase, pool, seen, state.lang]);
 
-  const names = setup.mode === "solo" ? setup.players : setup.teams.map((team) => team.name);
+  const names = sideNames(setup);
   const colors = names.map((_, i) => sideColor(setup.mode, i));
   const side = whoSide(state);
 
