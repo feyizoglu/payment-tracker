@@ -28,7 +28,7 @@
 6. **Bang:** stored as `bangAt`; Next is refused until `POTATO_NEXT_LOCK_MS` (1500) after it, on top of the 250 ms tap guard, whether a tick or a Pass caused it. The out order is kept for the end screen.
 7. **Language:** the pool carries its language; a task's text is built with that language's strings (`taskText(task, lang)`), so a language switch mid-game never mixes a TR letter with an EN phrase.
 8. **Validation:** Imposter's error strings and limits (3–12 players); names compared lowercased with the app language's locale as Describe It does. A lives value outside 1–5 is an error of the rules step.
-9. **Bang look:** the frame turns red (`PLAYER_COLORS[0]`, dark text), "BANG!", the holder's name and their lives left or "Out of the game!". The text is in a `role="alert"` region on web and read out with `AccessibilityInfo` on mobile.
+9. **Bang look:** the frame turns red (`PLAYER_COLORS[0]`, dark text), "BANG!", the holder's name and their lives left or "Out of the game!". The text is in a `role="alert"` `aria-live="assertive"` region on web and read out with `AccessibilityInfo` on mobile.
 10. **Pulse:** `fuseStage(state, now)` returns `calm`, `pulse` (last quarter) or `fast` (last tenth). Web: an `aria-hidden` overlay with `animate-pulse`, 1 s or 0.5 s. Mobile: an RN `Animated` loop on a hidden overlay.
 11. **Games list:** web uses lucide `Flame` on `bg-orange-50` (themed in dark mode in `globals.css`); mobile uses 🥔 on `bg-amber-50`, because orange is not a themed token in `mobile/tailwind.css`.
 
@@ -38,7 +38,7 @@ Shared: create `shared/hot-potato-letters.ts`, `shared/hot-potato.ts`; modify `s
 
 Web: create `src/lib/hot-potato.ts` (re-export), `src/lib/hot-potato.test.ts`, `src/lib/hot-potato-letters.test.ts`, `src/app/games/potato/page.tsx` (+ `page.test.ts`), `src/components/games/potato/` `PotatoGame`, `PotatoSetupWizard`, `PotatoRulesStep`, `PotatoReady`, `PotatoPlay`, `PotatoBang`, `PotatoEnd` (+ `PotatoSetup.test.ts`, `PotatoScreens.test.ts`, `PotatoGame.test.ts`); modify `src/app/games/page.tsx` (+ test), `src/lib/games-offline.ts` (+ test), `public/sw.js`.
 
-Mobile: create `mobile/src/lib/hot-potato-storage.ts` (+ test), `mobile/src/app/games/potato.tsx`, `mobile/src/components/games/potato/` `potato-setup`, `potato-rules-step`, `potato-ready`, `potato-play`, `potato-bang`, `potato-end` (+ `mobile/src/lib/potato-screen.test.ts`, `mobile/src/lib/potato-play.test.ts`); modify `mobile/src/app/_layout.tsx`, `mobile/src/app/games/index.tsx`, `mobile/src/lib/root-layout.test.ts`, `mobile/src/lib/game-mode-entry.test.ts`.
+Mobile: create `mobile/src/lib/hot-potato-storage.ts` (+ test), `mobile/src/app/games/potato.tsx`, `mobile/src/components/games/potato/` `potato-setup`, `potato-rules-step`, `potato-ready`, `potato-play`, `potato-bang`, `potato-end` (+ `mobile/src/lib/potato-screen.test.ts`, `mobile/src/lib/potato-screens.test.ts`, `mobile/src/lib/potato-setup.test.ts`); modify `mobile/src/app/_layout.tsx`, `mobile/src/app/games/index.tsx`, `mobile/src/lib/root-layout.test.ts`, `mobile/src/lib/game-mode-entry.test.ts`.
 
 ## Tasks
 
@@ -73,7 +73,7 @@ Mobile: create `mobile/src/lib/hot-potato-storage.ts` (+ test), `mobile/src/app/
 
 ### Task 5: Mobile
 
-- Tests first: `hot-potato-storage.test.ts` (key, parse, fail-soft read and write), `potato-screen.test.ts` (route with mocked hooks: PIN gate, loading, start, play, bang, end, saved setup), `potato-play.test.ts` (AppState pauses and resumes, vibration once per bang, announcement, Next lock), root layout guard and the games list (five presses, flag at index 4).
+- Tests first: `hot-potato-storage.test.ts` (key, parse, fail-soft read and write), `potato-screen.test.ts` (route with mocked hooks: PIN gate, loading, start, play, bang, end, saved setup), `potato-screens.test.ts` (ready; play: AppState pauses and resumes, ticks, pulse; bang: vibration once, announcement, Next lock; end), `potato-setup.test.ts` (rules step and two-step wizard), root layout guard and the games list (five presses, flag at index 4).
 - Implement the storage, route, components, `_layout.tsx` registration and the games list entry.
 - Commit `feat(games): add Hot Potato to the mobile app`.
 
