@@ -167,7 +167,8 @@ export default function WhoScreen() {
       title={t.whoTitle}
       tone="game"
       color={phase === "handoff" ? colors[side] : undefined}
-      scroll={phase === "setup" || phase === "summary" || phase === "end"}>
+      scroll={phase === "setup" || phase === "summary" || phase === "end"}
+      nav={phase !== "turn"}>
       {body}
     </GameScreen>
   );

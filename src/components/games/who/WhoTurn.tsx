@@ -76,7 +76,7 @@ export default function WhoTurn({
   );
 
   return (
-    <div className="relative flex min-h-[70vh] flex-col gap-3">
+    <div className="relative flex min-h-[70vh] flex-1 flex-col gap-3">
       <div
         data-card
         className="pointer-events-none absolute inset-x-2 top-1/2 z-10 -translate-y-1/2 space-y-3 rounded-2xl px-4 py-6 text-center shadow-xl"

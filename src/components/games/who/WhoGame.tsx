@@ -129,7 +129,7 @@ export default function WhoGame() {
   if (phase === "turn") {
     if (!state.card) return null;
     return (
-      <GameFrame>
+      <GameFrame cover>
         <WhoTurn
           key={state.turnsPlayed}
           card={state.card}

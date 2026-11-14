@@ -191,7 +191,7 @@ describe("Who Am I? screen: setup", () => {
     await start();
     expect(storage.setStoredWhoSetup).toHaveBeenCalledWith(valid);
     expect(props(WhoHandoff)).toMatchObject({ guesser: "Ann", team: null, round: 1, rounds: 1 });
-    expect(screen()).toMatchObject({ title: "whoTitle", tone: "game", color: playerColor(0), scroll: false });
+    expect(screen()).toMatchObject({ title: "whoTitle", tone: "game", color: playerColor(0), scroll: false, nav: true });
   });
 
   it("names the team and its guesser on the team's colour", async () => {
@@ -215,6 +215,18 @@ describe("Who Am I? screen: a turn", () => {
     expect(props(WhoTurn).card.name.startsWith("EN p-")).toBe(true);
     expect(props(WhoTurn)).toMatchObject({ turnMs: 30_000, usedMs: 0, runningSince: clock.now });
     expect(screen()).toMatchObject({ color: undefined, scroll: false });
+  });
+
+  it("hides the header's back and exit only while the turn runs", async () => {
+    await load(valid);
+    expect(screen().nav).toBe(true);
+    call(WhoSetupWizard, "onStart");
+    expect(screen().nav).toBe(true);
+    call(WhoHandoff, "onStart");
+    expect(screen().nav).toBe(false);
+    call(WhoTurn, "onTick", undefined, 30_000);
+    expect(has(WhoSummary)).toBe(true);
+    expect(screen().nav).toBe(true);
   });
 
   it("deals the cards this device has not shown yet first", async () => {

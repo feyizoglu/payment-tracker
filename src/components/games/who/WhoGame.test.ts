@@ -8,6 +8,7 @@ type Props = Record<string, unknown>;
 const ui = vi.hoisted(() => ({
   screen: "",
   frameColor: undefined as string | undefined,
+  frameCover: undefined as boolean | undefined,
   props: {} as Record<string, Props | undefined>,
 }));
 // A mocked screen records that it is showing and the props it got.
@@ -41,8 +42,9 @@ vi.mock("@/lib/who-things", () => ({
   WHO_THINGS: { en: { animals: [], jobs: [], objects: [] }, tr: { animals: [], jobs: [], objects: [] } },
 }));
 vi.mock("../GameFrame", () => ({
-  default: (props: { color?: string; children?: unknown }) => {
+  default: (props: { color?: string; cover?: boolean; children?: unknown }) => {
     ui.frameColor = props.color;
+    ui.frameCover = props.cover;
     return props.children;
   },
 }));
@@ -108,6 +110,7 @@ async function turn(answers: ("got" | "pass")[] = []) {
 beforeEach(() => {
   ui.screen = "";
   ui.frameColor = undefined;
+  ui.frameCover = undefined;
   ui.props = {};
   store = new Map();
   vi.stubGlobal("window", { HTMLIFrameElement: class {} });
@@ -211,6 +214,16 @@ describe("WhoGame turn", () => {
     expect(p("turn").card.name.startsWith("EN p-")).toBe(true);
     expect(p("turn")).toMatchObject({ turnMs: 30_000, usedMs: 0, runningSince: clock });
     expect(ui.frameColor).toBeUndefined();
+  });
+
+  it("covers the page's header links only while the turn runs", async () => {
+    await start();
+    expect(ui.frameCover).toBeFalsy();
+    await call(() => p("handoff").onStart());
+    expect(ui.frameCover).toBe(true);
+    await call(() => p("turn").onTick(), 30_000);
+    expect(ui.screen).toBe("summary");
+    expect(ui.frameCover).toBeFalsy();
   });
 
   it("shows the next card after an answer", async () => {
