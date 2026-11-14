@@ -407,4 +407,21 @@ describe("Who Am I? screen: the end", () => {
     expect(props(WhoSetupWizard).value).toEqual(valid);
     expect(props(WhoSetupWizard).step).toBe(0);
   });
+
+  it("deals a game started after New game from the cards the last game has not shown", async () => {
+    await start();
+    call(WhoHandoff, "onStart");
+    const first = props(WhoTurn).card;
+    call(WhoTurn, "onTick", undefined, 30_000);
+    clock.now += WHO_SUMMARY_LOCK_MS;
+    call(WhoSummary, "onNext");
+    turn();
+    call(WhoSummary, "onNext");
+    await settle();
+    call(WhoEnd, "onNewGame");
+    await settle();
+    call(WhoSetupWizard, "onStart");
+    call(WhoHandoff, "onStart");
+    expect(props(WhoTurn).card.id).not.toBe(first.id);
+  });
 });

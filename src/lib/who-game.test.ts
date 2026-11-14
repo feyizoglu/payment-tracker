@@ -14,6 +14,7 @@ import {
   nameSize,
   parseSavedWhoSeen,
   parseSavedWhoSetup,
+  sideName,
   totalTurns,
   turnPoints,
   whoGuesser,
@@ -599,5 +600,24 @@ describe("nameSize", () => {
     expect(nameSize("Leonardo da Vinci")).toBe("lg");
     expect(nameSize("Wolfgang Amadeus Mozart")).toBe("md");
     expect(nameSize("Mustafa Kemal Atatürk Kız Lisesi Müdürü")).toBe("sm");
+  });
+});
+
+describe("sideName", () => {
+  const setup: WhoSetup = {
+    ...defaultWhoSetup("en", TEAM_NAMES),
+    players: ["Ann", "Bob", "Cem"],
+    teams: [
+      { name: "Red", players: ["Dan", "Eda"] },
+      { name: "Blue", players: ["Fay", "Gul"] },
+    ],
+  };
+
+  it("names the player in solo", () => {
+    expect(sideName({ ...setup, mode: "solo" }, 1)).toBe("Bob");
+  });
+
+  it("names the team in teams", () => {
+    expect(sideName({ ...setup, mode: "teams" }, 1)).toBe("Blue");
   });
 });
