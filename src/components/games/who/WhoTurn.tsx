@@ -63,7 +63,7 @@ export default function WhoTurn({
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [onPause, onResume]);
 
-  const left = Math.ceil(whoTimeLeft({ turnMs, usedMs, runningSince }, now) / 1000);
+  const left = formatCountdown(Math.ceil(whoTimeLeft({ turnMs, usedMs, runningSince }, now) / 1000));
   const half = (result: WhoResult, label: string, align: string) => (
     <button
       type="button"
@@ -82,8 +82,13 @@ export default function WhoTurn({
         className="pointer-events-none absolute inset-x-2 top-1/2 z-10 -translate-y-1/2 space-y-3 rounded-2xl px-4 py-6 text-center shadow-xl"
         style={{ backgroundColor: GAME_THEME.bg, color: GAME_THEME.text }}
       >
-        <p role="timer" aria-label={t.whoTimeLeft} className="font-mono text-2xl font-bold" style={{ color: GAME_THEME.muted }}>
-          {formatCountdown(left)}
+        <p
+          role="timer"
+          aria-label={`${t.whoTimeLeft} ${left}`}
+          className="font-mono text-2xl font-bold"
+          style={{ color: GAME_THEME.muted }}
+        >
+          {left}
         </p>
         <p
           key={card.id}

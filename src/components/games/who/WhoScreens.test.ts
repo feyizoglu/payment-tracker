@@ -165,7 +165,7 @@ describe("WhoTurn", () => {
   it("shows the name, the hint and the time left to the table", () => {
     const tree = render();
     expect(text(cardBox(tree))).toBe("1:00Marie Curiephysicist, Poland and France");
-    expect(timer(tree).props["aria-label"]).toBe("whoTimeLeft");
+    expect(timer(tree).props["aria-label"]).toBe("whoTimeLeft 1:00");
   });
 
   it("fills the screen with two labelled halves, Got it on top, that answer the card", () => {
