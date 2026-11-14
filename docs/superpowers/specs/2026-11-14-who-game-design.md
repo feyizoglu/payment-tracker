@@ -64,6 +64,8 @@ Things keep their Describe It ids with a `things:` prefix.
 - Names are written the way the table says them: "Messi", "Barış Manço", "Mozart", "Pamuk
   Prenses". Turkish names keep their Turkish letters; no circumflexes in Turkish text.
 - No duplicates within a kind (compared lowercased with spacing and punctuation removed).
+- Kinds may share a name (Michelangelo the painter and the Ninja Turtle): a game deals the name
+  once, people before characters before things, compared the same way.
 
 ### Sizes
 
@@ -114,7 +116,8 @@ the pool itself has fewer than 50, the setup shows an error and suggests adding 
 
 1. **Handoff.** The screen names who guesses ("Ayşe" or "Red team: Ayşe guesses") and says to
    hold the phone to the forehead, screen out, then tap **Start**. In team mode the guesser rotates
-   within the team turn by turn.
+   within the team turn by turn and carries on over **Play again**, so in a big team everyone
+   guesses over successive games; a new setup starts each team at its first player again.
 2. **Guessing.**
    - The screen shows the card's name in very large type, the hint line under it, and the time
      left, all readable from across a table.
