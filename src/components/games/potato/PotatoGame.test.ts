@@ -156,6 +156,17 @@ describe("PotatoGame setup", () => {
     expect(p("ready").name).toBe("Ann");
     expect(ui.frameColor).toBe(playerColor(0));
   });
+
+  it("starts even when storage cannot be written", async () => {
+    const setItem = vi.fn(() => {
+      throw new Error("quota");
+    });
+    vi.stubGlobal("localStorage", { getItem: () => null, setItem });
+    await start();
+    expect(setItem).toHaveBeenCalledWith(SETUP_STORAGE_KEY, JSON.stringify(valid));
+    expect(ui.screen).toBe("ready");
+    expect(p("ready").name).toBe("Ann");
+  });
 });
 
 describe("PotatoGame round", () => {
