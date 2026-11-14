@@ -116,6 +116,9 @@ the pool itself has fewer than 50, the setup shows an error and suggests adding 
      cannot see them, so each half is a big, clearly coloured area.
    - A tap within 400 ms of the previous one is ignored.
    - After each tap the next card shows at once.
+   - No navigation control can be tapped above the halves while the turn runs: on web the game
+     covers the whole page with its header links, on mobile the header shows only the title. Back
+     and the game-mode Exit are there again on the handoff and summary screens.
 3. **Time up.** The phone vibrates (React Native `Vibration`, web `navigator.vibrate` where it
    exists) and the turn ends. A card on screen at that moment counts as passed.
 4. **Summary.** The turn's cards in order, each marked Got it or Passed. Tapping a card flips its
