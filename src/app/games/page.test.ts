@@ -2,7 +2,13 @@ import { describe, it, expect, vi } from "vitest";
 import { createElement, Fragment, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-vi.mock("lucide-react", () => ({ ChevronRight: () => null, MessageSquareText: () => null, Moon: () => null, VenetianMask: () => null }));
+vi.mock("lucide-react", () => ({
+  ChevronRight: () => null,
+  Flame: () => null,
+  MessageSquareText: () => null,
+  Moon: () => null,
+  VenetianMask: () => null,
+}));
 vi.mock("@/components/games/GamesShell", () => ({
   default: ({ children }: { children?: ReactNode }) => createElement(Fragment, null, children),
 }));
@@ -15,10 +21,10 @@ import GamesPage from "./page";
 const html = () => renderToStaticMarkup(createElement(GamesPage));
 
 describe("GamesPage", () => {
-  it("links the word game after the Imposter game, then Wolf Night", () => {
+  it("links the word game after the Imposter game, then Wolf Night, then Hot Potato", () => {
     const hrefs = [...html().matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]);
 
-    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf"]);
+    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato"]);
   });
 
   it("shows the word game's title and description on its link", () => {
@@ -31,5 +37,11 @@ describe("GamesPage", () => {
     const link = html().match(/<a href="\/games\/wolf"[^>]*>(.*?)<\/a>/)?.[1] ?? "";
 
     expect(link).toMatch(/>wolfTitle<\/p><p[^>]*>wolfDesc<\/p>/);
+  });
+
+  it("shows Hot Potato's title and description on its link", () => {
+    const link = html().match(/<a href="\/games\/potato"[^>]*>(.*?)<\/a>/)?.[1] ?? "";
+
+    expect(link).toMatch(/>potatoTitle<\/p><p[^>]*>potatoDesc<\/p>/);
   });
 });
