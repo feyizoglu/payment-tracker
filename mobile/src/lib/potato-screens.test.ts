@@ -14,6 +14,8 @@ const rn = vi.hoisted(() => ({
   vibrate: vi.fn(),
   announce: vi.fn(),
   appState: undefined as undefined | ((next: string) => void),
+  currentState: "active" as string | null,
+  focused: true,
   removeAppState: vi.fn(),
   loops: [] as { start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; half: number }[],
 }));
@@ -54,6 +56,9 @@ vi.mock("react-native", () => {
       },
     },
     AppState: {
+      get currentState() {
+        return rn.currentState;
+      },
       addEventListener: (_type: string, fn: (next: string) => void) => {
         rn.appState = fn;
         return { remove: rn.removeAppState };
@@ -66,6 +71,7 @@ vi.mock("react-native", () => {
     View: () => null,
   };
 });
+vi.mock("expo-router", () => ({ useIsFocused: () => rn.focused }));
 vi.mock("@ptracker/shared/i18n", () => ({
   useLang: () => ({
     t: new Proxy({} as Record<string, string>, {
@@ -131,6 +137,8 @@ beforeEach(() => {
   hooks.effects = [];
   hooks.cleanups = [];
   rn.appState = undefined;
+  rn.currentState = "active";
+  rn.focused = true;
   rn.loops = [];
 });
 
@@ -185,16 +193,56 @@ describe("PotatoPlay (mobile)", () => {
     expect(onTick).toHaveBeenCalledTimes(calls);
   });
 
-  it("pauses the fuse when the app leaves the screen and resumes it when it is back", () => {
+  /** Renders again, runs the effects, and reports which of pause and resume the game got last. */
+  function settle(): "pause" | "resume" | null {
+    vi.clearAllMocks();
     render();
     runEffects();
+    if (onResume.mock.calls.length > 0 && onPause.mock.calls.length === 0) return "resume";
+    if (onPause.mock.calls.length > 0 && onResume.mock.calls.length === 0) return "pause";
+    return null;
+  }
+
+  it("pauses the fuse when the app leaves the screen and resumes it when it is back", () => {
+    expect(settle()).toBe("resume");
     rn.appState!("inactive");
+    expect(settle()).toBe("pause");
     rn.appState!("background");
-    expect(onPause).toHaveBeenCalledTimes(2);
+    expect(settle()).toBe("pause");
     rn.appState!("active");
-    expect(onResume).toHaveBeenCalledTimes(1);
+    expect(settle()).toBe("resume");
     cleanUp();
-    expect(rn.removeAppState).toHaveBeenCalledTimes(1);
+    expect(rn.removeAppState).toHaveBeenCalled();
+  });
+
+  it("pauses the fuse while the game-mode PIN screen covers the game", () => {
+    expect(settle()).toBe("resume");
+    rn.focused = false;
+    expect(settle()).toBe("pause");
+    rn.appState!("background");
+    expect(settle()).toBe("pause");
+    rn.appState!("active");
+    expect(settle()).toBe("pause");
+    rn.focused = true;
+    expect(settle()).toBe("resume");
+  });
+
+  it("stays paused when the screen comes back while the app is in the background", () => {
+    rn.focused = false;
+    expect(settle()).toBe("pause");
+    rn.appState!("background");
+    rn.focused = true;
+    expect(settle()).toBe("pause");
+    rn.appState!("active");
+    expect(settle()).toBe("resume");
+  });
+
+  it("takes an app that has not reported its state yet as active", () => {
+    rn.currentState = null;
+    expect(settle()).toBe("resume");
+    hooks.states = [];
+    rn.currentState = "background";
+    expect(settle()).toBe("pause");
   });
 
   it("pulses only in the last quarter of the fuse, faster in the last tenth, hidden from screen readers", () => {

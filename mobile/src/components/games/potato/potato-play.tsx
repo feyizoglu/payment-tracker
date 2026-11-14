@@ -1,3 +1,4 @@
+import { useIsFocused } from "expo-router";
 import { useEffect, useState } from "react";
 import { Animated, AppState, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -33,8 +34,13 @@ export function PotatoPlay({
   onResume: () => void;
 }) {
   const { t } = useLang();
+  const focused = useIsFocused();
   const [now, setNow] = useState(() => Date.now());
   const [glow] = useState(() => new Animated.Value(0));
+  // The screen only mounts after a tap, so a state not reported yet counts as active.
+  const [appActive, setAppActive] = useState(
+    () => AppState.currentState !== "background" && AppState.currentState !== "inactive"
+  );
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -44,11 +50,17 @@ export function PotatoPlay({
     return () => clearInterval(id);
   }, [onTick]);
 
-  // Nobody explodes while the app is in the background or the phone is locked.
   useEffect(() => {
-    const sub = AppState.addEventListener("change", (next) => (next === "active" ? onResume() : onPause()));
+    const sub = AppState.addEventListener("change", (next) => setAppActive(next === "active"));
     return () => sub.remove();
-  }, [onPause, onResume]);
+  }, []);
+
+  // Nobody explodes while the app is in the background, the phone is locked or the game-mode
+  // PIN screen covers the game, which stays mounted under it.
+  useEffect(() => {
+    if (focused && appActive) onResume();
+    else onPause();
+  }, [focused, appActive, onPause, onResume]);
 
   const stage = fuseStage({ fuseMs, burntMs, litAt }, now);
 
