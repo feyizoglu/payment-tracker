@@ -2,9 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactElement } from "react";
 import { WHO_SUMMARY_LOCK_MS, defaultWhoSetup, playerColor, teamColor, type WhoSetup } from "@ptracker/shared/who-game";
 
+// Effects run, as in React, only when their dependencies changed since they last ran.
 const hooks = vi.hoisted(() => ({
   states: [] as unknown[],
-  effects: [] as (() => void | (() => void))[],
+  effects: [] as { slot: number; effect: () => void | (() => void); deps?: unknown[] }[],
+  ran: new Map<number, unknown[] | undefined>(),
+  cleanups: new Map<number, () => void>(),
   index: 0,
 }));
 const storage = vi.hoisted(() => ({
@@ -13,7 +16,8 @@ const storage = vi.hoisted(() => ({
   getStoredWhoSeen: vi.fn(),
   setStoredWhoSeen: vi.fn(async (_lang: unknown, _seen: unknown) => undefined),
 }));
-const entry = vi.hoisted(() => ({ pinReady: true }));
+const entry = vi.hoisted(() => ({ pinReady: true, focused: true }));
+const back = vi.hoisted(() => ({ handlers: [] as { fn: () => boolean | null | undefined; removed: boolean }[] }));
 const clock = vi.hoisted(() => ({ now: 0 }));
 // 60 world people and 10 Turkish characters: a default English game (world) has 60 cards,
 // characters alone are too few.
@@ -53,12 +57,22 @@ vi.mock("react", async (importOriginal) => {
     },
     useCallback: (fn: unknown) => fn,
     useMemo: (fn: () => unknown) => fn(),
-    useEffect: (effect: () => void | (() => void)) => {
-      hooks.effects.push(effect);
+    useEffect: (effect: () => void | (() => void), deps?: unknown[]) => {
+      hooks.effects.push({ slot: hooks.index++, effect, deps });
     },
   };
 });
-vi.mock("react-native", () => ({ ActivityIndicator: () => null }));
+vi.mock("react-native", () => ({
+  ActivityIndicator: () => null,
+  BackHandler: {
+    addEventListener: (_type: string, fn: () => boolean | null | undefined) => {
+      const handler = { fn, removed: false };
+      back.handlers.push(handler);
+      return { remove: () => (handler.removed = true) };
+    },
+  },
+}));
+vi.mock("expo-router", () => ({ useIsFocused: () => entry.focused }));
 vi.mock("@ptracker/shared/i18n", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@ptracker/shared/i18n")>()),
   useLang: () => ({ t: new Proxy({}, { get: (_, key) => (key === "wordTeamDefault" ? "Team {n}" : String(key)) }), lang: "en" }),
@@ -119,12 +133,41 @@ function call(type: unknown, name: string, arg?: unknown, wait = 1000) {
 }
 const screen = () => render().props;
 
+function changed(before: unknown[] | undefined, after: unknown[] | undefined): boolean {
+  if (!before || !after || before.length !== after.length) return true;
+  return after.some((dep, i) => !Object.is(dep, before[i]));
+}
+
+function runEffects() {
+  for (const { slot, effect, deps } of hooks.effects) {
+    if (hooks.ran.has(slot) && !changed(hooks.ran.get(slot), deps)) continue;
+    hooks.cleanups.get(slot)?.();
+    hooks.cleanups.delete(slot);
+    const cleanup = effect();
+    if (cleanup) hooks.cleanups.set(slot, cleanup);
+    hooks.ran.set(slot, deps);
+  }
+  hooks.effects = [];
+}
+
+/** Runs every cleanup and forgets the screen, so the next render mounts it afresh. */
+function unmount() {
+  for (const cleanup of hooks.cleanups.values()) cleanup();
+  hooks.cleanups.clear();
+  hooks.ran.clear();
+  hooks.states = [];
+  hooks.effects = [];
+}
+
 async function settle() {
   render();
-  for (const effect of hooks.effects) effect();
+  runEffects();
   await Promise.resolve();
   await Promise.resolve();
 }
+
+/** Back handlers still listening. */
+const listening = () => back.handlers.filter((h) => !h.removed);
 
 async function load(setup: WhoSetup, seen: string[] = []) {
   storage.getStoredWhoSetup.mockResolvedValue(setup);
@@ -147,8 +190,10 @@ function turn(answers: ("got" | "pass")[] = []) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  hooks.states = [];
+  unmount();
+  back.handlers = [];
   entry.pinReady = true;
+  entry.focused = true;
   clock.now = 1_800_000_000_000;
   vi.spyOn(Date, "now").mockImplementation(() => clock.now);
   vi.spyOn(Math, "random").mockReturnValue(0);
@@ -184,6 +229,7 @@ describe("Who Am I? screen: setup", () => {
   it("restores the last setup with its pool size and offers to start with it", async () => {
     await load(valid);
     expect(props(WhoSetupWizard)).toMatchObject({ value: valid, poolSize: 60, quickStart: true });
+    unmount();
     await load({ ...valid, kinds: ["characters"], region: "mixed" });
     expect(props(WhoSetupWizard)).toMatchObject({ poolSize: 10, quickStart: false });
   });
@@ -229,11 +275,54 @@ describe("Who Am I? screen: a turn", () => {
     call(WhoTurn, "onTick", undefined, 30_000);
     expect(has(WhoSummary)).toBe(true);
     expect(screen().nav).toBe(false);
-    for (const effect of hooks.effects) effect();
+    runEffects();
     vi.advanceTimersByTime(WHO_SUMMARY_LOCK_MS - 1);
     expect(screen().nav).toBe(false);
     vi.advanceTimersByTime(1);
     expect(screen().nav).toBe(true);
+  });
+
+  it("swallows Android's back while the turn runs and until the summary opens, and only then", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await load(valid);
+    call(WhoSetupWizard, "onStart");
+    await settle();
+    expect(listening()).toHaveLength(0);
+    call(WhoHandoff, "onStart");
+    await settle();
+    expect(listening()).toHaveLength(1);
+    expect(listening()[0].fn()).toBe(true);
+    call(WhoTurn, "onTick", undefined, 30_000);
+    await settle();
+    expect(listening()).toHaveLength(1);
+    entry.focused = false;
+    await settle();
+    expect(listening()).toHaveLength(0);
+    entry.focused = true;
+    await settle();
+    expect(has(WhoSummary)).toBe(true);
+    expect(listening()).toHaveLength(1);
+    expect(listening()[0].fn()).toBe(true);
+    vi.advanceTimersByTime(WHO_SUMMARY_LOCK_MS);
+    await settle();
+    expect(has(WhoSummary)).toBe(true);
+    expect(listening()).toHaveLength(0);
+    call(WhoSummary, "onNext");
+    await settle();
+    expect(listening()).toHaveLength(0);
+  });
+
+  it("leaves Android's back alone while another screen covers the turn", async () => {
+    await start();
+    call(WhoHandoff, "onStart");
+    entry.focused = false;
+    await settle();
+    expect(listening()).toHaveLength(0);
+    entry.focused = true;
+    await settle();
+    expect(listening()).toHaveLength(1);
+    unmount();
+    expect(listening()).toHaveLength(0);
   });
 
   it("deals the cards this device has not shown yet first", async () => {

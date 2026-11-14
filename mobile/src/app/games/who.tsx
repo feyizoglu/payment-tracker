@@ -1,5 +1,6 @@
+import { useIsFocused } from "expo-router";
 import { useCallback, useEffect, useMemo, useReducer, useState, type ReactNode } from "react";
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator, BackHandler } from "react-native";
 
 import { localeFor, useLang } from "@ptracker/shared/i18n";
 import { WHO_CHARACTERS, WHO_PEOPLE } from "@ptracker/shared/who-cards";
@@ -46,6 +47,7 @@ export default function WhoScreen() {
   // A game was played on this device before: the wizard may offer to skip its steps.
   const [played, setPlayed] = useState(false);
   const pinReady = useEnterGameModeOnce();
+  const focused = useIsFocused();
   const tick = useCallback(() => dispatch({ type: "tick", at: Date.now() }), []);
   const pause = useCallback(() => dispatch({ type: "pause", at: Date.now() }), []);
   const resume = useCallback(() => dispatch({ type: "resume", at: Date.now() }), []);
@@ -92,6 +94,14 @@ export default function WhoScreen() {
     return () => clearTimeout(id);
   }, [phase, endedAt]);
   const shield = phase === "turn" || (phase === "summary" && lockOver !== endedAt);
+
+  // Android's back button and back gesture would leave a turn the guesser is tapping blind.
+  // Only while this screen is on top: the game-mode PIN screen over it keeps its back.
+  useEffect(() => {
+    if (!shield || !focused) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+    return () => sub.remove();
+  }, [shield, focused]);
 
   if (!pinReady) return <GamesPinSetup title={t.whoTitle} />;
 
