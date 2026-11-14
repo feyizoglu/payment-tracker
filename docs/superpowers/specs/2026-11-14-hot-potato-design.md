@@ -71,21 +71,27 @@ the others went out in, **Play again** (same players and rules) and **New game**
 
 ### Letter + category
 
-- The template is "{letter} ile başlayan {thing}" / "{thing} starting with {letter}", for
-  example "S ile başlayan bir hayvan" / "An animal starting with S".
-- The things are the Describe It categories except idioms, each with a singular phrase in both
-  languages: an animal, a food or drink, a job, a place, an object, a sport or game, something
-  in a home, something in nature, a part of the body, a vehicle, something from the arts, an
-  action (verb).
+- Each Describe It category except idioms has its own task sentence in both languages, with the
+  letter as its only gap.
+- Animals, food, jobs, places, objects and actions ask for the thing itself: "S ile başlayan bir
+  hayvan" / "An animal starting with S", and likewise a food or drink, a job, a place, an object,
+  an action (verb).
+- Sports, home, nature, body, transport and arts hold too few things per letter ("a vehicle
+  starting with Ş" has one or two answers), so they ask for any word on the topic: "N ile
+  başlayan, vücutla ilgili bir kelime" / "A word about the body starting with N", and likewise
+  sports or games, the home, nature, transport, the arts.
 - Candidate letters per language:
   - TR: A B C Ç D E F G H I İ K L M N O Ö P R S Ş T U Ü V Y Z (no Ğ, J).
   - EN: A B C D E F G H I J K L M N O P R S T U V W Y (no Q, X, Z).
-- Not every letter suits every category ("a vehicle starting with Ö" has almost no answer). Each
-  category uses only the candidate letters that start at least 5 words of that category in the
-  language's Describe It list. The resulting table (`POTATO_LETTERS`, per language and category)
-  is written in the code, so the game does not load the word lists; a test checks every pair in
-  the table against the lists. First letters are compared with the language's locale, so TR I
-  and İ stay different letters.
+- Not every letter suits every category. Each category uses only the candidate letters that
+  start at least 5 words of that category in the language's Describe It list. For the six
+  categories that ask for the thing itself, every letter is also checked by hand: at least 4
+  words of the list really are one (a real animal, a real verb), and a letter that fails is
+  taken out of the table. The table (`POTATO_LETTERS`, per language and category) is written in
+  the code, so the game does not load the word lists; a test checks every pair in the table
+  against the lists, so the table can only shrink below what the ≥ 5 rule allows. First letters
+  are compared with the language's locale, so TR I and İ stay different letters. The hand check
+  of 2026-11-14 took no letter out: TR has 205 pairs, EN 202.
 - A letter and category pair is not repeated within a game.
 
 ### Ready-made
