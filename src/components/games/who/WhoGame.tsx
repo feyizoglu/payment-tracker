@@ -6,6 +6,7 @@ import { WHO_CHARACTERS, WHO_PEOPLE } from "@/lib/who-cards";
 import { WHO_THINGS } from "@/lib/who-things";
 import {
   WHO_SETUP_STORAGE_KEY,
+  WHO_SUMMARY_LOCK_MS,
   defaultTeamNames,
   defaultWhoSetup,
   initialWhoState,
@@ -74,10 +75,20 @@ export default function WhoGame() {
     setPlayed(validateWhoSetup(saved, localeFor(openLang), whoPool(saved, SOURCES, openLang).length).length === 0);
   }, [teamNames, openLang]);
 
-  const { phase, setup, pool, seen } = state;
+  const { phase, setup, pool, seen, endedAt } = state;
   useEffect(() => {
     if (pool.length > 0 && (phase === "summary" || phase === "end")) write(whoSeenKey(state.lang), JSON.stringify(seen));
   }, [phase, pool, seen, state.lang]);
+
+  // The guesser may still tap blind while the summary is locked: the page's header stays
+  // covered until it opens. Holds the `endedAt` of the summary whose lock has run out.
+  const [lockOver, setLockOver] = useState(-1);
+  useEffect(() => {
+    if (phase !== "summary") return;
+    const id = setTimeout(() => setLockOver(endedAt), Math.max(0, endedAt + WHO_SUMMARY_LOCK_MS - Date.now()));
+    return () => clearTimeout(id);
+  }, [phase, endedAt]);
+  const shield = phase === "turn" || (phase === "summary" && lockOver !== endedAt);
 
   const names = setup.mode === "solo" ? setup.players : setup.teams.map((team) => team.name);
   const colors = names.map((_, i) => sideColor(setup.mode, i));
@@ -147,7 +158,7 @@ export default function WhoGame() {
 
   if (phase === "summary") {
     return (
-      <GameFrame>
+      <GameFrame cover={shield}>
         <WhoSummary
           key={state.turnsPlayed}
           side={side}

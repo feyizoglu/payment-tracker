@@ -9,7 +9,7 @@ import { GAME_THEME } from "@/lib/imposter";
 export default function GameFrame({ color, cover = false, children }: { color?: string; cover?: boolean; children: ReactNode }) {
   return (
     <div
-      className={cover ? "dark fixed inset-0 z-50 flex flex-col overflow-hidden overscroll-contain p-4" : "dark rounded-2xl p-4 sm:p-6"}
+      className={cover ? "dark fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain p-4" : "dark rounded-2xl p-4 sm:p-6"}
       style={{ backgroundColor: color ?? GAME_THEME.bg, color: color ? GAME_THEME.ink : GAME_THEME.text }}
     >
       {children}

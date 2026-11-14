@@ -155,6 +155,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -217,7 +218,8 @@ describe("Who Am I? screen: a turn", () => {
     expect(screen()).toMatchObject({ color: undefined, scroll: false });
   });
 
-  it("hides the header's back and exit only while the turn runs", async () => {
+  it("hides the header's back and exit while the turn runs and until the summary opens", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     await load(valid);
     expect(screen().nav).toBe(true);
     call(WhoSetupWizard, "onStart");
@@ -226,6 +228,11 @@ describe("Who Am I? screen: a turn", () => {
     expect(screen().nav).toBe(false);
     call(WhoTurn, "onTick", undefined, 30_000);
     expect(has(WhoSummary)).toBe(true);
+    expect(screen().nav).toBe(false);
+    for (const effect of hooks.effects) effect();
+    vi.advanceTimersByTime(WHO_SUMMARY_LOCK_MS - 1);
+    expect(screen().nav).toBe(false);
+    vi.advanceTimersByTime(1);
     expect(screen().nav).toBe(true);
   });
 

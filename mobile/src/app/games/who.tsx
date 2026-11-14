@@ -6,6 +6,7 @@ import { WHO_CHARACTERS, WHO_PEOPLE } from "@ptracker/shared/who-cards";
 import {
   defaultTeamNames,
   defaultWhoSetup,
+  WHO_SUMMARY_LOCK_MS,
   initialWhoState,
   sideColor,
   validateWhoSetup,
@@ -75,12 +76,22 @@ export default function WhoScreen() {
     };
   }, [lang]);
 
-  const { phase, setup, pool } = state;
+  const { phase, setup, pool, endedAt } = state;
   useEffect(() => {
     if (pool.length === 0 || (phase !== "summary" && phase !== "end")) return;
     void setStoredWhoSeen(state.lang, state.seen);
     if (state.lang === lang) setSeen(state.seen);
   }, [phase, pool, state.lang, state.seen, lang]);
+
+  // The guesser may still tap blind while the summary is locked: the header's back and exit
+  // stay hidden until it opens. Holds the `endedAt` of the summary whose lock has run out.
+  const [lockOver, setLockOver] = useState(-1);
+  useEffect(() => {
+    if (phase !== "summary") return;
+    const id = setTimeout(() => setLockOver(endedAt), Math.max(0, endedAt + WHO_SUMMARY_LOCK_MS - Date.now()));
+    return () => clearTimeout(id);
+  }, [phase, endedAt]);
+  const shield = phase === "turn" || (phase === "summary" && lockOver !== endedAt);
 
   if (!pinReady) return <GamesPinSetup title={t.whoTitle} />;
 
@@ -168,7 +179,7 @@ export default function WhoScreen() {
       tone="game"
       color={phase === "handoff" ? colors[side] : undefined}
       scroll={phase === "setup" || phase === "summary" || phase === "end"}
-      nav={phase !== "turn"}>
+      nav={!shield}>
       {body}
     </GameScreen>
   );

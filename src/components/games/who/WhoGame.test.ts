@@ -126,6 +126,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root?.unmount());
   root = null;
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -216,14 +217,19 @@ describe("WhoGame turn", () => {
     expect(ui.frameColor).toBeUndefined();
   });
 
-  it("covers the page's header links only while the turn runs", async () => {
+  it("covers the page's header links while the turn runs and until the summary opens", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     await start();
     expect(ui.frameCover).toBeFalsy();
     await call(() => p("handoff").onStart());
     expect(ui.frameCover).toBe(true);
     await call(() => p("turn").onTick(), 30_000);
     expect(ui.screen).toBe("summary");
-    expect(ui.frameCover).toBeFalsy();
+    expect(ui.frameCover).toBe(true);
+    await act(async () => vi.advanceTimersByTime(WHO_SUMMARY_LOCK_MS - 1));
+    expect(ui.frameCover).toBe(true);
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(ui.frameCover).toBe(false);
   });
 
   it("shows the next card after an answer", async () => {
