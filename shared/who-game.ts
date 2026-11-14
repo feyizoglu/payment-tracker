@@ -84,8 +84,6 @@ export function defaultWhoSetup(lang: Lang, teamNames: readonly [string, string]
   };
 }
 
-const DEFAULT_TEAM_NAMES = (["tr", "en"] as const).map((l) => defaultTeamNames(translationsFor(l).wordTeamDefault));
-
 /** A setup moved to `lang`: default team names follow it, and so does the region unless `keepRegion`. */
 export function whoSetupInLang(
   setup: WhoSetup,
@@ -93,8 +91,9 @@ export function whoSetupInLang(
   teamNames: readonly [string, string],
   keepRegion: boolean
 ): WhoSetup {
+  const defaults = (["tr", "en"] as const).map((l) => defaultTeamNames(translationsFor(l).wordTeamDefault));
   const teams = setup.teams.map((team, i) =>
-    DEFAULT_TEAM_NAMES.some((names) => names[i] === team.name) ? { ...team, name: teamNames[i] } : team
+    defaults.some((names) => names[i] === team.name) ? { ...team, name: teamNames[i] } : team
   ) as [WordTeam, WordTeam];
   return { ...setup, teams, region: keepRegion ? setup.region : defaultWhoSetup(lang, teamNames).region };
 }
