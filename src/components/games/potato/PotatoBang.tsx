@@ -42,7 +42,7 @@ export default function PotatoBang({
 
   return (
     <div className="space-y-8 py-8 text-center">
-      <div role="alert" className="space-y-3">
+      <div role="alert" aria-live="assertive" className="space-y-3">
         <p className="animate-[game-fade_150ms_ease-out] text-6xl font-black tracking-wider">{t.potatoBang}</p>
         <p className="break-words text-3xl font-bold">{name}</p>
         <p className="text-xl font-semibold">{status}</p>

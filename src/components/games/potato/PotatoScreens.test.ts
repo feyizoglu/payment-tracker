@@ -205,6 +205,7 @@ describe("PotatoBang", () => {
   const alert = (tree: Node) => nodes(tree).find((n) => n.props.role === "alert")!;
 
   it("announces the bang, the holder and their lives left", () => {
+    expect(alert(render(2)).props["aria-live"]).toBe("assertive");
     expect(text(alert(render(2)))).toBe("potatoBangAnn2 lives left");
     expect(text(alert(render(1)))).toBe("potatoBangAnnpotatoLifeLeft");
     expect(text(alert(render(0)))).toBe("potatoBangAnnpotatoOut");
