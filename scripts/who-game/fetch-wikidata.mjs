@@ -2,6 +2,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const ENDPOINT = "https://query.wikidata.org/sparql";
 const HEADERS = {
@@ -911,7 +912,10 @@ async function main() {
   log(`done: ${queryCount} queries (${cachedCount} cached), ${failures.length} failed, ${meta.durationSeconds}s`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// Importing the file (from a test, say) must never start a network run.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
