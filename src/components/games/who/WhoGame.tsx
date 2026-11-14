@@ -6,7 +6,6 @@ import { WHO_CHARACTERS, WHO_PEOPLE } from "@/lib/who-cards";
 import { WHO_THINGS } from "@/lib/who-things";
 import {
   WHO_SETUP_STORAGE_KEY,
-  WHO_SUMMARY_LOCK_MS,
   defaultTeamNames,
   defaultWhoSetup,
   initialWhoState,
@@ -88,20 +87,10 @@ export default function WhoGame() {
     setDraft((d) => whoSetupInLang(d, lang, teamNames, regionChosen));
   }, [saved, lang, teamNames, regionChosen]);
 
-  const { phase, setup, pool, seen, endedAt } = state;
+  const { phase, setup, pool, seen } = state;
   useEffect(() => {
     if (pool.length > 0 && (phase === "summary" || phase === "end")) write(whoSeenKey(state.lang), JSON.stringify(seen));
   }, [phase, pool, seen, state.lang]);
-
-  // The guesser may still tap blind while the summary is locked: the page's header stays
-  // covered until it opens. Holds the `endedAt` of the summary whose lock has run out.
-  const [lockOver, setLockOver] = useState(-1);
-  useEffect(() => {
-    if (phase !== "summary") return;
-    const id = setTimeout(() => setLockOver(endedAt), Math.max(0, endedAt + WHO_SUMMARY_LOCK_MS - Date.now()));
-    return () => clearTimeout(id);
-  }, [phase, endedAt]);
-  const shield = phase === "turn" || (phase === "summary" && lockOver !== endedAt);
 
   const names = setup.mode === "solo" ? setup.players : setup.teams.map((team) => team.name);
   const colors = names.map((_, i) => sideColor(setup.mode, i));
@@ -173,9 +162,11 @@ export default function WhoGame() {
     );
   }
 
+  // The guesser may still tap blind as the summary appears, so it stays above the page's
+  // header like the turn; covering it only for its lock would shift it when the lock ends.
   if (phase === "summary") {
     return (
-      <GameFrame cover={shield}>
+      <GameFrame cover>
         <WhoSummary
           key={state.turnsPlayed}
           side={side}

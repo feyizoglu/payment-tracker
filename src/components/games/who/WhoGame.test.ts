@@ -263,7 +263,7 @@ describe("WhoGame turn", () => {
     expect(ui.frameColor).toBeUndefined();
   });
 
-  it("covers the page's header links while the turn runs and until the summary opens", async () => {
+  it("covers the page's header links from the turn to the end of the summary, so the summary never shifts", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     await start();
     expect(ui.frameCover).toBeFalsy();
@@ -272,10 +272,12 @@ describe("WhoGame turn", () => {
     await call(() => p("turn").onTick(), 30_000);
     expect(ui.screen).toBe("summary");
     expect(ui.frameCover).toBe(true);
-    await act(async () => vi.advanceTimersByTime(WHO_SUMMARY_LOCK_MS - 1));
+    await act(async () => vi.advanceTimersByTime(WHO_SUMMARY_LOCK_MS * 4));
+    await call(() => p("summary").onFlip(0), WHO_SUMMARY_LOCK_MS);
     expect(ui.frameCover).toBe(true);
-    await act(async () => vi.advanceTimersByTime(1));
-    expect(ui.frameCover).toBe(false);
+    await call(() => p("summary").onNext());
+    expect(ui.screen).toBe("handoff");
+    expect(ui.frameCover).toBeFalsy();
   });
 
   it("shows the next card after an answer", async () => {
