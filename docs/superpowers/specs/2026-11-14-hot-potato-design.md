@@ -60,6 +60,10 @@ the background the fuse pauses, and it resumes when it comes back, so nobody exp
 phone is locked. The fuse for a round is drawn at Start from the setup's range with the game's
 `Rng`.
 
+The screen's timer only asks the reducer to check the fuse; the reducer decides. A Pass whose
+time is at or past the fuse's end bangs on the current holder instead of passing, so a timer
+that fires late never lets the holder escape.
+
 **End:** when one player is left, the end screen shows the winner in their colour, the order
 the others went out in, **Play again** (same players and rules) and **New game** (setup).
 
@@ -73,9 +77,15 @@ the others went out in, **Play again** (same players and rules) and **New game**
   languages: an animal, a food or drink, a job, a place, an object, a sport or game, something
   in a home, something in nature, a part of the body, a vehicle, something from the arts, an
   action (verb).
-- Letters per language:
+- Candidate letters per language:
   - TR: A B C Ç D E F G H I İ K L M N O Ö P R S Ş T U Ü V Y Z (no Ğ, J).
   - EN: A B C D E F G H I J K L M N O P R S T U V W Y (no Q, X, Z).
+- Not every letter suits every category ("a vehicle starting with Ö" has almost no answer). Each
+  category uses only the candidate letters that start at least 5 words of that category in the
+  language's Describe It list. The resulting table (`POTATO_LETTERS`, per language and category)
+  is written in the code, so the game does not load the word lists; a test checks every pair in
+  the table against the lists. First letters are compared with the language's locale, so TR I
+  and İ stay different letters.
 - A letter and category pair is not repeated within a game.
 
 ### Ready-made
@@ -87,12 +97,20 @@ the others went out in, **Play again** (same players and rules) and **New game**
   that rhymes with 'cat'", "A country in Europe").
 - Family friendly. No brand names, and no task that asks for a real person or a title of a
   film, book, song or game.
-- One line, at most 60 characters, no full stop at the end.
+- Each task has at least about 20 common answers; no small closed sets (seasons, continents,
+  days of the week).
+- One line, at most 60 characters, no full stop at the end. TR is written without circumflexes.
 - A task is not repeated within a game.
 
 ### Mixed
 
 Each round is a letter task or a ready-made one with equal chance.
+
+### Repeats
+
+The tasks used so far are kept for **Play again** too. When every task of a kind has been used,
+that kind starts over. The longest game (12 players, 5 lives) has at most 59 rounds, fewer than
+either kind holds.
 
 ## Code structure
 
@@ -122,11 +140,13 @@ Each round is a letter task or a ready-made one with equal chance.
 
 - `src/lib/hot-potato.test.ts`: validation, pass order skipping players who are out, lives and
   elimination, the winner, the next round's starter, fuse drawing within the range, pause and
-  resume, a bang only once the fuse has run out, the tap guard, the 1.5 s lock on Next, no
-  repeated task in a game, letter tasks only from the language's letters and allowed categories.
+  resume, a bang only once the fuse has run out, a late Pass that bangs, the tap guard, the
+  1.5 s lock on Next, no repeated task in a game, letter tasks only from `POTATO_LETTERS`.
+- A letters test: every pair in `POTATO_LETTERS` starts at least 5 words of that category in the
+  Describe It list, every letter is a candidate letter of its language, and idioms are absent.
 - `src/lib/hot-potato-prompts.test.ts`: at least 250 tasks per language, ids in order, no
-  duplicates (compared lowercased and trimmed), one line, at most 60 characters, no trailing
-  full stop.
+  duplicates (compared lowercased, without spacing and punctuation), one line, at most 60
+  characters, no trailing full stop, a capital first letter, no circumflex in TR.
 - Screens on both platforms with the existing component test harness.
 - Before the device check: web build, the single-React bundle check, and the adb launch check
   when the phone is attached.

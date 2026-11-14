@@ -56,3 +56,10 @@ describe.each(LANGS)("%s Hot Potato tasks", (lang, locale) => {
     expect(bad.map((p) => `${p.id}: ${p.text}`)).toEqual([]);
   });
 });
+
+describe("tr Hot Potato tasks", () => {
+  it("are written without circumflexes", () => {
+    const bad = HOT_POTATO_PROMPTS.tr.filter((p) => /[âîûÂÎÛ]/.test(p.text));
+    expect(bad.map((p) => `${p.id}: ${p.text}`)).toEqual([]);
+  });
+});
