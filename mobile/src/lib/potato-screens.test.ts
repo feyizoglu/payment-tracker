@@ -4,10 +4,12 @@ import { POTATO_NEXT_LOCK_MS, POTATO_VIBRATE_MS, playerColor } from "@ptracker/s
 
 const NOW = 1_800_000_000_000;
 
+// Effects run, as in React, only when their dependencies changed since they last ran.
 const hooks = vi.hoisted(() => ({
   states: [] as unknown[],
-  effects: [] as (() => void | (() => void))[],
-  cleanups: [] as (() => void)[],
+  effects: [] as { slot: number; effect: () => void | (() => void); deps?: unknown[] }[],
+  ran: new Map<number, unknown[] | undefined>(),
+  cleanups: new Map<number, () => void>(),
   index: 0,
 }));
 const rn = vi.hoisted(() => ({
@@ -32,8 +34,8 @@ vi.mock("react", async (importOriginal) => {
       };
       return [hooks.states[i], set];
     },
-    useEffect: (effect: () => void | (() => void)) => {
-      hooks.effects.push(effect);
+    useEffect: (effect: () => void | (() => void), deps?: unknown[]) => {
+      hooks.effects.push({ slot: hooks.index++, effect, deps });
     },
   };
 });
@@ -118,24 +120,36 @@ function text(node: unknown): string {
 const press = (node: Node | undefined) => (node!.props.onPress as () => void)();
 const gameButton = (tree: Node) => nodes(tree).find((n) => n.type === GameButton)!;
 
+function changed(before: unknown[] | undefined, after: unknown[] | undefined): boolean {
+  if (!before || !after || before.length !== after.length) return true;
+  return after.some((dep, i) => !Object.is(dep, before[i]));
+}
+
 function runEffects() {
-  for (const effect of hooks.effects) {
+  for (const { slot, effect, deps } of hooks.effects) {
+    if (hooks.ran.has(slot) && !changed(hooks.ran.get(slot), deps)) continue;
+    hooks.cleanups.get(slot)?.();
+    hooks.cleanups.delete(slot);
     const cleanup = effect();
-    if (cleanup) hooks.cleanups.push(cleanup);
+    if (cleanup) hooks.cleanups.set(slot, cleanup);
+    hooks.ran.set(slot, deps);
   }
   hooks.effects = [];
 }
 
-function cleanUp() {
-  for (const cleanup of hooks.cleanups.splice(0)) cleanup();
+/** Runs every cleanup and forgets the component, so the next render mounts it afresh. */
+function unmount() {
+  for (const cleanup of hooks.cleanups.values()) cleanup();
+  hooks.cleanups.clear();
+  hooks.ran.clear();
+  hooks.states = [];
+  hooks.effects = [];
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval", "setTimeout", "clearTimeout"], now: NOW });
-  hooks.states = [];
-  hooks.effects = [];
-  hooks.cleanups = [];
+  unmount();
   rn.appState = undefined;
   rn.currentState = "active";
   rn.focused = true;
@@ -143,7 +157,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  cleanUp();
+  unmount();
   vi.useRealTimers();
 });
 
@@ -187,7 +201,7 @@ describe("PotatoPlay (mobile)", () => {
     runEffects();
     vi.advanceTimersByTime(1000);
     expect(onTick.mock.calls.length).toBeGreaterThanOrEqual(4);
-    cleanUp();
+    unmount();
     const calls = onTick.mock.calls.length;
     vi.advanceTimersByTime(1000);
     expect(onTick).toHaveBeenCalledTimes(calls);
@@ -208,11 +222,11 @@ describe("PotatoPlay (mobile)", () => {
     rn.appState!("inactive");
     expect(settle()).toBe("pause");
     rn.appState!("background");
-    expect(settle()).toBe("pause");
+    expect(settle()).toBeNull();
     rn.appState!("active");
     expect(settle()).toBe("resume");
-    cleanUp();
-    expect(rn.removeAppState).toHaveBeenCalled();
+    unmount();
+    expect(rn.removeAppState).toHaveBeenCalledTimes(1);
   });
 
   it("pauses the fuse while the game-mode PIN screen covers the game", () => {
@@ -240,7 +254,7 @@ describe("PotatoPlay (mobile)", () => {
   it("takes an app that has not reported its state yet as active", () => {
     rn.currentState = null;
     expect(settle()).toBe("resume");
-    hooks.states = [];
+    unmount();
     rn.currentState = "background";
     expect(settle()).toBe("pause");
   });
@@ -250,7 +264,6 @@ describe("PotatoPlay (mobile)", () => {
     runEffects();
     expect(rn.loops).toEqual([]);
 
-    hooks.states = [];
     const slow = pulse(render({ fuseMs: 10_000, burntMs: 0, litAt: NOW - 8_000 }))!;
     expect(slow.props.accessibilityElementsHidden).toBe(true);
     expect(slow.props.importantForAccessibility).toBe("no-hide-descendants");
@@ -258,11 +271,15 @@ describe("PotatoPlay (mobile)", () => {
     expect(rn.loops).toHaveLength(1);
     expect(rn.loops[0].start).toHaveBeenCalled();
 
-    hooks.states = [];
     render({ fuseMs: 10_000, burntMs: 9_500, litAt: null });
     runEffects();
+    expect(rn.loops).toHaveLength(2);
+    expect(rn.loops[0].stop).toHaveBeenCalled();
     expect(rn.loops[1].half).toBeLessThan(rn.loops[0].half);
-    cleanUp();
+    render({ fuseMs: 10_000, burntMs: 9_600, litAt: null });
+    runEffects();
+    expect(rn.loops).toHaveLength(2);
+    unmount();
     expect(rn.loops[1].stop).toHaveBeenCalled();
   });
 });
@@ -282,11 +299,15 @@ describe("PotatoBang (mobile)", () => {
     expect(text(render(0))).toBe("potatoBangAnnpotatoOut");
   });
 
-  it("vibrates once and reads the bang out", () => {
-    render(2);
+  it("vibrates and reads the bang out once, not again when Next opens", () => {
+    expect(gameButton(render(2)).props.disabled).toBe(true);
+    runEffects();
+    vi.advanceTimersByTime(POTATO_NEXT_LOCK_MS);
+    expect(gameButton(render(2)).props.disabled).toBe(false);
     runEffects();
     expect(rn.vibrate).toHaveBeenCalledTimes(1);
     expect(rn.vibrate).toHaveBeenCalledWith(POTATO_VIBRATE_MS);
+    expect(rn.announce).toHaveBeenCalledTimes(1);
     expect(rn.announce).toHaveBeenCalledWith("potatoBang Ann. 2 lives left");
   });
 

@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactElement } from "react";
-import { POTATO_NEXT_LOCK_MS, playerColor } from "@/lib/hot-potato";
+import { POTATO_NEXT_LOCK_MS, POTATO_VIBRATE_MS, playerColor } from "@/lib/hot-potato";
 
 const NOW = 1_800_000_000_000;
 
+// Effects run, as in React, only when their dependencies changed since they last ran.
 const hooks = vi.hoisted(() => ({
   states: [] as unknown[],
-  effects: [] as (() => void | (() => void))[],
-  cleanups: [] as (() => void)[],
+  effects: [] as { slot: number; effect: () => void | (() => void); deps?: unknown[] }[],
+  ran: new Map<number, unknown[] | undefined>(),
+  cleanups: new Map<number, () => void>(),
   index: 0,
 }));
 
@@ -23,8 +25,8 @@ vi.mock("react", async (importOriginal) => {
       };
       return [hooks.states[i], set];
     },
-    useEffect: (effect: () => void | (() => void)) => {
-      hooks.effects.push(effect);
+    useEffect: (effect: () => void | (() => void), deps?: unknown[]) => {
+      hooks.effects.push({ slot: hooks.index++, effect, deps });
     },
   };
 });
@@ -69,24 +71,40 @@ function text(node: unknown): string {
 const click = (node: Node | undefined) => (node!.props.onClick as () => void)();
 const button = (tree: Node, label: string) => nodes(tree).find((n) => n.type === "button" && text(n) === label);
 
+function changed(before: unknown[] | undefined, after: unknown[] | undefined): boolean {
+  if (!before || !after || before.length !== after.length) return true;
+  return after.some((dep, i) => !Object.is(dep, before[i]));
+}
+
 function runEffects() {
-  for (const effect of hooks.effects) {
+  for (const { slot, effect, deps } of hooks.effects) {
+    if (hooks.ran.has(slot) && !changed(hooks.ran.get(slot), deps)) continue;
+    hooks.cleanups.get(slot)?.();
+    hooks.cleanups.delete(slot);
     const cleanup = effect();
-    if (cleanup) hooks.cleanups.push(cleanup);
+    if (cleanup) hooks.cleanups.set(slot, cleanup);
+    hooks.ran.set(slot, deps);
   }
+  hooks.effects = [];
+}
+
+/** Runs every cleanup and forgets the component, so the next render mounts it afresh. */
+function unmount() {
+  for (const cleanup of hooks.cleanups.values()) cleanup();
+  hooks.cleanups.clear();
+  hooks.ran.clear();
+  hooks.states = [];
   hooks.effects = [];
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval", "setTimeout", "clearTimeout"], now: NOW });
-  hooks.states = [];
-  hooks.effects = [];
-  hooks.cleanups = [];
+  unmount();
 });
 
 afterEach(() => {
-  for (const cleanup of hooks.cleanups) cleanup();
+  unmount();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -155,7 +173,7 @@ describe("PotatoPlay", () => {
     runEffects();
     vi.advanceTimersByTime(1000);
     expect(onTick.mock.calls.length).toBeGreaterThanOrEqual(4);
-    for (const cleanup of hooks.cleanups.splice(0)) cleanup();
+    unmount();
     const calls = onTick.mock.calls.length;
     vi.advanceTimersByTime(1000);
     expect(onTick).toHaveBeenCalledTimes(calls);
@@ -170,7 +188,7 @@ describe("PotatoPlay", () => {
     doc.hidden = false;
     listeners.visibilitychange!();
     expect(onResume).toHaveBeenCalledTimes(1);
-    for (const cleanup of hooks.cleanups.splice(0)) cleanup();
+    unmount();
     expect(listeners.visibilitychange).toBeUndefined();
   });
 
@@ -230,12 +248,16 @@ describe("PotatoBang", () => {
     expect(button(render(1, NOW - 1000), "potatoNext")!.props.disabled).toBe(false);
   });
 
-  it("vibrates once where the browser can", () => {
+  it("vibrates once where the browser can, not again when Next opens", () => {
     const vibrate = vi.fn(() => true);
     vi.stubGlobal("navigator", { vibrate });
-    render(1);
+    expect(button(render(1), "potatoNext")!.props.disabled).toBe(true);
+    runEffects();
+    vi.advanceTimersByTime(POTATO_NEXT_LOCK_MS);
+    expect(button(render(1), "potatoNext")!.props.disabled).toBe(false);
     runEffects();
     expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenCalledWith(POTATO_VIBRATE_MS);
   });
 
   it("does without vibration where the browser cannot or refuses", () => {
@@ -247,7 +269,7 @@ describe("PotatoBang", () => {
         throw new Error("blocked");
       },
     });
-    hooks.states = [];
+    unmount();
     render(1);
     expect(() => runEffects()).not.toThrow();
   });
