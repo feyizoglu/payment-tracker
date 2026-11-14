@@ -372,19 +372,21 @@ export function potatoReducer(state: PotatoState, action: PotatoAction): PotatoS
   }
 }
 
-export const POTATO_THING_KEYS = {
-  animals: "potatoThingAnimals",
-  food: "potatoThingFood",
-  jobs: "potatoThingJobs",
-  places: "potatoThingPlaces",
-  objects: "potatoThingObjects",
-  sports: "potatoThingSports",
-  home: "potatoThingHome",
-  nature: "potatoThingNature",
-  body: "potatoThingBody",
-  transport: "potatoThingTransport",
-  arts: "potatoThingArts",
-  actions: "potatoThingActions",
+// Animals, food, jobs, places, objects and actions ask for the thing itself; the other
+// categories hold too few things per letter, so they ask for any word on the topic.
+export const POTATO_TASK_KEYS = {
+  animals: "potatoTaskAnimals",
+  food: "potatoTaskFood",
+  jobs: "potatoTaskJobs",
+  places: "potatoTaskPlaces",
+  objects: "potatoTaskObjects",
+  actions: "potatoTaskActions",
+  sports: "potatoTaskSports",
+  home: "potatoTaskHome",
+  nature: "potatoTaskNature",
+  body: "potatoTaskBody",
+  transport: "potatoTaskTransport",
+  arts: "potatoTaskArts",
 } as const satisfies Record<PotatoCategory, string>;
 
 export const FUSE_LABEL_KEYS = {
@@ -402,8 +404,5 @@ export const TASK_MODE_KEYS = {
 /** The task as shown, in the game's language whatever the app shows now. */
 export function taskText(task: PotatoTask, lang: Lang): string {
   if (task.kind === "prompt") return task.text;
-  const t = translationsFor(lang);
-  const thing = t[POTATO_THING_KEYS[task.category]];
-  const Thing = thing.charAt(0).toLocaleUpperCase(localeFor(lang)) + thing.slice(1);
-  return fillTemplate(t.potatoLetterTask, { letter: task.letter, thing, Thing });
+  return fillTemplate(translationsFor(lang)[POTATO_TASK_KEYS[task.category]], { letter: task.letter });
 }

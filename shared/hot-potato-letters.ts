@@ -17,6 +17,9 @@ export const POTATO_CANDIDATE_LETTERS: Record<Lang, string> = {
 // The candidate letters that start at least 5 words of the category in the language's
 // Describe It list, generated once from those lists. Written out so the game does not load
 // the word lists; src/lib/hot-potato-letters.test.ts checks every pair against them.
+// Animals, food, jobs, places, objects and actions ask for the thing itself, so their letters
+// were also checked by hand: at least 4 words of the list really are one (a real animal, a
+// real verb, …). Check by hand again before adding a letter to them.
 export const POTATO_LETTERS: Record<Lang, Record<PotatoCategory, string>> = {
   tr: {
     animals: "ABÇDEFGHİKLMOPSTY",

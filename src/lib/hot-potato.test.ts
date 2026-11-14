@@ -23,6 +23,7 @@ import {
   validateSetup,
   winner,
   type PotatoAction,
+  type PotatoCategory,
   type PotatoPool,
   type PotatoPrompt,
   type PotatoSetup,
@@ -506,19 +507,30 @@ describe("fuseStage", () => {
 });
 
 describe("taskText", () => {
-  it("builds a letter task in the game's language", () => {
-    const task: PotatoTask = { kind: "letter", id: "x", category: "animals", letter: "S" };
-    expect(taskText(task, "en")).toBe("An animal starting with S");
-    expect(taskText(task, "tr")).toBe("S ile başlayan bir hayvan");
-    expect(taskText({ ...task, category: "body", letter: "İ" }, "tr")).toBe("İ ile başlayan bir vücut parçası");
+  const letter = (category: PotatoCategory, l: string): PotatoTask => ({ kind: "letter", id: "x", category, letter: l });
+
+  it("names the thing itself for the narrow categories", () => {
+    expect(taskText(letter("animals", "S"), "en")).toBe("An animal starting with S");
+    expect(taskText(letter("animals", "S"), "tr")).toBe("S ile başlayan bir hayvan");
+    expect(taskText(letter("actions", "Ö"), "tr")).toBe("Ö ile başlayan bir eylem (fiil)");
+    expect(taskText(letter("jobs", "W"), "en")).toBe("A job starting with W");
   });
 
-  it("names every category in both languages", () => {
+  it("asks for any word on the topic for the topical categories", () => {
+    expect(taskText(letter("body", "N"), "en")).toBe("A word about the body starting with N");
+    expect(taskText(letter("body", "İ"), "tr")).toBe("İ ile başlayan, vücutla ilgili bir kelime");
+    expect(taskText(letter("transport", "Ş"), "tr")).toBe("Ş ile başlayan, ulaşımla ilgili bir kelime");
+    expect(taskText(letter("transport", "I"), "en")).toBe("A word about transport starting with I");
+  });
+
+  it("writes every category's task with its letter in both languages", () => {
     for (const lang of ["en", "tr"] as const) {
-      for (const category of POTATO_CATEGORIES) {
-        const text = taskText({ kind: "letter", id: "x", category, letter: "A" }, lang);
-        expect(text).not.toMatch(/\{|undefined/);
+      const texts = POTATO_CATEGORIES.map((category) => taskText(letter(category, "Q"), lang));
+      for (const text of texts) {
+        expect(text).toContain("Q");
+        expect(text).not.toMatch(/\{|\}|undefined/);
       }
+      expect(new Set(texts).size).toBe(POTATO_CATEGORIES.length);
     }
   });
 
