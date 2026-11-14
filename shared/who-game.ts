@@ -229,9 +229,10 @@ export const WHO_THING_HINT_KEYS = {
 
 // As the card lists' own duplicate check: lowercased with the language's rules, accents and
 // anything but letters and digits dropped. Letters are told by having a case, not by a Unicode
-// property escape, which the phone's JavaScript engine may not support.
+// property escape, and normalize is optional: the phone's JavaScript engine may lack either.
 function nameKey(name: string, locale: string): string {
-  return [...name.toLocaleLowerCase(locale).normalize("NFKD")]
+  const lower = name.toLocaleLowerCase(locale);
+  return [...(typeof lower.normalize === "function" ? lower.normalize("NFKD") : lower)]
     .filter((c) => (c >= "0" && c <= "9") || c.toLowerCase() !== c.toUpperCase())
     .join("");
 }
