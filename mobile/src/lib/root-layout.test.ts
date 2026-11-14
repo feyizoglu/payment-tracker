@@ -264,6 +264,7 @@ describe("RootNavigator Stack.Protected guards", () => {
     expect(guardFor("games/imposter")).toBe(true);
     expect(guardFor("games/word")).toBe(true);
     expect(guardFor("games/wolf")).toBe(true);
+    expect(guardFor("games/potato")).toBe(true);
   });
 
   it("opens the app and closes the lock screen outside game mode", async () => {
