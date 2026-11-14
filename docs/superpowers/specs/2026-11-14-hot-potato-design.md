@@ -99,7 +99,7 @@ the others went out in, **Play again** (same players and rules) and **New game**
 - Files `shared/hot-potato-prompts/tr.ts` and `en.ts`, each an append-only list of tasks. A
   task's id is `<lang>-<n>`, from its position, so rows are only ever appended.
 - At least 250 tasks per language, written separately for each language. Each one has many
-  possible answers, so a whole table can answer it ("Something you take on holiday", "A word
+  possible answers, so a whole table can answer it ("Something you take on vacation", "A word
   that rhymes with 'cat'", "A country in Europe").
 - Family friendly. No brand names, and no task that asks for a real person or a title of a
   film, book, song or game.

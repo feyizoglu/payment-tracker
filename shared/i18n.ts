@@ -543,7 +543,7 @@ const translations = {
     potatoTasksLetters: "Letters only",
     potatoTasksLettersHint: "Like \"An animal starting with S\".",
     potatoTasksPrompts: "Ready-made only",
-    potatoTasksPromptsHint: "Like \"Something you take on holiday\".",
+    potatoTasksPromptsHint: "Like \"Something you take on vacation\".",
     potatoStarts: "{name} starts",
     potatoReadyHint: "Start shows the task. Say an answer, tap Pass and hand the phone to the next player.",
     potatoStart: "Start",
