@@ -310,6 +310,51 @@ describe("whoPool", () => {
   });
 });
 
+describe("whoPool: one card per name", () => {
+  const named = (id: string, en: string, tr = en): WhoCard => ({
+    id,
+    name: { tr, en },
+    hint: { tr: "ipucu", en: "hint" },
+    region: "world",
+    level: "easy",
+  });
+  const dupes: WhoSources = {
+    people: [named("p-1", "Michelangelo"), named("p-2", "Tarkan"), named("p-3", "Marie Curie")],
+    characters: [
+      named("c-1", "Michelangelo"),
+      named("c-2", "Donatello"),
+      named("c-3", "TARKAN!"),
+      named("c-4", "Scheherazade", "Şehrazat"),
+      named("c-5", "Fox", "Tilki"),
+    ],
+    things: {
+      en: { animals: [{ id: "animals-1", word: "fox", forbidden: ["a", "b", "c", "d"], level: "easy" }], jobs: [], objects: [] },
+      tr: { animals: [{ id: "animals-1", word: "TİLKİ", forbidden: ["a", "b", "c", "d"], level: "easy" }], jobs: [], objects: [] },
+    },
+  };
+  const all = { kinds: ["people", "characters", "things"] as WhoSetup["kinds"], region: "mixed" as const, level: "mixed" as const };
+
+  it("deals a name once across kinds, keeping people before characters before things", () => {
+    expect(whoPool(all, dupes, "en").map((c) => c.id)).toEqual(["p-1", "p-2", "p-3", "c-2", "c-4", "c-5"]);
+  });
+
+  it("compares names lowercased with the language's rules, ignoring spaces and punctuation", () => {
+    expect(whoPool(all, dupes, "tr").map((c) => c.id)).toEqual(["p-1", "p-2", "p-3", "c-2", "c-4", "c-5"]);
+    const spaced: WhoSources = { ...dupes, characters: [named("c-9", "Marie-Curie")] };
+    expect(whoPool(all, spaced, "en").map((c) => c.id)).toEqual(["p-1", "p-2", "p-3", "things:animals-1"]);
+  });
+
+  it("lowercases with the language's own rules", () => {
+    const turkish: WhoSources = { ...dupes, people: [named("p-7", "Isik", "Işık")], characters: [named("c-7", "ISIK", "IŞIK")] };
+    expect(whoPool({ ...all, kinds: ["people", "characters"] }, turkish, "tr").map((c) => c.id)).toEqual(["p-7"]);
+  });
+
+  it("keeps different names that only look alike", () => {
+    const close: WhoSources = { ...dupes, characters: [named("c-8", "Tarkan Jr")] };
+    expect(whoPool({ ...all, kinds: ["people", "characters"] }, close, "en").map((c) => c.id)).toEqual(["p-1", "p-2", "p-3", "c-8"]);
+  });
+});
+
 describe("buildWhoDeck", () => {
   const pool = Array.from({ length: 60 }, (_, i) => ({ id: `c${i}`, name: `N${i}`, hint: "h" }));
 

@@ -227,7 +227,16 @@ export const WHO_THING_HINT_KEYS = {
   objects: "imposterCategoryObjects",
 } as const satisfies Record<WhoThingCategory, string>;
 
-/** Every card the setup's kinds, region and level allow, in `lang`. */
+// As the card lists' own duplicate check: lowercased with the language's rules, accents and
+// anything but letters and digits dropped. Letters are told by having a case, not by a Unicode
+// property escape, which the phone's JavaScript engine may not support.
+function nameKey(name: string, locale: string): string {
+  return [...name.toLocaleLowerCase(locale).normalize("NFKD")]
+    .filter((c) => (c >= "0" && c <= "9") || c.toLowerCase() !== c.toUpperCase())
+    .join("");
+}
+
+/** Every card the setup's kinds, region and level allow, in `lang`, each name once. */
 export function whoPool(
   choice: Pick<WhoSetup, "kinds" | "region" | "level">,
   sources: WhoSources,
@@ -245,10 +254,19 @@ export function whoPool(
         .filter((w) => levelOk(w.level))
         .map((w): WhoPlayCard => ({ id: `things:${w.id}`, name: w.word, hint: t[WHO_THING_HINT_KEYS[category]] }))
     );
-  return WHO_KINDS.flatMap((kind) => {
+  const cards = WHO_KINDS.flatMap((kind) => {
     if (!choice.kinds.includes(kind)) return [];
     if (kind === "things") return things();
     return named(kind === "people" ? sources.people : sources.characters);
+  });
+  // A painter and a Ninja Turtle can share a name: the first kind's card is dealt, never both.
+  const locale = localeFor(lang);
+  const names = new Set<string>();
+  return cards.filter((c) => {
+    const key = nameKey(c.name, locale);
+    if (names.has(key)) return false;
+    names.add(key);
+    return true;
   });
 }
 
