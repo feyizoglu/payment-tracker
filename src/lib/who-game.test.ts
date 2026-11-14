@@ -562,6 +562,41 @@ describe("Who Am I? game: summary and order", () => {
     expect(whoWinners(state.scores)).toEqual([0]);
   });
 
+  it("lets every team member guess in turn over successive games, from New game on", () => {
+    const four: WhoSetup = {
+      ...teams,
+      rounds: 1,
+      teams: [
+        { name: "Red", players: ["Ann", "Bob", "Cem", "Dan"] },
+        { name: "Blue", players: ["Eda", "Fay"] },
+      ],
+    };
+    const game = (start: WhoState) => {
+      let state = start;
+      const order: string[] = [];
+      while (state.phase === "handoff") {
+        order.push(whoGuesser(state));
+        state = next(playTurn(state, []));
+      }
+      return { order, end: state };
+    };
+    const again = (state: WhoState) => whoReducer(state, { type: "playAgain", rng: zero, at: state.lastActionAt + 1000 });
+
+    const first = game(started(four));
+    expect(first.order).toEqual(["Ann", "Eda"]);
+    const second = game(again(first.end));
+    expect(second.order).toEqual(["Bob", "Fay"]);
+    const third = game(again(second.end));
+    expect(third.order).toEqual(["Cem", "Eda"]);
+    const fourth = game(again(third.end));
+    expect(fourth.order).toEqual(["Dan", "Fay"]);
+    expect(game(again(fourth.end)).order).toEqual(["Ann", "Eda"]);
+
+    const fresh = whoReducer(third.end, { type: "newGame", at: third.end.lastActionAt + 1000 });
+    const restarted = whoReducer(fresh, { type: "start", setup: four, lang: "en", sources, seen: [], rng: zero, at: fresh.lastActionAt + 1000 });
+    expect(game(restarted).order).toEqual(["Ann", "Eda"]);
+  });
+
   it("names every top scorer, so more than one means a tie", () => {
     expect(whoWinners([1, 3, 3])).toEqual([1, 2]);
     expect(whoWinners([0, 0])).toEqual([0, 1]);

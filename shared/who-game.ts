@@ -290,6 +290,11 @@ export interface WhoState {
   seen: string[];
   /** Finished turns. */
   turnsPlayed: number;
+  /**
+   * Turns each team has had since the setup, Play again included: the next guesser is
+   * `players[guessers[team] % players.length]`, so over games every member guesses.
+   */
+  guessers: [number, number];
   /** Per player (solo) or per team, for finished turns. */
   scores: number[];
   /** This turn's cards in the order they were shown. */
@@ -329,6 +334,7 @@ export function initialWhoState(setup: WhoSetup): WhoState {
     card: null,
     seen: [],
     turnsPlayed: 0,
+    guessers: [0, 0],
     scores: [],
     results: [],
     turnMs: 0,
@@ -358,12 +364,13 @@ export function whoRound(state: Pick<WhoState, "setup" | "turnsPlayed">): number
   return Math.floor(state.turnsPlayed / sides(state.setup)) + 1;
 }
 
-/** Who guesses this turn. A team's k-th turn is guessed by its k-th player, round the team. */
-export function whoGuesser(state: Pick<WhoState, "setup" | "turnsPlayed">): string {
-  const { setup, turnsPlayed } = state;
-  if (setup.mode === "solo") return setup.players[whoSide(state)];
-  const { players } = setup.teams[whoSide(state)];
-  return players[Math.floor(turnsPlayed / 2) % players.length];
+/** Who guesses this turn. A team's members guess one after another, carried over Play again. */
+export function whoGuesser(state: Pick<WhoState, "setup" | "turnsPlayed" | "guessers">): string {
+  const { setup } = state;
+  const side = whoSide(state);
+  if (setup.mode === "solo") return setup.players[side];
+  const { players } = setup.teams[side];
+  return players[state.guessers[side] % players.length];
 }
 
 export function turnPoints(results: readonly WhoTurnCard[]): number {
@@ -452,11 +459,20 @@ function trimSetup(setup: WhoSetup): WhoSetup {
   };
 }
 
-function deal(setup: WhoSetup, lang: Lang, pool: WhoPlayCard[], seen: readonly string[], rng: Rng, at: number): WhoState {
+function deal(
+  setup: WhoSetup,
+  lang: Lang,
+  pool: WhoPlayCard[],
+  seen: readonly string[],
+  guessers: [number, number],
+  rng: Rng,
+  at: number
+): WhoState {
   const built = buildWhoDeck(pool, seen, rng);
   return {
     ...initialWhoState(setup),
     phase: "handoff",
+    guessers,
     lang,
     pool,
     deck: built.deck,
@@ -466,13 +482,17 @@ function deal(setup: WhoSetup, lang: Lang, pool: WhoPlayCard[], seen: readonly s
   };
 }
 
+function nextGuessers(guessers: [number, number], team: number): [number, number] {
+  return team === 0 ? [guessers[0] + 1, guessers[1]] : [guessers[0], guessers[1] + 1];
+}
+
 export function whoReducer(state: WhoState, action: WhoAction): WhoState {
   switch (action.type) {
     case "start": {
       if (state.phase !== "setup" || tooSoon(state, action.at)) return state;
       const pool = whoPool(action.setup, action.sources, action.lang);
       if (validateWhoSetup(action.setup, localeFor(action.lang), pool.length).length > 0) return state;
-      return deal(trimSetup(action.setup), action.lang, pool, action.seen, action.rng, action.at);
+      return deal(trimSetup(action.setup), action.lang, pool, action.seen, [0, 0], action.rng, action.at);
     }
     case "begin":
       if (state.phase !== "handoff" || tooSoon(state, action.at)) return state;
@@ -522,12 +542,13 @@ export function whoReducer(state: WhoState, action: WhoAction): WhoState {
         phase: turnsPlayed >= totalTurns(state.setup) ? "end" : "handoff",
         scores: whoScores(state),
         turnsPlayed,
+        guessers: state.setup.mode === "teams" ? nextGuessers(state.guessers, whoSide(state)) : state.guessers,
         lastActionAt: action.at,
       };
     }
     case "playAgain":
       if (state.phase !== "end" || tooSoon(state, action.at)) return state;
-      return deal(state.setup, state.lang, state.pool, state.seen, action.rng, action.at);
+      return deal(state.setup, state.lang, state.pool, state.seen, state.guessers, action.rng, action.at);
     case "newGame":
       if (state.phase !== "end" || tooSoon(state, action.at)) return state;
       // The setup's buttons can sit where New game was: keep the time so they are guarded too.
