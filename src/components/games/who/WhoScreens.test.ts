@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactElement } from "react";
-import { GAME_THEME, WHO_ANSWER_COLORS, WHO_VIBRATE_MS, playerColor, type WhoTurnCard } from "@/lib/who-game";
+import { GAME_THEME, WHO_ANSWER_COLORS, WHO_SUMMARY_LOCK_MS, WHO_VIBRATE_MS, playerColor, type WhoTurnCard } from "@/lib/who-game";
 
 const NOW = 1_800_000_000_000;
 
@@ -236,11 +236,12 @@ describe("WhoSummary", () => {
     { card: { id: "b", name: "Pamuk Prenses", hint: "h" }, result: "pass" },
   ];
 
-  function render() {
+  function render(endedAt = NOW) {
     hooks.index = 0;
     hooks.effects = [];
     return WhoSummary({
       side: 1,
+      endedAt,
       results,
       names: ["Ann", "Bob"],
       colors: [playerColor(0), playerColor(1)],
@@ -284,6 +285,23 @@ describe("WhoSummary", () => {
     unmount();
     render();
     expect(() => runEffects()).not.toThrow();
+  });
+
+  it("keeps the cards and Next off until 1.5 s after the turn ended", () => {
+    const off = (tree: Node) => buttons(tree).map((b) => b.props.disabled);
+    expect(off(render())).toEqual([true, true, true]);
+    runEffects();
+    vi.advanceTimersByTime(WHO_SUMMARY_LOCK_MS - 1);
+    expect(off(render())).toEqual([true, true, true]);
+    vi.advanceTimersByTime(1);
+    expect(off(render())).toEqual([false, false, false]);
+  });
+
+  it("counts the lock from the turn's end, not from when the screen appeared", () => {
+    render(NOW - 1000);
+    runEffects();
+    vi.advanceTimersByTime(500);
+    expect(button(render(NOW - 1000), "whoNext")!.props.disabled).toBe(false);
   });
 
   it("lists the cards in order with their mark in writing, and flips one when tapped", () => {

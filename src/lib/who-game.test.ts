@@ -6,6 +6,7 @@ import {
   WHO_DECK_MIN,
   WHO_SETUP_ERROR_KEYS,
   WHO_SETUP_STORAGE_KEY,
+  WHO_SUMMARY_LOCK_MS,
   WHO_TAP_GUARD_MS,
   buildWhoDeck,
   defaultWhoSetup,
@@ -446,12 +447,12 @@ describe("Who Am I? game: summary and order", () => {
     for (const r of results) next = whoReducer(next, answer(r, (at += 1000)));
     return whoReducer(next, { type: "tick", at: next.lastActionAt + next.turnMs });
   }
-  const next = (state: WhoState) => whoReducer(state, { type: "next", at: state.lastActionAt + 1000 });
+  const next = (state: WhoState) => whoReducer(state, { type: "next", at: state.lastActionAt + WHO_SUMMARY_LOCK_MS });
 
   it("flips a card's mark and counts the score from the marks", () => {
     let state = playTurn(started(), ["got", "pass"]);
     expect(whoScores(state)).toEqual([1, 0, 0]);
-    state = whoReducer(state, { type: "flip", index: 1, at: state.lastActionAt + 1000 });
+    state = whoReducer(state, { type: "flip", index: 1, at: state.lastActionAt + WHO_SUMMARY_LOCK_MS });
     expect(state.results.map((r) => r.result)).toEqual(["got", "got", "pass"]);
     expect(whoScores(state)).toEqual([2, 0, 0]);
     state = whoReducer(state, { type: "flip", index: 0, at: state.lastActionAt + 1000 });
@@ -462,13 +463,36 @@ describe("Who Am I? game: summary and order", () => {
     expect(whoScores(state)).toEqual([1, 0, 0]);
   });
 
-  it("guards the summary against a blind tap right after the turn ends", () => {
+  it("locks the summary for 1.5 s after the turn ends, so a blind tap cannot flip a card or skip it", () => {
+    expect(WHO_SUMMARY_LOCK_MS).toBe(1500);
     let state = begin(started());
     const end = state.lastActionAt + state.turnMs;
     state = whoReducer(state, { type: "tick", at: end });
-    expect(whoReducer(state, { type: "flip", index: 0, at: end + WHO_TAP_GUARD_MS - 1 })).toBe(state);
-    expect(whoReducer(state, { type: "next", at: end + WHO_TAP_GUARD_MS - 1 })).toBe(state);
-    expect(whoReducer(state, { type: "next", at: end + WHO_TAP_GUARD_MS }).phase).toBe("handoff");
+    expect(state.endedAt).toBe(end);
+    for (const at of [end, end + WHO_TAP_GUARD_MS, end + WHO_SUMMARY_LOCK_MS - 1]) {
+      expect(whoReducer(state, { type: "flip", index: 0, at })).toBe(state);
+      expect(whoReducer(state, { type: "next", at })).toBe(state);
+    }
+    expect(whoReducer(state, { type: "flip", index: 0, at: end + WHO_SUMMARY_LOCK_MS }).results[0].result).toBe("got");
+    expect(whoReducer(state, { type: "next", at: end + WHO_SUMMARY_LOCK_MS }).phase).toBe("handoff");
+  });
+
+  it("locks the summary from a late tap that ended the turn, too", () => {
+    let state = begin(started());
+    const end = state.lastActionAt + state.turnMs;
+    state = whoReducer(state, answer("got", end + 50));
+    expect(state).toMatchObject({ phase: "summary", endedAt: end + 50 });
+    expect(whoReducer(state, { type: "next", at: end + 50 + WHO_SUMMARY_LOCK_MS - 1 })).toBe(state);
+    expect(whoReducer(state, { type: "next", at: end + 50 + WHO_SUMMARY_LOCK_MS }).phase).toBe("handoff");
+  });
+
+  it("keeps the tap guard between flips once the lock is over", () => {
+    let state = begin(started());
+    const end = state.lastActionAt + state.turnMs;
+    state = whoReducer(state, { type: "tick", at: end });
+    state = whoReducer(state, { type: "flip", index: 0, at: end + 2000 });
+    expect(whoReducer(state, { type: "flip", index: 0, at: end + 2000 + WHO_TAP_GUARD_MS - 1 })).toBe(state);
+    expect(whoReducer(state, { type: "next", at: end + 2000 + WHO_TAP_GUARD_MS }).phase).toBe("handoff");
   });
 
   it("gives every solo player one turn per round, then ends", () => {

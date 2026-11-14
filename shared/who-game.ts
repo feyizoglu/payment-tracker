@@ -59,6 +59,8 @@ export const WHO_SETUP_STORAGE_KEY = "who_setup";
 /** The fewest cards a game may be dealt from; fewer unseen ones and the seen list starts over. */
 export const WHO_DECK_MIN = 50;
 export const WHO_TAP_GUARD_MS = 400;
+/** The summary ignores taps this long after the turn ends. */
+export const WHO_SUMMARY_LOCK_MS = 1500;
 /** How long the phone vibrates when the time is up. */
 export const WHO_VIBRATE_MS = 600;
 
@@ -284,6 +286,8 @@ export interface WhoState {
   usedMs: number;
   /** When the clock last started; null while the game is off screen. */
   runningSince: number | null;
+  /** When the last turn ended, in ms. */
+  endedAt: number;
   /** When the last accepted tap (or the turn's end) happened, in ms. */
   lastActionAt: number;
 }
@@ -316,6 +320,7 @@ export function initialWhoState(setup: WhoSetup): WhoState {
     turnMs: 0,
     usedMs: 0,
     runningSince: null,
+    endedAt: 0,
     lastActionAt: 0,
   };
 }
@@ -398,8 +403,7 @@ function draw(state: WhoState, shown: WhoPlayCard | null, rng: Rng): Pick<WhoSta
   return { card, deck: remaining, seen: markSeen(state.seen, card.id) };
 }
 
-// Time up: the card on screen counts as passed. The end is recorded as the last action, so a
-// blind tap right after it cannot flip a card or skip the summary.
+// Time up: the card on screen counts as passed.
 function endTurn(state: WhoState, at: number): WhoState {
   return {
     ...state,
@@ -408,8 +412,15 @@ function endTurn(state: WhoState, at: number): WhoState {
     results: state.card ? [...state.results, { card: state.card, result: "pass" }] : state.results,
     usedMs: state.turnMs,
     runningSince: null,
+    endedAt: at,
     lastActionAt: at,
   };
+}
+
+// The guesser keeps tapping blind until they feel the vibration: the summary waits a moment.
+function summaryLocked(state: WhoState, at: number): boolean {
+  const d = at - state.endedAt;
+  return d >= 0 && d < WHO_SUMMARY_LOCK_MS;
 }
 
 function timeUp(state: WhoState, at: number): boolean {
@@ -481,7 +492,7 @@ export function whoReducer(state: WhoState, action: WhoAction): WhoState {
       return { ...state, runningSince: action.at };
     case "flip": {
       const target = state.results[action.index];
-      if (state.phase !== "summary" || !target || tooSoon(state, action.at)) return state;
+      if (state.phase !== "summary" || !target || tooSoon(state, action.at) || summaryLocked(state, action.at)) return state;
       const flipped: WhoTurnCard = { ...target, result: target.result === "got" ? "pass" : "got" };
       return {
         ...state,
@@ -490,7 +501,7 @@ export function whoReducer(state: WhoState, action: WhoAction): WhoState {
       };
     }
     case "next": {
-      if (state.phase !== "summary" || tooSoon(state, action.at)) return state;
+      if (state.phase !== "summary" || tooSoon(state, action.at) || summaryLocked(state, action.at)) return state;
       const turnsPlayed = state.turnsPlayed + 1;
       return {
         ...state,

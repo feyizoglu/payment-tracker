@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRequire } from "node:module";
 import { act, createElement } from "react";
-import { WHO_SETUP_STORAGE_KEY, defaultWhoSetup, playerColor, teamColor, type WhoSetup } from "@/lib/who-game";
+import { WHO_SETUP_STORAGE_KEY, WHO_SUMMARY_LOCK_MS, defaultWhoSetup, playerColor, teamColor, type WhoSetup } from "@/lib/who-game";
 
 type Props = Record<string, unknown>;
 
@@ -97,11 +97,12 @@ async function start(setup: WhoSetup = valid) {
   await call(() => p("form").onStart());
 }
 
-/** Starts a turn, answers, and lets the clock run out. */
+/** Starts a turn, answers, lets the clock run out and waits for the summary to open. */
 async function turn(answers: ("got" | "pass")[] = []) {
   await call(() => p("handoff").onStart());
   for (const result of answers) await call(() => p("turn").onAnswer(result));
   await call(() => p("turn").onTick(), 30_000);
+  clock += WHO_SUMMARY_LOCK_MS;
 }
 
 beforeEach(() => {
@@ -232,6 +233,7 @@ describe("WhoGame turn", () => {
     expect(ui.screen).toBe("summary");
     expect(p("summary")).toMatchObject({
       side: 0,
+      endedAt: clock,
       names: ["Ann", "Bob"],
       colors: [playerColor(0), playerColor(1)],
       scores: [1, 0],
@@ -277,6 +279,18 @@ describe("WhoGame turn", () => {
     await call(() => p("summary").onFlip(0));
     expect(p("summary").results[0].result).toBe("pass");
     expect(p("summary").scores).toEqual([1, 0]);
+  });
+
+  it("ignores the summary's buttons for 1.5 s after the turn ends", async () => {
+    await start();
+    await call(() => p("handoff").onStart());
+    await call(() => p("turn").onTick(), 30_000);
+    await call(() => p("summary").onFlip(0), WHO_SUMMARY_LOCK_MS - 1);
+    expect(p("summary").results[0].result).toBe("pass");
+    await call(() => p("summary").onNext(), 0);
+    expect(ui.screen).toBe("summary");
+    await call(() => p("summary").onNext(), 1);
+    expect(ui.screen).toBe("handoff");
   });
 
   it("hands the phone to the next player after the summary", async () => {

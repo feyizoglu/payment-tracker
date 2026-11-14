@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactElement } from "react";
-import { WHO_ANSWER_COLORS, WHO_VIBRATE_MS, playerColor, type WhoTurnCard } from "@ptracker/shared/who-game";
+import { WHO_ANSWER_COLORS, WHO_SUMMARY_LOCK_MS, WHO_VIBRATE_MS, playerColor, type WhoTurnCard } from "@ptracker/shared/who-game";
 
 const NOW = 1_800_000_000_000;
 
@@ -278,11 +278,12 @@ describe("WhoSummary (mobile)", () => {
     { card: { id: "b", name: "Pamuk Prenses", hint: "h" }, result: "pass" },
   ];
 
-  function render() {
+  function render(endedAt = NOW) {
     hooks.index = 0;
     hooks.effects = [];
     return WhoSummary({
       side: 1,
+      endedAt,
       results,
       names: ["Ann", "Bob"],
       colors: [playerColor(0), playerColor(1)],
@@ -308,6 +309,26 @@ describe("WhoSummary (mobile)", () => {
     expect(text(tree)).toContain("whoTimeUp");
     const points = nodes(tree).find((n) => n.type === Text && text(n) === "Bob +1")!;
     expect(flat(points.props.style).color).toBe(playerColor(1));
+  });
+
+  it("keeps the cards and Next off until 1.5 s after the turn ended", () => {
+    const off = (tree: Node) => [
+      ...pressables(tree).map((r) => [r.props.disabled, (r.props.accessibilityState as { disabled: boolean }).disabled]),
+      nodes(tree).find((n) => n.type === PrimaryButton)!.props.disabled,
+    ];
+    expect(off(render())).toEqual([[true, true], [true, true], true]);
+    runEffects();
+    vi.advanceTimersByTime(WHO_SUMMARY_LOCK_MS - 1);
+    expect(off(render())).toEqual([[true, true], [true, true], true]);
+    vi.advanceTimersByTime(1);
+    expect(off(render())).toEqual([[false, false], [false, false], false]);
+  });
+
+  it("counts the lock from the turn's end, not from when the screen appeared", () => {
+    render(NOW - 1000);
+    runEffects();
+    vi.advanceTimersByTime(500);
+    expect(nodes(render(NOW - 1000)).find((n) => n.type === PrimaryButton)!.props.disabled).toBe(false);
   });
 
   it("lists the cards with their mark in writing, and flips one when pressed", () => {

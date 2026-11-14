@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactElement } from "react";
-import { defaultWhoSetup, playerColor, teamColor, type WhoSetup } from "@ptracker/shared/who-game";
+import { WHO_SUMMARY_LOCK_MS, defaultWhoSetup, playerColor, teamColor, type WhoSetup } from "@ptracker/shared/who-game";
 
 const hooks = vi.hoisted(() => ({
   states: [] as unknown[],
@@ -137,11 +137,12 @@ async function start(setup: WhoSetup = valid, seen: string[] = []) {
   call(WhoSetupWizard, "onStart");
 }
 
-/** Starts a turn, answers, and lets the clock run out. */
+/** Starts a turn, answers, lets the clock run out and waits for the summary to open. */
 function turn(answers: ("got" | "pass")[] = []) {
   call(WhoHandoff, "onStart");
   for (const result of answers) call(WhoTurn, "onAnswer", result);
   call(WhoTurn, "onTick", undefined, 30_000);
+  clock.now += WHO_SUMMARY_LOCK_MS;
 }
 
 beforeEach(() => {
@@ -245,6 +246,7 @@ describe("Who Am I? screen: a turn", () => {
     call(WhoTurn, "onTick", undefined, 30_000);
     expect(props(WhoSummary)).toMatchObject({
       side: 0,
+      endedAt: clock.now,
       names: ["Ann", "Bob"],
       scores: [1, 0],
       results: [
@@ -255,6 +257,16 @@ describe("Who Am I? screen: a turn", () => {
     expect(screen()).toMatchObject({ color: undefined, scroll: true });
     await settle();
     expect(storage.setStoredWhoSeen).toHaveBeenCalledWith("en", [first.id, second.id]);
+  });
+
+  it("ignores the summary's buttons for 1.5 s after the turn ends", async () => {
+    await start();
+    call(WhoHandoff, "onStart");
+    call(WhoTurn, "onTick", undefined, 30_000);
+    call(WhoSummary, "onNext", undefined, WHO_SUMMARY_LOCK_MS - 1);
+    expect(has(WhoSummary)).toBe(true);
+    call(WhoSummary, "onNext", undefined, 1);
+    expect(has(WhoHandoff)).toBe(true);
   });
 
   it("flips a card in the summary and hands the phone to the next player", async () => {

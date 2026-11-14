@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLang } from "@/lib/i18n";
 import {
   GAME_THEME,
   WHO_ANSWER_COLORS,
   WHO_RESULT_KEYS,
   WHO_RESULT_MARKS,
+  WHO_SUMMARY_LOCK_MS,
   WHO_VIBRATE_MS,
   fillTemplate,
   turnPoints,
@@ -18,6 +19,7 @@ import WhoScores from "./WhoScores";
 // and is read out once when it appears. Mount it with `key` per turn.
 export default function WhoSummary({
   side,
+  endedAt,
   results,
   names,
   colors,
@@ -27,6 +29,8 @@ export default function WhoSummary({
 }: {
   /** The player or team whose turn it was. */
   side: number;
+  /** When the turn ended: the cards and Next open WHO_SUMMARY_LOCK_MS later, as in the game. */
+  endedAt: number;
   results: readonly WhoTurnCard[];
   names: readonly string[];
   colors: readonly string[];
@@ -36,6 +40,7 @@ export default function WhoSummary({
   onNext: () => void;
 }) {
   const { t } = useLang();
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -44,6 +49,11 @@ export default function WhoSummary({
       // Vibration is a bonus: a browser that refuses it changes nothing.
     }
   }, []);
+
+  useEffect(() => {
+    const id = setTimeout(() => setOpen(true), Math.max(0, endedAt + WHO_SUMMARY_LOCK_MS - Date.now()));
+    return () => clearTimeout(id);
+  }, [endedAt]);
 
   return (
     <div className="space-y-5 text-center">
@@ -59,8 +69,9 @@ export default function WhoSummary({
           <li key={i}>
             <button
               type="button"
+              disabled={!open}
               onClick={() => onFlip(i)}
-              className="flex w-full items-center justify-between gap-3 rounded-xl border border-gray-100 bg-surface px-4 py-3 hover:bg-gray-100"
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-gray-100 bg-surface px-4 py-3 hover:bg-gray-100 disabled:opacity-60"
             >
               <span className="min-w-0 break-words text-gray-900">{r.card.name}</span>
               <span
@@ -76,8 +87,9 @@ export default function WhoSummary({
       <WhoScores names={names} colors={colors} scores={scores} />
       <button
         type="button"
+        disabled={!open}
         onClick={onNext}
-        className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700"
+        className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
       >
         {t.whoNext}
       </button>

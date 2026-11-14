@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AccessibilityInfo, Pressable, Text, Vibration, View } from "react-native";
 
 import { useLang } from "@ptracker/shared/i18n";
@@ -7,6 +7,7 @@ import {
   WHO_ANSWER_COLORS,
   WHO_RESULT_KEYS,
   WHO_RESULT_MARKS,
+  WHO_SUMMARY_LOCK_MS,
   WHO_VIBRATE_MS,
   fillTemplate,
   turnPoints,
@@ -19,6 +20,7 @@ import { PrimaryButton } from "@/components/ui/primary-button";
 // and is read out once when it appears. Mount it with `key` per turn.
 export function WhoSummary({
   side,
+  endedAt,
   results,
   names,
   colors,
@@ -28,6 +30,8 @@ export function WhoSummary({
 }: {
   /** The player or team whose turn it was. */
   side: number;
+  /** When the turn ended: the cards and Next open WHO_SUMMARY_LOCK_MS later, as in the game. */
+  endedAt: number;
   results: readonly WhoTurnCard[];
   names: readonly string[];
   colors: readonly string[];
@@ -38,6 +42,7 @@ export function WhoSummary({
 }) {
   const { t } = useLang();
   const timeUp = t.whoTimeUp;
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     Vibration.vibrate(WHO_VIBRATE_MS);
@@ -46,6 +51,11 @@ export function WhoSummary({
   useEffect(() => {
     AccessibilityInfo.announceForAccessibility(timeUp);
   }, [timeUp]);
+
+  useEffect(() => {
+    const id = setTimeout(() => setOpen(true), Math.max(0, endedAt + WHO_SUMMARY_LOCK_MS - Date.now()));
+    return () => clearTimeout(id);
+  }, [endedAt]);
 
   return (
     <View className="gap-5">
@@ -62,8 +72,12 @@ export function WhoSummary({
               key={i}
               accessibilityRole="button"
               accessibilityLabel={`${r.card.name}, ${label}`}
+              accessibilityState={{ disabled: !open }}
+              disabled={!open}
               onPress={() => onFlip(i)}
-              className="flex-row items-center justify-between gap-3 rounded-xl border border-gray-100 bg-surface px-4 py-3">
+              className={`flex-row items-center justify-between gap-3 rounded-xl border border-gray-100 bg-surface px-4 py-3 ${
+                open ? "" : "opacity-60"
+              }`}>
               <Text className="flex-1 text-base text-gray-900">{r.card.name}</Text>
               <Text
                 className="text-sm font-semibold"
@@ -75,7 +89,7 @@ export function WhoSummary({
         })}
       </View>
       <WhoScores names={names} colors={colors} scores={scores} />
-      <PrimaryButton label={t.whoNext} onPress={onNext} />
+      <PrimaryButton label={t.whoNext} onPress={onNext} disabled={!open} />
     </View>
   );
 }

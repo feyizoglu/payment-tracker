@@ -151,6 +151,7 @@ export default function WhoGame() {
         <WhoSummary
           key={state.turnsPlayed}
           side={side}
+          endedAt={state.endedAt}
           results={state.results}
           names={names}
           colors={colors}
