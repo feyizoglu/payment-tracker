@@ -174,10 +174,10 @@ const ANIMATION_CLASS_ROOTS = [
   "Q73502689", "Q111819966", "Q1094617", "Q3855553", "Q14831768", "Q6439708", "Q4412856", "Q20649759",
   "Q3959568", "Q112078124", "Q55740544", "Q3966183",
 ];
-const LIVE_CLASS_ROOTS = [
-  "Q15773347", "Q15773317", "Q3658341", "Q3375722", "Q63975020", "Q50386450", "Q33125444", "Q20086260",
-  "Q20086263", "Q15298259", "Q924827", "Q73502569", "Q15795874",
-];
+const WEAK_ANIMATION_CLASSES = ["Q15711870", "Q55740544"];
+const LIVE_CLASS_ROOTS = ["Q3658341", "Q3375722"];
+const STAGE_MUSIC_CLASS_ROOTS = ["Q63975020", "Q50386450"];
+const LIVE_FRANCHISE_ROOTS = ["Q33125444", "Q20086260", "Q20086263", "Q15298259", "Q924827", "Q73502569", "Q15795874"];
 const ANIMATION_WORK_ROOTS = [
   "Q202866", "Q581714", "Q117467246", "Q63952888", "Q1107", "Q8274", "Q21198342", "Q1004", "Q14406742",
   "Q838795", "Q725377", "Q213369", "Q7889", "Q627603",
@@ -202,7 +202,7 @@ const MYTH_SEEDS = [
   "Q721568", "Q178638", "Q29576829", "Q29576866", "Q2048393", "Q2996714", "Q2629889", "Q2366098", "Q2481517",
   "Q388126", "Q723668", "Q21013704",
 ];
-const CHARACTER_DETAIL_LIMIT = 6000;
+const CHARACTER_DETAIL_LIMIT = 6500;
 
 const args = process.argv.slice(2);
 const cacheFlag = args.indexOf("--cache");
@@ -625,16 +625,17 @@ async function collectPeople(meta) {
   return { batches, classGroup, groups, excluded: [...excluded.values()] };
 }
 
-function characterBatchOf(classes, works, sets) {
+function characterBatchOf(classes, mainWork, sets) {
   if (classes.some((c) => sets.mythStrong.has(c))) return "myth-tales";
-  const animation = classes.filter((c) => sets.animationClasses.has(c)).length;
+  if (classes.some((c) => sets.liveFranchises.has(c))) return "screen-books";
+  const animation = classes.filter((c) => sets.animationClasses.has(c) && !WEAK_ANIMATION_CLASSES.includes(c)).length;
   const live = classes.filter((c) => sets.liveClasses.has(c)).length;
-  if (animation || live) return animation >= live ? "animation" : "screen-books";
+  if (animation !== live) return animation > live ? "animation" : "screen-books";
+  if (mainWork?.p31.some((c) => sets.animationWorks.has(c))) return "animation";
+  if (mainWork?.p31.some((c) => sets.liveWorks.has(c))) return "screen-books";
   if (classes.some((c) => sets.mythWeak.has(c))) return "myth-tales";
-  const animatedWorks = works.filter((w) => w.p31.some((c) => sets.animationWorks.has(c))).length;
-  const liveWorks = works.filter((w) => !w.p31.some((c) => sets.animationWorks.has(c)) && w.p31.some((c) => sets.liveWorks.has(c))).length;
-  if (animatedWorks || liveWorks) return animatedWorks >= liveWorks ? "animation" : "screen-books";
-  return null;
+  if (classes.some((c) => sets.animationClasses.has(c))) return "animation";
+  return mainWork ? "screen-books" : null;
 }
 
 const CHARACTER_PROPERTIES = [
@@ -662,6 +663,7 @@ async function collectCharacters(meta) {
     mythWeak,
     animationClasses: await closureSet(ANIMATION_CLASS_ROOTS, "animation classes"),
     liveClasses: await closureSet(LIVE_CLASS_ROOTS, "live classes"),
+    liveFranchises: await closureSet(LIVE_FRANCHISE_ROOTS, "live franchises"),
     animationWorks: await closureSet(ANIMATION_WORK_ROOTS, "animation works"),
     liveWorks: await closureSet(LIVE_WORK_ROOTS, "live works"),
     adult: await closureSet(ADULT_ROOTS, "adult"),
@@ -693,9 +695,12 @@ async function collectCharacters(meta) {
   }
   log(`character harvest: ${candidates.size} candidates, ${turkishLinked.size} Turkish-linked`);
 
-  const preBatch = (entry) => characterBatchOf([...entry.classes], [], sets);
+  for (const cls of [...sets.animationClasses, ...(await closureSet(STAGE_MUSIC_CLASS_ROOTS, "stage music classes"))]) {
+    sets.liveClasses.delete(cls);
+  }
+  const preBatch = (entry) => characterBatchOf([...entry.classes], null, sets);
   const ranked = [...candidates.values()].sort(bySitelinks);
-  const perBatchLimit = new Map(CHARACTER_BATCHES.map((b) => [b.id, Math.ceil(b.target * 1.8)]));
+  const perBatchLimit = new Map(CHARACTER_BATCHES.map((b) => [b.id, Math.ceil(b.target * 2)]));
   const unknownLimit = CHARACTER_DETAIL_LIMIT - [...perBatchLimit.values()].reduce((a, b) => a + b, 0);
   const counts = new Map();
   const detailIds = new Set([...turkishLinked]);
@@ -741,10 +746,10 @@ async function collectCharacters(meta) {
       religiousDropped += 1;
       continue;
     }
-    const batch = seed ? "myth-tales" : characterBatchOf(details.p31, works, sets) ?? "screen-books";
     const byWorkSitelinks = (list) => [...list].sort((a, b) => (workCache.get(b)?.sl ?? 0) - (workCache.get(a)?.sl ?? 0));
     const mainWork = byWorkSitelinks(details.work)[0] ?? null;
     const universe = byWorkSitelinks(details.universe)[0] ?? null;
+    const batch = seed ? "myth-tales" : characterBatchOf(details.p31, mainWork ? workCache.get(mainWork) ?? null : null, sets) ?? "screen-books";
     assigned.get(batch).push({ qid: id, sl: details.sl, mainWork, universe, turkish: turkishLinked.has(id) });
   }
 

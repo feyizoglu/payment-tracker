@@ -12,9 +12,10 @@ node scripts/who-game/fetch-wikidata.mjs [outDir] [--cache dir]
 - `--cache dir` stores each query's response under `dir` and reuses it on the next run. Use it
   while tuning the script; leave it out for a fresh pull.
 
-A full run takes several minutes. It sends one query at a time with a 1.5 s pause between
-queries and retries 429, 5xx and timeouts with backoff. A chunked query that keeps failing is
-split in half. Queries that still fail are listed in `_run.json`.
+A full run without a cache takes about 40 minutes and sends about 330 queries. It sends one
+query at a time, with a 1.5 s pause between queries. It retries 429, 5xx and timeouts with
+backoff and honours `Retry-After`. A chunked query that keeps failing is split in half, and
+queries that still fail are listed in `_run.json`.
 
 ## Output
 
@@ -55,11 +56,17 @@ one JSON array per batch, sorted by Wikipedia sitelinks:
 
   Subclasses of these occupations are excluded too, except a few that only reach these roots
   through bad subclass links, such as astrologer, scribe and policy advisor.
-- Characters: anything with a mythology, legend, folklore, fairy-tale or puppet class goes to
-  `myth-tales`. Otherwise, animated, anime, manga, comics and video game classes are weighed
-  against film, TV, literary and stage classes, and the larger count decides. A tie goes to
-  `animation`. A character with neither kind of class is placed by the type of the work it
-  appears in. `animation` and `screen-books` keep at most 40 characters per narrative universe.
+- Characters are placed by these rules, first match wins:
+  1. Any mythology, legend, folklore, fairy-tale or puppet class goes to `myth-tales`.
+  2. A class from a live-action franchise (Star Wars, Star Trek, Harry Potter, Game of Thrones,
+     Doctor Who) goes to `screen-books`.
+  3. Comics, anime, manga, video game and cartoon-franchise classes are counted against literary
+     and theatre classes, and the larger count decides.
+  4. On a tie, the type of the character's best-known work decides.
+
+  "Film character" and "television character" do not count, because Wikidata also puts them on
+  animated characters. A plain "animated character" class only decides when nothing else does.
+  `animation` and `screen-books` keep at most 40 characters per narrative universe.
 - Dropped characters:
   - characters from pornographic or hentai works;
   - biblical and Quranic figures, angels, prophets and saints;
