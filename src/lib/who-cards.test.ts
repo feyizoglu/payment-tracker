@@ -13,8 +13,8 @@ const MAX_NAME = 40;
 const MAX_HINT = 50;
 
 const MIN_PEOPLE = 2500;
-const MIN_PEOPLE_WORLD = 1700;
-const MIN_PEOPLE_TR = 600;
+const MIN_PEOPLE_WORLD = 1750;
+const MIN_PEOPLE_TR = 650;
 const MIN_PEOPLE_PER_REGION_LEVEL = 150;
 const MIN_CHARACTERS = 1000;
 
@@ -64,13 +64,16 @@ function checkCards(label: string, list: readonly WhoCard[]) {
   });
 
   it(`never gives a ${label} card away in its hint`, () => {
+    // Long name words may not start a hint word ("Mozart" in "Mozart'ın"); short ones may not
+    // appear as a whole hint word, except particles that many names share.
+    const particles = new Set(["the", "of", "and", "de", "da", "di", "du", "la", "le", "el", "van", "von", "bin", "ve", "ile", "mr", "mrs", "dr"]);
     const bad = list.filter((c) =>
       (["tr", "en"] as const).some((lang) => {
         const locale = LOCALES[lang];
         const hintWords = words(c.hint[lang], locale);
-        return words(c.name[lang], locale)
-          .filter((w) => [...w].length > 3)
-          .some((w) => hintWords.some((h) => h.startsWith(w)));
+        return words(c.name[lang], locale).some((w) =>
+          [...w].length > 3 ? hintWords.some((h) => h.startsWith(w)) : !particles.has(w) && hintWords.includes(w)
+        );
       })
     );
     expect(bad.map((c) => `${show(c)} — ${c.hint.tr} / ${c.hint.en}`)).toEqual([]);
