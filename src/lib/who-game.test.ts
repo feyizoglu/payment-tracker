@@ -353,6 +353,18 @@ describe("whoPool: one card per name", () => {
     const close: WhoSources = { ...dupes, characters: [named("c-8", "Tarkan Jr")] };
     expect(whoPool({ ...all, kinds: ["people", "characters"] }, close, "en").map((c) => c.id)).toEqual(["p-1", "p-2", "p-3", "c-8"]);
   });
+
+  it("still deals each name once on an engine without String.prototype.normalize", () => {
+    const normalize = Object.getOwnPropertyDescriptor(String.prototype, "normalize");
+    let ids: string[];
+    try {
+      delete (String.prototype as { normalize?: unknown }).normalize;
+      ids = whoPool(all, dupes, "en").map((c) => c.id);
+    } finally {
+      if (normalize) Object.defineProperty(String.prototype, "normalize", normalize);
+    }
+    expect(ids).toEqual(["p-1", "p-2", "p-3", "c-2", "c-4", "c-5"]);
+  });
 });
 
 describe("buildWhoDeck", () => {
