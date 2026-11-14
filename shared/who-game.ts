@@ -2,7 +2,7 @@ import { localeFor, translationsFor, type Lang } from "./i18n";
 import { MAX_PLAYERS, PLAYER_COLORS, playerColor } from "./imposter";
 import { WHO_KINDS, type WhoCard, type WhoKind, type WhoLevel, type WhoRegion } from "./who-cards/types";
 import type { WordCard } from "./word-game-words/types";
-import { WORD_MAX_TEAM, WORD_MIN_TEAM, shuffle, teamColor, type WordTeam } from "./word-game";
+import { WORD_MAX_TEAM, WORD_MIN_TEAM, defaultTeamNames, shuffle, teamColor, type WordTeam } from "./word-game";
 
 export { GAME_THEME, MAX_PLAYERS, playerColor } from "./imposter";
 export { WHO_KINDS } from "./who-cards/types";
@@ -82,6 +82,21 @@ export function defaultWhoSetup(lang: Lang, teamNames: readonly [string, string]
     turnSeconds: 60,
     rounds: 2,
   };
+}
+
+const DEFAULT_TEAM_NAMES = (["tr", "en"] as const).map((l) => defaultTeamNames(translationsFor(l).wordTeamDefault));
+
+/** A setup moved to `lang`: default team names follow it, and so does the region unless `keepRegion`. */
+export function whoSetupInLang(
+  setup: WhoSetup,
+  lang: Lang,
+  teamNames: readonly [string, string],
+  keepRegion: boolean
+): WhoSetup {
+  const teams = setup.teams.map((team, i) =>
+    DEFAULT_TEAM_NAMES.some((names) => names[i] === team.name) ? { ...team, name: teamNames[i] } : team
+  ) as [WordTeam, WordTeam];
+  return { ...setup, teams, region: keepRegion ? setup.region : defaultWhoSetup(lang, teamNames).region };
 }
 
 export type WhoSetupError =

@@ -20,6 +20,7 @@ import {
   whoRound,
   whoScores,
   whoSeenKey,
+  whoSetupInLang,
   whoSide,
   type WhoSetup,
   type WhoSources,
@@ -52,12 +53,16 @@ function write(key: string, value: string) {
 // Returns only other components, never a host element: its test renders it without a DOM.
 export default function WhoGame() {
   const { t, lang } = useLang();
-  // The default team names and region, and the name rules a saved setup is checked with,
-  // follow the language the page opened in.
-  const [teamNames] = useState(() => defaultTeamNames(t.wordTeamDefault));
+  const teamNames = useMemo(() => defaultTeamNames(t.wordTeamDefault), [t.wordTeamDefault]);
+  // A saved setup is read, and its names checked, in the language the page opened in.
   const [openLang] = useState(lang);
+  const [openTeamNames] = useState(teamNames);
   const [state, dispatch] = useReducer(whoReducer, undefined, () => initialWhoState(defaultWhoSetup(lang, teamNames)));
   const [draft, setDraft] = useState<WhoSetup>(() => defaultWhoSetup(lang, teamNames));
+  // The page opens in English and may be switched: until a setup is saved, the draft's
+  // defaults follow the language, the region only until it is chosen. null: not read yet.
+  const [saved, setSaved] = useState<boolean | null>(null);
+  const [regionChosen, setRegionChosen] = useState(false);
   const [step, setStep] = useState(0);
   // A game was played on this device before: the wizard may offer to skip its steps.
   const [played, setPlayed] = useState(false);
@@ -69,11 +74,19 @@ export default function WhoGame() {
 
   // Read after mount: localStorage does not exist during prerendering.
   useEffect(() => {
-    const saved = parseSavedWhoSetup(read(WHO_SETUP_STORAGE_KEY), openLang, teamNames);
+    const raw = read(WHO_SETUP_STORAGE_KEY);
+    const stored = parseSavedWhoSetup(raw, openLang, openTeamNames);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDraft(saved);
-    setPlayed(validateWhoSetup(saved, localeFor(openLang), whoPool(saved, SOURCES, openLang).length).length === 0);
-  }, [teamNames, openLang]);
+    setDraft(stored);
+    setSaved(raw !== null);
+    setPlayed(validateWhoSetup(stored, localeFor(openLang), whoPool(stored, SOURCES, openLang).length).length === 0);
+  }, [openTeamNames, openLang]);
+
+  useEffect(() => {
+    if (saved !== false) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDraft((d) => whoSetupInLang(d, lang, teamNames, regionChosen));
+  }, [saved, lang, teamNames, regionChosen]);
 
   const { phase, setup, pool, seen, endedAt } = state;
   useEffect(() => {
@@ -99,13 +112,17 @@ export default function WhoGame() {
       <GameFrame>
         <WhoSetupWizard
           value={draft}
-          onChange={setDraft}
+          onChange={(next) => {
+            if (next.region !== draft.region) setRegionChosen(true);
+            setDraft(next);
+          }}
           poolSize={poolSize}
           step={step}
           onStep={setStep}
           quickStart={played}
           onStart={() => {
             write(WHO_SETUP_STORAGE_KEY, JSON.stringify(draft));
+            setSaved(true);
             setPlayed(true);
             setStep(0);
             dispatch({

@@ -9,6 +9,7 @@ const ui = vi.hoisted(() => ({
   screen: "",
   frameColor: undefined as string | undefined,
   frameCover: undefined as boolean | undefined,
+  lang: "en" as "en" | "tr",
   props: {} as Record<string, Props | undefined>,
 }));
 // A mocked screen records that it is showing and the props it got.
@@ -35,7 +36,10 @@ const cards = vi.hoisted(() => {
 
 vi.mock("@/lib/i18n", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/i18n")>()),
-  useLang: () => ({ t: new Proxy({}, { get: (_, key) => (key === "wordTeamDefault" ? "Team {n}" : String(key)) }), lang: "en" }),
+  useLang: () => ({
+    t: new Proxy({}, { get: (_, key) => (key === "wordTeamDefault" ? (ui.lang === "tr" ? "Takım {n}" : "Team {n}") : String(key)) }),
+    lang: ui.lang,
+  }),
 }));
 vi.mock("@/lib/who-cards", () => cards);
 vi.mock("@/lib/who-things", () => ({
@@ -84,6 +88,12 @@ async function render() {
   await act(async () => root?.render(createElement(WhoGame)));
 }
 
+/** Switches the app language, as the page header's flag does. */
+async function switchLang(lang: "en" | "tr") {
+  ui.lang = lang;
+  await act(async () => root?.render(createElement(WhoGame)));
+}
+
 /** Moves the clock on, then taps. */
 async function call(fn: () => void, wait = 1000) {
   clock += wait;
@@ -111,6 +121,7 @@ beforeEach(() => {
   ui.screen = "";
   ui.frameColor = undefined;
   ui.frameCover = undefined;
+  ui.lang = "en";
   ui.props = {};
   store = new Map();
   vi.stubGlobal("window", { HTMLIFrameElement: class {} });
@@ -139,6 +150,41 @@ describe("WhoGame setup", () => {
     expect(p("form").poolSize).toBe(60);
     expect(p("form").quickStart).toBe(false);
     expect(ui.frameColor).toBeUndefined();
+  });
+
+  it("moves the default region and team names to the language the page switches to", async () => {
+    await render();
+    await switchLang("tr");
+    expect(p("form").value).toEqual(defaultWhoSetup("tr", ["Takım 1", "Takım 2"]));
+    await switchLang("en");
+    expect(p("form").value).toEqual(DEFAULT);
+  });
+
+  it("keeps a chosen region and renamed teams when the language switches", async () => {
+    await render();
+    const own: WhoSetup = { ...DEFAULT, region: "world", teams: [{ name: "Reds", players: [] }, DEFAULT.teams[1]] };
+    await call(() => p("form").onChange({ ...DEFAULT, region: "tr" }));
+    await call(() => p("form").onChange(own));
+    await switchLang("tr");
+    expect(p("form").value).toEqual({ ...own, teams: [{ name: "Reds", players: [] }, { name: "Takım 2", players: [] }] });
+  });
+
+  it("keeps a saved setup as it was when the language switches", async () => {
+    store.set(WHO_SETUP_STORAGE_KEY, JSON.stringify(valid));
+    await render();
+    await switchLang("tr");
+    expect(p("form").value).toEqual(valid);
+  });
+
+  it("stops following the language once a game has started", async () => {
+    await start({ ...valid, rounds: 1 });
+    await turn();
+    await call(() => p("summary").onNext());
+    await turn();
+    await call(() => p("summary").onNext());
+    await call(() => p("end").onNewGame());
+    await switchLang("tr");
+    expect(p("form").value).toEqual(valid);
   });
 
   it("counts the pool again when the cards change", async () => {

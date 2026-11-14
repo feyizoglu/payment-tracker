@@ -25,6 +25,7 @@ import {
   whoSide,
   whoStepErrors,
   whoTimeLeft,
+  whoSetupInLang,
   whoWinners,
   validateWhoSetup,
   type WhoAction,
@@ -236,6 +237,35 @@ describe("parseSavedWhoSetup", () => {
     expect(parseSavedWhoSeen("nope")).toEqual([]);
     expect(parseSavedWhoSeen('{"a":1}')).toEqual([]);
     expect(parseSavedWhoSeen('["a", 2, "b", "a"]')).toEqual(["a", "b"]);
+  });
+});
+
+describe("whoSetupInLang", () => {
+  const tr = ["Takım 1", "Takım 2"] as const;
+
+  it("moves the default team names and the default region to the new language", () => {
+    expect(whoSetupInLang(defaultWhoSetup("en", TEAM_NAMES), "tr", tr, false)).toEqual(defaultWhoSetup("tr", tr));
+    expect(whoSetupInLang(defaultWhoSetup("tr", tr), "en", TEAM_NAMES, false)).toEqual(defaultWhoSetup("en", TEAM_NAMES));
+  });
+
+  it("keeps a chosen region, renamed teams and everything else", () => {
+    const own: WhoSetup = {
+      ...defaultWhoSetup("en", TEAM_NAMES),
+      players: ["Ann"],
+      region: "world",
+      teams: [
+        { name: "Reds", players: ["Ann"] },
+        { name: "Team 2", players: ["Bob"] },
+      ],
+      kinds: ["things"],
+    };
+    expect(whoSetupInLang(own, "tr", tr, true)).toEqual({
+      ...own,
+      teams: [
+        { name: "Reds", players: ["Ann"] },
+        { name: "Takım 2", players: ["Bob"] },
+      ],
+    });
   });
 });
 
