@@ -1107,7 +1107,7 @@ const translations = {
     potatoStart: "Başla",
     potatoSayDifferent: "Bu turda kimsenin söylemediği bir şey söyle.",
     potatoPass: "Pas",
-    potatoPassLabel: "{name}, telefonu sıradakine ver",
+    potatoPassLabel: "Pas: {name} telefonu sıradakine verir",
     potatoBang: "BUM!",
     potatoLivesLeft: "{n} canı kaldı",
     potatoLifeLeft: "1 canı kaldı",

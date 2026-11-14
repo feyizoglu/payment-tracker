@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { translationsFor } from "./i18n";
 import {
   DEFAULT_SETUP,
   FUSE_SECONDS,
@@ -10,6 +11,7 @@ import {
   POTATO_TAP_GUARD_MS,
   SETUP_STORAGE_KEY,
   drawFuse,
+  fillTemplate,
   fuseStage,
   initialPotatoState,
   letterTasks,
@@ -503,6 +505,17 @@ describe("fuseStage", () => {
   it("counts only on-screen time while paused", () => {
     expect(fuseStage({ ...fuse, burntMs: 7_000, litAt: null }, T0 + 60_000)).toBe("calm");
     expect(fuseStage({ ...fuse, burntMs: 9_500, litAt: null }, T0 + 60_000)).toBe("fast");
+  });
+});
+
+describe("Pass button label", () => {
+  it("starts its spoken name with the word on the button, in both languages", () => {
+    for (const lang of ["en", "tr"] as const) {
+      const t = translationsFor(lang);
+      const spoken = fillTemplate(t.potatoPassLabel, { name: "Ayşe" });
+      expect(spoken.startsWith(t.potatoPass)).toBe(true);
+      expect(spoken).toContain("Ayşe");
+    }
   });
 });
 
