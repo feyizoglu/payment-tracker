@@ -97,6 +97,8 @@ device; **Start with last settings** on step 1 when they are valid.
 2. **Cards.**
    - Kinds: People, Characters, Things (at least one; default People and Characters).
    - Region: Turkey, World or Mixed (default Mixed in TR, World in EN). Ignored for Things.
+     The web page opens in English: until a setup is saved, its default region and team names
+     follow a language switch, the region only until it is chosen.
    - Level: Easy, Hard or Mixed (default Mixed).
 3. **Rules.** Turn length 30, 60 or 90 s (default 60); rounds 1 to 3 (default 2). Every player
    (solo) or every team plays one turn per round.
@@ -120,8 +122,7 @@ the pool itself has fewer than 50, the setup shows an error and suggests adding 
      summary opens (step 4): on web the game covers the whole page with its header links, on
      mobile the header shows only the title and Android's back button and back gesture do
      nothing. Back and the game-mode Exit are there again on the handoff screen and once the
-     summary opens. The web page's default region and team names follow its language switch
-     until a setup is saved or the region is chosen.
+     summary opens.
 3. **Time up.** The phone vibrates (React Native `Vibration`, web `navigator.vibrate` where it
    exists) and the turn ends. A card on screen at that moment counts as passed.
 4. **Summary.** The turn's cards in order, each marked Got it or Passed. Tapping a card flips its
