@@ -175,9 +175,12 @@ async function load(setup: WhoSetup, seen: string[] = []) {
   await settle();
 }
 
+/** Loads the setup and presses Start on the wizard's last step. */
 async function start(setup: WhoSetup = valid, seen: string[] = []) {
   await load(setup, seen);
+  call(WhoSetupWizard, "onStep", 2);
   call(WhoSetupWizard, "onStart");
+  await settle();
 }
 
 /** Starts a turn, answers, lets the clock run out and waits for the summary to open. */
@@ -236,9 +239,20 @@ describe("Who Am I? screen: setup", () => {
 
   it("saves the setup on Start and names the first guesser on their colour", async () => {
     await start();
+    await settle();
     expect(storage.setStoredWhoSetup).toHaveBeenCalledWith(valid);
     expect(props(WhoHandoff)).toMatchObject({ guesser: "Ann", team: null, round: 1, rounds: 1 });
     expect(screen()).toMatchObject({ title: "whoTitle", tone: "game", color: playerColor(0), scroll: false, nav: true });
+  });
+
+  it("saves nothing and stays on the step when Start is refused", async () => {
+    await load({ ...valid, kinds: ["characters"], region: "mixed" });
+    call(WhoSetupWizard, "onStep", 2);
+    call(WhoSetupWizard, "onStart");
+    await settle();
+    expect(has(WhoSetupWizard)).toBe(true);
+    expect(storage.setStoredWhoSetup).not.toHaveBeenCalled();
+    expect(props(WhoSetupWizard)).toMatchObject({ step: 2, quickStart: false });
   });
 
   it("names the team and its guesser on the team's colour", async () => {

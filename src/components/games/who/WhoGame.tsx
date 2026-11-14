@@ -93,6 +93,17 @@ export default function WhoGame() {
     if (pool.length > 0 && (phase === "summary" || phase === "end")) write(whoSeenKey(state.lang), JSON.stringify(seen));
   }, [phase, pool, seen, state.lang]);
 
+  // Only a game the reducer started is remembered: a refused Start leaves the setup and the
+  // wizard as they were. Play again saves the same setup again.
+  useEffect(() => {
+    if (phase !== "handoff" || state.turnsPlayed !== 0) return;
+    write(WHO_SETUP_STORAGE_KEY, JSON.stringify(setup));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSaved(true);
+    setPlayed(true);
+    setStep(0);
+  }, [phase, state.turnsPlayed, setup]);
+
   const names = sideNames(setup);
   const colors = names.map((_, i) => sideColor(setup.mode, i));
   const side = whoSide(state);
@@ -110,11 +121,7 @@ export default function WhoGame() {
           step={step}
           onStep={setStep}
           quickStart={played}
-          onStart={() => {
-            write(WHO_SETUP_STORAGE_KEY, JSON.stringify(draft));
-            setSaved(true);
-            setPlayed(true);
-            setStep(0);
+          onStart={() =>
             dispatch({
               type: "start",
               setup: draft,
@@ -123,8 +130,8 @@ export default function WhoGame() {
               seen: parseSavedWhoSeen(read(whoSeenKey(lang))),
               rng: Math.random,
               at: Date.now(),
-            });
-          }}
+            })
+          }
         />
       </GameFrame>
     );

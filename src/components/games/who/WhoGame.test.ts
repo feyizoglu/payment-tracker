@@ -103,9 +103,11 @@ async function call(fn: () => void, wait = 1000) {
 const DEFAULT = defaultWhoSetup("en", ["Team 1", "Team 2"]);
 const valid: WhoSetup = { ...DEFAULT, players: ["Ann", "Bob"], rounds: 1, turnSeconds: 30 };
 
+/** Fills the setup and presses Start on the wizard's last step. */
 async function start(setup: WhoSetup = valid) {
   await render();
   await call(() => p("form").onChange(setup));
+  await call(() => p("form").onStep(2));
   await call(() => p("form").onStart());
 }
 
@@ -228,6 +230,18 @@ describe("WhoGame setup", () => {
     expect(ui.screen).toBe("handoff");
     expect(p("handoff")).toMatchObject({ guesser: "Ann", team: null, round: 1, rounds: 1 });
     expect(ui.frameColor).toBe(playerColor(0));
+  });
+
+  it("saves nothing and stays on the step when Start is refused", async () => {
+    await render();
+    await call(() => p("form").onStep(2));
+    await call(() => p("form").onChange({ ...valid, kinds: ["characters"], region: "mixed" }));
+    await call(() => p("form").onStart());
+    expect(ui.screen).toBe("form");
+    expect(store.has(WHO_SETUP_STORAGE_KEY)).toBe(false);
+    expect(p("form")).toMatchObject({ step: 2, quickStart: false });
+    await switchLang("tr");
+    expect(p("form").value.teams[0].name).toBe("Takım 1");
   });
 
   it("starts even when storage cannot be written", async () => {

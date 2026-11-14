@@ -86,6 +86,15 @@ export default function WhoScreen() {
     if (state.lang === lang) setSeen(state.seen);
   }, [phase, pool, state.lang, state.seen, lang]);
 
+  // Only a game the reducer started is remembered: a refused Start leaves the setup and the
+  // wizard as they were. Play again saves the same setup again.
+  useEffect(() => {
+    if (phase !== "handoff" || state.turnsPlayed !== 0) return;
+    void setStoredWhoSetup(setup);
+    setPlayed(true);
+    setStep(0);
+  }, [phase, state.turnsPlayed, setup]);
+
   // The guesser may still tap blind while the summary is locked: the header's back and exit
   // stay hidden until it opens. Holds the `endedAt` of the summary whose lock has run out.
   const [lockOver, setLockOver] = useState(-1);
@@ -121,12 +130,9 @@ export default function WhoScreen() {
           step={step}
           onStep={setStep}
           quickStart={played}
-          onStart={() => {
-            void setStoredWhoSetup(draft);
-            setPlayed(true);
-            setStep(0);
-            dispatch({ type: "start", setup: draft, lang, sources: SOURCES, seen, rng: Math.random, at: Date.now() });
-          }}
+          onStart={() =>
+            dispatch({ type: "start", setup: draft, lang, sources: SOURCES, seen, rng: Math.random, at: Date.now() })
+          }
         />
       ) : (
         <ActivityIndicator />
