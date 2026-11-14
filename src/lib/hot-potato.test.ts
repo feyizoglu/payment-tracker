@@ -326,6 +326,14 @@ describe("potatoReducer: the fuse", () => {
     expect(potatoReducer(s, { type: "tick", at: lit + 10_100 }).holder).toBe(1);
   });
 
+  it("waits until the game is back on screen to bang when the fuse ran out just before a pause", () => {
+    const s = run(playing(), { type: "pause", at: lit + 10_200 });
+    expect(s.burntMs).toBe(10_200);
+    expect(potatoReducer(s, { type: "tick", at: lit + 20_000 })).toBe(s);
+    const back = potatoReducer(s, { type: "resume", at: lit + 30_000 });
+    expect(potatoReducer(back, { type: "tick", at: lit + 30_000 }).phase).toBe("bang");
+  });
+
   it("counts only the time the game is on screen", () => {
     const s = run(playing(), { type: "pause", at: lit + 3000 });
     expect(s.litAt).toBeNull();
