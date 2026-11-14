@@ -7,6 +7,7 @@ vi.mock("lucide-react", () => ({
   Flame: () => null,
   MessageSquareText: () => null,
   Moon: () => null,
+  UserRoundSearch: () => null,
   VenetianMask: () => null,
 }));
 vi.mock("@/components/games/GamesShell", () => ({
@@ -21,10 +22,10 @@ import GamesPage from "./page";
 const html = () => renderToStaticMarkup(createElement(GamesPage));
 
 describe("GamesPage", () => {
-  it("links the word game after the Imposter game, then Wolf Night, then Hot Potato", () => {
+  it("links the word game after the Imposter game, then Wolf Night, Hot Potato and Who Am I?", () => {
     const hrefs = [...html().matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]);
 
-    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato"]);
+    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who"]);
   });
 
   it("shows the word game's title and description on its link", () => {
@@ -43,5 +44,11 @@ describe("GamesPage", () => {
     const link = html().match(/<a href="\/games\/potato"[^>]*>(.*?)<\/a>/)?.[1] ?? "";
 
     expect(link).toMatch(/>potatoTitle<\/p><p[^>]*>potatoDesc<\/p>/);
+  });
+
+  it("shows Who Am I?'s title and description on its link", () => {
+    const link = html().match(/<a href="\/games\/who"[^>]*>(.*?)<\/a>/)?.[1] ?? "";
+
+    expect(link).toMatch(/>whoTitle<\/p><p[^>]*>whoDesc<\/p>/);
   });
 });
