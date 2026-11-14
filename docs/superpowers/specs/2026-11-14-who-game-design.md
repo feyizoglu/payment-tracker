@@ -119,7 +119,9 @@ the pool itself has fewer than 50, the setup shows an error and suggests adding 
 3. **Time up.** The phone vibrates (React Native `Vibration`, web `navigator.vibrate` where it
    exists) and the turn ends. A card on screen at that moment counts as passed.
 4. **Summary.** The turn's cards in order, each marked Got it or Passed. Tapping a card flips its
-   mark, to fix a wrong tap. **Next** goes to the next handoff.
+   mark, to fix a wrong tap. **Next** goes to the next handoff. For 1.5 s after the turn ends the
+   cards and **Next** are off and the game ignores taps on them, so a guesser still tapping blind
+   cannot flip a card or skip the summary (as Hot Potato's Next after the bang).
 
 The turn time runs only while the game is on screen: it pauses when the app or page goes to the
 background and, on mobile, while another screen (the game-mode PIN screen) covers the game, as in
