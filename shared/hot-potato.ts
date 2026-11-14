@@ -37,6 +37,8 @@ export const POTATO_TAP_GUARD_MS = 250;
 export const POTATO_NEXT_LOCK_MS = 1500;
 /** The bang screen's fill; dark text reads on it. */
 export const POTATO_BANG_COLOR = PLAYER_COLORS[0];
+/** How long the phone vibrates at the bang. */
+export const POTATO_VIBRATE_MS = 600;
 
 export const DEFAULT_SETUP: PotatoSetup = { players: [], lives: 3, fuse: "normal", tasks: "mixed" };
 
