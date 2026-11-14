@@ -5,7 +5,7 @@ import path from "node:path";
 
 const ENDPOINT = "https://query.wikidata.org/sparql";
 const HEADERS = {
-  "User-Agent": "payment-tracker-who-game/1.0 (personal hobby project script)",
+  "User-Agent": "who-game-candidates/1.0 (hobby script)",
   Accept: "application/sparql-results+json",
   "Content-Type": "application/x-www-form-urlencoded",
 };
