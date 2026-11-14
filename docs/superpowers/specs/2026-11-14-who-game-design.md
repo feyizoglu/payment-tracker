@@ -123,10 +123,10 @@ the pool itself has fewer than 50, the setup shows an error and suggests adding 
    - A tap within 400 ms of the previous one is ignored.
    - After each tap the next card shows at once.
    - No navigation control can be tapped above the halves while the turn runs and until the
-     summary opens (step 4): on web the game covers the whole page with its header links, on
-     mobile the header shows only the title and Android's back button and back gesture do
-     nothing. Back and the game-mode Exit are there again on the handoff screen and once the
-     summary opens.
+     summary opens (step 4). On web the game covers the whole page with its header links from
+     the turn to the end of the summary, so the summary never shifts when it opens; the header
+     and the game-mode Exit are back on the handoff screen. On mobile the header shows only the
+     title and Android's back button and back gesture do nothing until the summary opens.
 3. **Time up.** The phone vibrates (React Native `Vibration`, web `navigator.vibrate` where it
    exists) and the turn ends. A card on screen at that moment counts as passed.
 4. **Summary.** The turn's cards in order, each marked Got it or Passed. Tapping a card flips its
