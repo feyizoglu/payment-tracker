@@ -16,7 +16,7 @@ const MIN_PEOPLE = 2500;
 const MIN_PEOPLE_WORLD = 1750;
 const MIN_PEOPLE_TR = 650;
 const MIN_PEOPLE_PER_REGION_LEVEL = 150;
-const MIN_CHARACTERS = 1000;
+const MIN_CHARACTERS = 950;
 
 const key = (s: string, locale: string) =>
   s

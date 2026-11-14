@@ -26,8 +26,5 @@ export const worldHistory = cards("p-world-history", [
   ["Sacagawea", "Sacagawea", "world", "hard", "Lewis ve Clark seferine rehberlik eden yerli", "Native American guide of Lewis and Clark"],
   ["Sully Sullenberger", "Sully Sullenberger", "world", "hard", "yolcu uçağını Hudson Nehri'ne indiren pilot", "pilot who landed a jet on the Hudson River"],
   ["Irena Sendler", "Irena Sendler", "world", "hard", "gettodan Yahudi çocukları kurtaran Polonyalı", "Polish nurse who saved Jewish ghetto children"],
-  ["Juan Sebastián Elcano", "Juan Sebastián Elcano", "world", "hard", "dünya turunu ilk tamamlayan kaptan, Bask", "Basque captain, finished the first world voyage"],
-  ["Amy Johnson", "Amy Johnson", "world", "hard", "İngiltere'den Avustralya'ya tek uçan kadın pilot", "first woman to fly solo England to Australia"],
-  ["Giovanni da Verrazzano", "Giovanni da Verrazzano", "world", "hard", "New York koyuna giren ilk Avrupalı, İtalyan", "Italian, first European in New York Harbor"],
-  ["Bessie Coleman", "Bessie Coleman", "world", "hard", "pilot lisansı alan ilk siyahi kadın, ABD", "first Black woman to earn a pilot license, US"],
+  ["Amy Johnson", "Amy Johnson", "world", "hard", "Avustralya'ya tek başına uçan ilk kadın pilot", "first woman to fly solo England to Australia"],
 ]);

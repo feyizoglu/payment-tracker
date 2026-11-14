@@ -67,7 +67,7 @@ Things keep their Describe It ids with a `things:` prefix.
 
 ### Sizes
 
-At least 2500 people (about 1800 World and 700 Turkey), at least 1000 characters, and the
+At least 2500 people (about 1800 World and 700 Turkey), at least 950 characters, and the
 Describe It things (well over 600 per language). Each region and level combination of people
 has at least 150 cards.
 
