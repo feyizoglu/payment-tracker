@@ -298,6 +298,17 @@ describe("ClueGame round", () => {
     for (const e of shown.filter((x) => x.screen === "gate")) expect(JSON.stringify(e.props)).not.toContain(word);
   });
 
+  it("saves the seen word under the game's language after the app language changes mid-game", async () => {
+    await start();
+    ui.lang = "tr";
+    await act(async () => root?.render(createElement(ClueGame)));
+    await round(["Night", "Sky"], "got");
+    expect(ui.screen).toBe("result");
+    const id = p("result").result.word.id;
+    expect(JSON.parse(store.get(clueSeenKey("en"))!)).toEqual([id]);
+    expect(store.has(clueSeenKey("tr"))).toBe(false);
+  });
+
   it("shows the result to everyone, saves the seen word and goes on to the next guesser", async () => {
     await start();
     await round(["Night", "Sky"], "got");
