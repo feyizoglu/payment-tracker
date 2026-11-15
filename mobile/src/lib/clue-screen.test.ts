@@ -371,6 +371,24 @@ describe("One Clue screen: a round", () => {
     // Start was pressed on the last step: the wizard opens again on the first, with the quick start.
     expect(props(ClueSetupWizard)).toMatchObject({ value: { ...valid, level: "hard" }, step: 0, quickStart: true });
   });
+
+  it("starts the next game after the last one's words", async () => {
+    await start();
+    for (let i = 0; i < 8; i++) {
+      await round(["Night", "Sky"]);
+      call(ClueResult, "onNext");
+      await settle();
+    }
+    const last = (props(ClueEnd).results as { word: { word: string } }[]).map((r) => r.word.word);
+    expect(last).toHaveLength(8);
+    call(ClueEnd, "onNewGame");
+    await settle();
+    call(ClueSetupWizard, "onStep", 1);
+    call(ClueSetupWizard, "onStart");
+    await settle();
+    call(ClueHandoff, "onBegin");
+    expect(last).not.toContain(props(ClueWrite).word);
+  });
 });
 
 /** Back handlers still listening. */
