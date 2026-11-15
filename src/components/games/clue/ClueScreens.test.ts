@@ -150,7 +150,7 @@ describe("ClueWrite", () => {
       value: "",
       autoComplete: "off",
       autoCorrect: "off",
-      autoCapitalize: "none",
+      autoCapitalize: "off",
       spellCheck: false,
       enterKeyHint: "done",
       maxLength: CLUE_MAX_LENGTH,

@@ -10,6 +10,7 @@ import {
 } from "@ptracker/shared/clue-game";
 
 const hooks = vi.hoisted(() => ({ states: [] as unknown[], index: 0 }));
+const platform = vi.hoisted(() => ({ OS: "android" as "android" | "ios" }));
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
@@ -25,7 +26,13 @@ vi.mock("react", async (importOriginal) => {
     },
   };
 });
-vi.mock("react-native", () => ({ Pressable: () => null, Text: () => null, TextInput: () => null, View: () => null }));
+vi.mock("react-native", () => ({
+  Platform: platform,
+  Pressable: () => null,
+  Text: () => null,
+  TextInput: () => null,
+  View: () => null,
+}));
 vi.mock("@ptracker/shared/i18n", () => ({
   useLang: () => ({
     t: new Proxy({} as Record<string, string>, {
@@ -102,6 +109,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   hooks.states = [];
   hooks.index = 0;
+  platform.OS = "android";
 });
 
 describe("ClueHandoff (mobile)", () => {
@@ -156,6 +164,18 @@ describe("ClueWrite (mobile)", () => {
     });
     expect(text(tree)).toContain("clueYourClue");
     expect(text(tree)).toContain("clueClueHint");
+  });
+
+  it("keeps the keyboard from suggesting or learning the clue on Android, so the next giver cannot see it", () => {
+    expect(input(render(true)).props).toMatchObject({
+      keyboardType: "visible-password",
+      autoCorrect: false,
+      autoComplete: "off",
+      importantForAutofill: "no",
+      spellCheck: false,
+    });
+    platform.OS = "ios";
+    expect(input(render(true)).props.keyboardType).toBe("default");
   });
 
   it("keeps Done off while the field is empty, says what is wrong with a clue, and submits a good one", () => {

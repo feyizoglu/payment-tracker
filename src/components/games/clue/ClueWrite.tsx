@@ -47,7 +47,7 @@ export default function ClueWrite({
             onChange={(e) => setClue(e.target.value)}
             autoComplete="off"
             autoCorrect="off"
-            autoCapitalize="none"
+            autoCapitalize="off"
             spellCheck={false}
             enterKeyHint="done"
             maxLength={CLUE_MAX_LENGTH}
