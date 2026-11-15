@@ -17,4 +17,17 @@ describe("GameFrame", () => {
     const tree = GameFrame({ color: "#FF6B6B", children: "X" }) as Node;
     expect(tree.props.style).toEqual({ backgroundColor: "#FF6B6B", color: GAME_THEME.ink });
   });
+
+  it("stays in the page by default", () => {
+    const classes = String((GameFrame({ children: "X" }) as Node).props.className).split(" ");
+    expect(classes).not.toContain("fixed");
+  });
+
+  it("covers the whole page when asked, hiding the header's links above the game", () => {
+    const tree = GameFrame({ cover: true, children: "X" }) as Node;
+    const classes = String(tree.props.className).split(" ");
+    expect(classes).toEqual(expect.arrayContaining(["dark", "fixed", "inset-0", "z-50"]));
+    expect(tree.props.style).toEqual({ backgroundColor: GAME_THEME.bg, color: GAME_THEME.text });
+    expect(tree.props.children).toBe("X");
+  });
 });

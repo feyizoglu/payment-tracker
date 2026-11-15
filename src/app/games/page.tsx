@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Flame, MessageSquareText, Moon, VenetianMask } from "lucide-react";
+import { ChevronRight, Flame, MessageSquareText, Moon, UserRoundSearch, VenetianMask } from "lucide-react";
 import GamesShell from "@/components/games/GamesShell";
 import { useLang } from "@/lib/i18n";
 
@@ -58,6 +58,19 @@ export default function GamesPage() {
           <div className="flex-1">
             <p className="font-semibold text-gray-900">{t.potatoTitle}</p>
             <p className="text-sm text-gray-500">{t.potatoDesc}</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-gray-400" />
+        </a>
+        <a
+          href="/games/who"
+          className="flex items-center gap-4 rounded-xl border border-gray-100 bg-surface p-4 hover:border-emerald-200 transition"
+        >
+          <div className="rounded-lg bg-emerald-50 p-3">
+            <UserRoundSearch className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-gray-900">{t.whoTitle}</p>
+            <p className="text-sm text-gray-500">{t.whoDesc}</p>
           </div>
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </a>

@@ -119,7 +119,7 @@ describe("GameScreen back fallback", () => {
 });
 
 describe("GameScreen header slots", () => {
-  const header = (props: { right?: ReactElement } = {}) => {
+  const header = (props: { right?: ReactElement; nav?: boolean } = {}) => {
     const tree = GameScreen({ title: "Game", children: null, ...props }) as Node;
     const row = nodes(tree).find((n) => n.type === View && String(n.props.className).includes("border-b"))!;
     return (row.props.children as unknown[]).map((child) => text(child));
@@ -143,6 +143,23 @@ describe("GameScreen header slots", () => {
 
   it("has no exit outside game mode", () => {
     expect(header()).toEqual(["‹ BACK", "Game", ""]);
+  });
+
+  it("hides every header control when asked, keeping only the title", () => {
+    s.lock = { ...withPin, gameMode: true };
+    s.path = "/games/who";
+    expect(header({ nav: false })).toEqual(["", "Game", ""]);
+    expect(header({ nav: false, right: createElement(Pressable, null, "FLAG") })).toEqual(["", "Game", ""]);
+    const tree = GameScreen({ title: "Game", children: null, nav: false }) as Node;
+    expect(nodes(tree).some((n) => n.type === Pressable)).toBe(false);
+    s.lock = withPin;
+    expect(header({ nav: false })).toEqual(["", "Game", ""]);
+  });
+
+  it("keeps today's header when not told otherwise", () => {
+    s.lock = { ...withPin, gameMode: true };
+    s.path = "/games/who";
+    expect(header({ nav: true })).toEqual(["‹ BACK", "Game", "EXIT"]);
   });
 });
 

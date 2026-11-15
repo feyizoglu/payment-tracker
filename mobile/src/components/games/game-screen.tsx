@@ -16,11 +16,14 @@ import { gameDarkVars } from "@/lib/game-theme";
 //   games list (which has no back) and on the right on the other screens.
 // - `scroll={false}`: a plain body. A held card inside a ScrollView loses the press as soon
 //   as the finger drifts.
+// - `nav={false}`: no back, exit or own action in the header, only the title, for a screen
+//   tapped blind.
 export function GameScreen({
   title,
   tone = "app",
   color,
   scroll = true,
+  nav = true,
   right,
   children,
 }: {
@@ -28,6 +31,7 @@ export function GameScreen({
   tone?: "app" | "game";
   color?: string;
   scroll?: boolean;
+  nav?: boolean;
   right?: ReactNode;
   children: ReactNode;
 }) {
@@ -36,11 +40,11 @@ export function GameScreen({
   const { lock } = useAppLock();
   const path = usePathname();
   // In game mode the games list is the root: going "back" from it would leave the games.
-  const showBack = !(lock.gameMode && path === "/games");
+  const showBack = nav && !(lock.gameMode && path === "/games");
   const game = tone === "game";
   const fill = color ? { backgroundColor: color } : null;
   const exit = (side: "pl-3" | "pr-3") =>
-    lock.gameMode && path !== "/app-lock" ? (
+    nav && lock.gameMode && path !== "/app-lock" ? (
       <Pressable onPress={() => router.push("/app-lock")} className={side}>
         <Text className="text-sm text-gray-500">{t.gameModeExit}</Text>
       </Pressable>
@@ -58,7 +62,7 @@ export function GameScreen({
           (exit("pr-3") ?? spacer)
         )}
         <Text className="flex-1 text-center text-base font-semibold text-gray-900">{title}</Text>
-        {right ?? (showBack ? exit("pl-3") : null) ?? spacer}
+        {(nav ? right : null) ?? (showBack ? exit("pl-3") : null) ?? spacer}
       </View>
       {scroll ? (
         <ScrollView
