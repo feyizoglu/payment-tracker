@@ -240,6 +240,7 @@ describe("ScaleGame turn", () => {
     await call(() => p("secret").onHide());
     expect(ui.screen).toBe("guess");
     expect(p("guess")).toMatchObject({ team: "Red", color: teamColor(0), needle: 50, confirming: false });
+    expect(p("guess")).not.toHaveProperty("target");
     expect(p("guess").pair).toEqual(p("secret").pair);
     await call(() => p("guess").onMove(61));
     expect(p("guess").needle).toBe(61);

@@ -270,6 +270,7 @@ describe("Scale screen: a turn", () => {
       needle: 50,
       confirming: false,
     });
+    expect(props(ScaleGuess)).not.toHaveProperty("target");
     expect(screen()).toMatchObject({ color: undefined, scroll: false });
     call(ScaleGuess, "onMove", 12);
     expect(props(ScaleGuess).needle).toBe(12);

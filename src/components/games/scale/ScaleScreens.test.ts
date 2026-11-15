@@ -182,6 +182,7 @@ describe("ScaleNeedle", () => {
       "aria-valuetext": "42/100",
     });
     expect(find(s, ScaleBar)!.props.needle).toBe(42);
+    expect(find(s, ScaleBar)!.props.target).toBeUndefined();
     expect(String(s.props.className)).toContain("touch-none");
   });
 
@@ -282,8 +283,12 @@ describe("ScaleGuess", () => {
   it("shows the pair and the needle without the target", () => {
     const tree = render(false);
     expect(find(tree, ScaleEnds)!.props.pair).toBe(PAIR);
-    expect(find(tree, ScaleNeedle)!.props).toMatchObject({ value: 33, onMove });
+    const needle = find(tree, ScaleNeedle)!;
+    expect(needle.props).toEqual({ value: 33, onMove });
     expect(find(tree, ScaleBar)).toBeUndefined();
+    const line = find(ScaleNeedle(needle.props as never) as Node, ScaleBar)!;
+    expect(line.props.needle).toBe(33);
+    expect(line.props.target).toBeUndefined();
     expect(text(tree)).toContain("Blue");
   });
 

@@ -219,6 +219,7 @@ describe("ScaleNeedle (mobile)", () => {
       accessibilityActions: [{ name: "increment" }, { name: "decrement" }],
     });
     expect(find(control(tree), ScaleBar).props).toMatchObject({ needle: 40 });
+    expect(find(control(tree), ScaleBar).props.target).toBeUndefined();
   });
 
   it("moves by one on the screen reader's increment and decrement", () => {
@@ -305,6 +306,15 @@ describe("ScaleGuess (mobile)", () => {
     expect(text(tree)).toContain("scaleGuessHint");
     expect(find(tree, ScaleEnds).props.pair).toEqual(PAIR);
     expect(find(tree, ScaleNeedle).props).toEqual({ value: 64, onMove });
+  });
+
+  it("never draws the target: the needle's line has no band", () => {
+    const needle = find(render(false), ScaleNeedle);
+    hooks.index = 0;
+    hooks.effects = [];
+    const line = find(ScaleNeedle(needle.props as never) as Node, ScaleBar);
+    expect(line.props.needle).toBe(64);
+    expect(line.props.target).toBeUndefined();
   });
 
   it("asks for a second tap before locking in", () => {
