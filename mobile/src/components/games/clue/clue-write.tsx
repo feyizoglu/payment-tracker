@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Platform, Text, TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 
 import { useLang } from "@ptracker/shared/i18n";
 import { CLUE_ERROR_KEYS, CLUE_MAX_LENGTH, GAME_THEME, validateClue } from "@ptracker/shared/clue-game";
@@ -51,9 +51,8 @@ export function ClueWrite({
           onChangeText={setClue}
           onSubmitEditing={submit}
           accessibilityLabel={t.clueYourClue}
-          // Android keyboards learn typed words and offer them to the next giver; this
-          // keyboard neither suggests nor learns.
-          keyboardType={Platform.OS === "android" ? "visible-password" : "default"}
+          // No suggestion strip, so the next giver is not offered this clue. Not a password
+          // keyboard: some Samsung keyboards drop ş, ğ, ı, ö, ç and ü there.
           autoCorrect={false}
           autoCapitalize="none"
           autoComplete="off"

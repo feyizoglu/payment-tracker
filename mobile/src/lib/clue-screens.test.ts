@@ -166,16 +166,20 @@ describe("ClueWrite (mobile)", () => {
     expect(text(tree)).toContain("clueClueHint");
   });
 
-  it("keeps the keyboard from suggesting or learning the clue on Android, so the next giver cannot see it", () => {
-    expect(input(render(true)).props).toMatchObject({
-      keyboardType: "visible-password",
-      autoCorrect: false,
-      autoComplete: "off",
-      importantForAutofill: "no",
-      spellCheck: false,
-    });
-    platform.OS = "ios";
-    expect(input(render(true)).props.keyboardType).toBe("default");
+  it("turns off suggestions and autofill but keeps the normal keyboard, whose Turkish letters a password keyboard may drop", () => {
+    for (const os of ["android", "ios"] as const) {
+      platform.OS = os;
+      const props = input(render(true)).props;
+      expect(props).toMatchObject({
+        autoCorrect: false,
+        autoCapitalize: "none",
+        autoComplete: "off",
+        importantForAutofill: "no",
+        spellCheck: false,
+      });
+      expect(props.keyboardType).toBeUndefined();
+      expect(props.secureTextEntry).toBeUndefined();
+    }
   });
 
   it("keeps Done off while the field is empty, says what is wrong with a clue, and submits a good one", () => {
