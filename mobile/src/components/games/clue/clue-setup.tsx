@@ -2,6 +2,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { localeFor, useLang } from "@ptracker/shared/i18n";
 import {
+  CLUE_MAX_PLAYERS,
   CLUE_SETUP_ERROR_KEYS,
   CLUE_SETUP_STEPS,
   GAME_THEME,
@@ -60,7 +61,7 @@ export function ClueSetupWizard({
         </View>
       </View>
 
-      {name === "players" ? <SetupPlayersStep value={value} onChange={onChange} /> : null}
+      {name === "players" ? <SetupPlayersStep value={value} onChange={onChange} max={CLUE_MAX_PLAYERS} /> : null}
       {name === "rules" ? <ClueRulesStep value={value} onChange={onChange} /> : null}
 
       {errors.length > 0 ? (

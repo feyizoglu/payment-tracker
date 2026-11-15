@@ -85,7 +85,7 @@ describe("ClueSetupWizard (mobile)", () => {
 
   it("shows the players and rules steps with titles and progress dots", () => {
     expect([has(render(three, 0), SetupPlayersStep), has(render(three, 0), ClueRulesStep)]).toEqual([true, false]);
-    expect(nodes(render(three, 0)).find((n) => n.type === SetupPlayersStep)!.props).toEqual({ value: three, onChange });
+    expect(nodes(render(three, 0)).find((n) => n.type === SetupPlayersStep)!.props).toEqual({ value: three, onChange, max: 10 });
     expect(text(render(three, 0))).toContain("clueStepPlayers");
     expect([has(render(three, 1), SetupPlayersStep), has(render(three, 1), ClueRulesStep)]).toEqual([false, true]);
     expect(text(render(three, 1))).toContain("clueStepRules");

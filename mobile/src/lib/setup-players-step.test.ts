@@ -55,6 +55,14 @@ describe("SetupPlayersStep players", () => {
     expect(addButton(render({ ...valid, players: names(MAX_PLAYERS - 1) })).props.disabled).toBe(false);
   });
 
+  it("disables Add at a game's own lower limit", () => {
+    const names = (n: number) => Array.from({ length: n }, (_, i) => `P${i}`);
+    const add = (n: number) => addButton(SetupPlayersStep({ value: { ...valid, players: names(n) }, onChange, max: 10 }) as Node);
+    expect(add(10).props.disabled).toBe(true);
+    expect(add(10).props.accessibilityState).toEqual({ disabled: true });
+    expect(add(9).props.disabled).toBe(false);
+  });
+
   it("adds an empty player at the end", () => {
     (addButton(render(valid)).props.onPress as () => void)();
     expect(onChange).toHaveBeenCalledWith({ ...valid, players: ["Ann", "Bob", "Cem", ""] });

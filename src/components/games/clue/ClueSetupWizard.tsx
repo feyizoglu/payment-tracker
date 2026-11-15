@@ -2,6 +2,7 @@
 
 import { localeFor, useLang } from "@/lib/i18n";
 import {
+  CLUE_MAX_PLAYERS,
   CLUE_SETUP_ERROR_KEYS,
   CLUE_SETUP_STEPS,
   GAME_THEME,
@@ -57,7 +58,7 @@ export default function ClueSetupWizard({
         </div>
       </div>
 
-      {name === "players" && <SetupPlayersStep value={value} onChange={onChange} />}
+      {name === "players" && <SetupPlayersStep value={value} onChange={onChange} max={CLUE_MAX_PLAYERS} />}
       {name === "rules" && <ClueRulesStep value={value} onChange={onChange} />}
 
       {errors.length > 0 && (

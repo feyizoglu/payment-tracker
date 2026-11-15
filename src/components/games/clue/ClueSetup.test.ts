@@ -84,7 +84,7 @@ describe("ClueSetupWizard", () => {
   it("shows the players and rules steps with titles and progress dots", () => {
     const players = render(three, 0);
     expect([has(players, SetupPlayersStep), has(players, ClueRulesStep)]).toEqual([true, false]);
-    expect(nodes(players).find((n) => n.type === SetupPlayersStep)!.props).toEqual({ value: three, onChange });
+    expect(nodes(players).find((n) => n.type === SetupPlayersStep)!.props).toEqual({ value: three, onChange, max: 10 });
     expect(text(players)).toContain("clueStepPlayers");
     expect(dots(players)).toBe("step 1/2");
     const rules = render(three, 1);
