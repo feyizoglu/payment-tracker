@@ -88,7 +88,7 @@ export default function GamesScreen() {
       <Pressable
         onPress={() => router.push("/games/clue")}
         className="flex-row items-center gap-4 rounded-xl border border-gray-100 p-4">
-        <View className="rounded-lg bg-sky-50 p-3">
+        <View className="rounded-lg bg-rose-50 p-3">
           <Text className="text-2xl">💡</Text>
         </View>
         <View className="flex-1">

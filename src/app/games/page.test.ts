@@ -57,7 +57,7 @@ describe("GamesPage", () => {
     const link = html().match(/<a href="\/games\/clue"[^>]*>(.*?)<\/a>/)?.[0] ?? "";
 
     expect(link).toMatch(/>clueTitle<\/p><p[^>]*>clueDesc<\/p>/);
-    expect(link).toContain("hover:border-sky-200");
-    expect(link).toContain("bg-sky-50");
+    expect(link).toContain("hover:border-rose-200");
+    expect(link).toContain("bg-rose-50");
   });
 });
