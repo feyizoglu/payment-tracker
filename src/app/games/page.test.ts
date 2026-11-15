@@ -1,10 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
 import { createElement, Fragment, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 vi.mock("lucide-react", () => ({
   ChevronRight: () => null,
   Flame: () => null,
+  Gauge: () => null,
+  Lightbulb: () => null,
   MessageSquareText: () => null,
   Moon: () => null,
   UserRoundSearch: () => null,
@@ -22,10 +26,10 @@ import GamesPage from "./page";
 const html = () => renderToStaticMarkup(createElement(GamesPage));
 
 describe("GamesPage", () => {
-  it("links the word game after the Imposter game, then Wolf Night, Hot Potato and Who Am I?", () => {
+  it("links the word game after the Imposter game, then Wolf Night, Hot Potato, Who Am I?, Scale and One Clue", () => {
     const hrefs = [...html().matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]);
 
-    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who"]);
+    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who", "/games/scale", "/games/clue"]);
   });
 
   it("shows the word game's title and description on its link", () => {
@@ -50,5 +54,35 @@ describe("GamesPage", () => {
     const link = html().match(/<a href="\/games\/who"[^>]*>(.*?)<\/a>/)?.[1] ?? "";
 
     expect(link).toMatch(/>whoTitle<\/p><p[^>]*>whoDesc<\/p>/);
+  });
+
+  it("shows Scale's title and description on its link", () => {
+    const link = html().match(/<a href="\/games\/scale"[^>]*>(.*?)<\/a>/)?.[1] ?? "";
+
+    expect(link).toMatch(/>scaleTitle<\/p><p[^>]*>scaleDesc<\/p>/);
+  });
+
+  it("gives Scale a tone of its own, remapped in the dark theme", () => {
+    const links = [...html().matchAll(/<a href="([^"]+)"[^>]*>(.*?)<\/a>/g)];
+    const rose = links.filter(([, , body]) => body.includes("rose-")).map(([, href]) => href);
+    const teal = links.filter(([, , body]) => body.includes("teal-")).map(([, href]) => href);
+    const scale = links.find(([, href]) => href === "/games/scale")![0];
+
+    expect(teal).toEqual(["/games/scale"]);
+    expect(rose).toEqual(["/games/clue"]);
+    expect(scale).toContain("hover:border-teal-200");
+    expect(scale).toContain("bg-teal-50");
+    const css = readFileSync(fileURLToPath(new URL("../globals.css", import.meta.url)), "utf8");
+    const dark = css.slice(css.indexOf(".dark {"));
+    expect(dark).toMatch(/--color-teal-50:/);
+    expect(dark).toMatch(/--color-teal-200:/);
+  });
+
+  it("shows One Clue's title and description on its link, in its own colour", () => {
+    const link = html().match(/<a href="\/games\/clue"[^>]*>(.*?)<\/a>/)?.[0] ?? "";
+
+    expect(link).toMatch(/>clueTitle<\/p><p[^>]*>clueDesc<\/p>/);
+    expect(link).toContain("hover:border-rose-200");
+    expect(link).toContain("bg-rose-50");
   });
 });

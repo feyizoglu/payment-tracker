@@ -54,6 +54,14 @@ describe("SetupPlayersStep players", () => {
     expect(button(render({ ...valid, players: names(MAX_PLAYERS - 1) }), "imposterAddPlayer")?.props.disabled).toBe(false);
   });
 
+  it("disables Add at a game's own lower limit", () => {
+    const names = (n: number) => Array.from({ length: n }, (_, i) => `P${i}`);
+    const add = (n: number) =>
+      button(SetupPlayersStep({ value: { ...valid, players: names(n) }, onChange, max: 10 }) as Node, "imposterAddPlayer");
+    expect(add(10)?.props.disabled).toBe(true);
+    expect(add(9)?.props.disabled).toBe(false);
+  });
+
   it("adds an empty player at the end", () => {
     (button(render(valid), "imposterAddPlayer")!.props.onClick as () => void)();
     expect(onChange).toHaveBeenCalledWith({ ...valid, players: ["Ann", "Bob", "Cem", ""] });

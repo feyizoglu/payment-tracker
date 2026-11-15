@@ -8,9 +8,12 @@ import { GAME_THEME, MAX_PLAYERS, playerColor } from "@/lib/imposter";
 export default function SetupPlayersStep<S extends { players: string[] }>({
   value,
   onChange,
+  max = MAX_PLAYERS,
 }: {
   value: S;
   onChange: (next: S) => void;
+  /** The most players the game takes; Add is disabled there. */
+  max?: number;
 }) {
   const { t } = useLang();
   const setPlayers = (players: string[]) => onChange({ ...value, players });
@@ -40,7 +43,7 @@ export default function SetupPlayersStep<S extends { players: string[] }>({
       ))}
       <button
         type="button"
-        disabled={value.players.length >= MAX_PLAYERS}
+        disabled={value.players.length >= max}
         onClick={() => setPlayers([...value.players, ""])}
         className="w-full rounded-xl border border-dashed border-gray-300 py-3 text-sm text-gray-500 hover:bg-gray-100 disabled:opacity-50"
       >

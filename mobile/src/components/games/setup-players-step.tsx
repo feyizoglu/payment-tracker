@@ -7,13 +7,16 @@ import { GAME_THEME, MAX_PLAYERS, playerColor } from "@ptracker/shared/imposter"
 export function SetupPlayersStep<S extends { players: string[] }>({
   value,
   onChange,
+  max = MAX_PLAYERS,
 }: {
   value: S;
   onChange: (next: S) => void;
+  /** The most players the game takes; Add is disabled there. */
+  max?: number;
 }) {
   const { t } = useLang();
   const setPlayers = (players: string[]) => onChange({ ...value, players });
-  const full = value.players.length >= MAX_PLAYERS;
+  const full = value.players.length >= max;
 
   return (
     <View className="gap-2">
