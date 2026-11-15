@@ -218,6 +218,14 @@ describe("Scale scoring", () => {
     expect(translationsFor("tr").scaleTitle).toBe("Ölçek");
   });
 
+  it("calls a turn \"tur\" in Turkish, like the other games", () => {
+    const tr = translationsFor("tr");
+    const scale = Object.entries(tr).filter(([key]) => key.startsWith("scale"));
+    expect(scale.filter(([, value]) => /(^|\s)sıra(da)?(\s|$)/i.test(value)).map(([key]) => key)).toEqual([]);
+    expect(tr.scaleTurns).toBe("Takım başına tur");
+    expect(tr.scaleTurnOf).toBe("Tur {n} / {total}");
+  });
+
   it("names the winner, or a tie", () => {
     expect(scaleWinner([5, 3])).toBe(0);
     expect(scaleWinner([2, 9])).toBe(1);
