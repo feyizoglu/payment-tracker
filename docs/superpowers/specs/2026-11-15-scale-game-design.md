@@ -59,8 +59,11 @@ after 1 s, so the confirm tap cannot skip it.
   "Boring / Exciting", "Easy to spell / Hard to spell", "Bad superpower / Good superpower",
   "Underrated / Overrated", "Smells bad / Smells good".
 - Family friendly; no politics, religion or real people.
-- A pair is not repeated within a game, and the used list carries into Play again; when every
-  pair has been used, the list starts over.
+- A pair is not repeated until every pair of the language has been played. The device remembers
+  the pairs played per language (`scale_seen_<lang>`, web localStorage and mobile storage,
+  fail-soft), saved when the needle is locked and at the end, so Play again and later games carry
+  on from it; when every pair has been played, that language's list starts over without the pair
+  just played. Pairs are drawn at random with the game's `Rng`.
 
 ## Code structure
 
