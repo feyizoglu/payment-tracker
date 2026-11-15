@@ -13,6 +13,7 @@ import {
   parseSavedScaleSetup,
   scaleClueGiver,
   scaleDistance,
+  scaleDistanceKey,
   scaleOutcome,
   scalePoints,
   parseSavedScaleSeen,
@@ -165,7 +166,25 @@ describe("Scale scoring", () => {
   });
 
   it("describes how close a guess was by its points", () => {
-    expect([4, 3, 2, 0].map(scaleOutcome)).toEqual(["bullseye", "veryClose", "close", "miss"]);
+    expect([4, 3, 2, 0].map(scaleOutcome)).toEqual(["spotOn", "veryClose", "close", "miss"]);
+  });
+
+  it("writes the distance in steps, one step in the singular and none as a bullseye", () => {
+    expect([0, 1, 2, 50].map(scaleDistanceKey)).toEqual(["scaleBullseye", "scaleDistanceOne", "scaleDistance", "scaleDistance"]);
+    const en = translationsFor("en");
+    const tr = translationsFor("tr");
+    expect([en.scaleBullseye, en.scaleDistanceOne, en.scaleDistance]).toEqual([
+      "Bullseye!",
+      "The needle was 1 step away from the target.",
+      "The needle was {n} steps away from the target.",
+    ]);
+    expect([tr.scaleBullseye, tr.scaleDistanceOne, tr.scaleDistance]).toEqual([
+      "Tam isabet!",
+      "İbre hedeften 1 birim uzaktaydı.",
+      "İbre hedeften {n} birim uzaktaydı.",
+    ]);
+    expect(en[SCALE_OUTCOME_KEYS.spotOn]).not.toBe(en.scaleBullseye);
+    expect(tr[SCALE_OUTCOME_KEYS.spotOn]).not.toBe(tr.scaleBullseye);
   });
 
   it("draws the band's zones left to right around the target, each value inside its zone", () => {

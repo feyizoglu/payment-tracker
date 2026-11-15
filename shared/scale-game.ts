@@ -146,20 +146,26 @@ export function scalePoints(distance: number): number {
   return [...SCALE_BANDS].reverse().find((band) => distance <= band.within)?.points ?? 0;
 }
 
-export type ScaleOutcome = "bullseye" | "veryClose" | "close" | "miss";
+export type ScaleOutcome = "spotOn" | "veryClose" | "close" | "miss";
 
-const OUTCOMES: Record<number, ScaleOutcome> = { 4: "bullseye", 3: "veryClose", 2: "close" };
+const OUTCOMES: Record<number, ScaleOutcome> = { 4: "spotOn", 3: "veryClose", 2: "close" };
 
 export function scaleOutcome(points: number): ScaleOutcome {
   return OUTCOMES[points] ?? "miss";
 }
 
 export const SCALE_OUTCOME_KEYS = {
-  bullseye: "scaleBullseye",
+  spotOn: "scaleSpotOn",
   veryClose: "scaleVeryClose",
   close: "scaleClose",
   miss: "scaleMiss",
 } as const satisfies Record<ScaleOutcome, string>;
+
+/** The line under the points: the distance in steps, or a bullseye when there is none. */
+export function scaleDistanceKey(distance: number): "scaleBullseye" | "scaleDistanceOne" | "scaleDistance" {
+  if (distance === 0) return "scaleBullseye";
+  return distance === 1 ? "scaleDistanceOne" : "scaleDistance";
+}
 
 export interface ScaleZone {
   points: number;

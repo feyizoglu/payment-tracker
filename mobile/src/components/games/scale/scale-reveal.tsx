@@ -6,6 +6,7 @@ import {
   SCALE_OUTCOME_KEYS,
   SCALE_REVEAL_LOCK_MS,
   fillTemplate,
+  scaleDistanceKey,
   scaleOutcome,
   scalePoints,
   type ScalePair,
@@ -58,7 +59,7 @@ export function ScaleReveal({
       <ScaleEnds pair={pair} />
       <ScaleBar target={target} needle={needle} />
       <Text className="text-center text-sm text-gray-500">
-        {fillTemplate(t.scaleDistance, { n: String(distance) })}
+        {fillTemplate(t[scaleDistanceKey(distance)], { n: String(distance) })}
       </Text>
       <WordScores teams={teams} scores={scores} />
       <PrimaryButton label={t.scaleNext} onPress={onNext} disabled={!open} />

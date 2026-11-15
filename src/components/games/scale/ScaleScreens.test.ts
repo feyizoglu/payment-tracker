@@ -41,6 +41,7 @@ vi.mock("@/lib/i18n", () => ({
           scaleNeedleValue: "{n}/100",
           scaleTurnPoints: "{team} +{n}",
           scaleDistance: "{n} away",
+          scaleDistanceOne: "one away",
           scaleWins: "{team} wins",
         };
         return templates[String(key)] ?? String(key);
@@ -321,13 +322,17 @@ describe("ScaleReveal", () => {
   });
 
   it.each([
-    [53, "scaleBullseye", "Red +4"],
-    [36, "scaleClose", "Red +2"],
-    [35, "scaleMiss", "Red +0"],
-  ])("says how close a needle on %i was", (needle, line, points) => {
+    [53, "scaleSpotOn", "Red +4", "3 away"],
+    [49, "scaleSpotOn", "Red +4", "one away"],
+    [50, "scaleSpotOn", "Red +4", "scaleBullseye"],
+    [36, "scaleClose", "Red +2", "14 away"],
+    [35, "scaleMiss", "Red +0", "15 away"],
+  ])("says how close a needle on %i was", (needle, line, points, distance) => {
     const tree = render(needle);
     expect(text(tree)).toContain(line);
     expect(text(tree)).toContain(points);
+    expect(text(tree)).toContain(distance);
+    if (needle === 50) expect(text(tree)).not.toContain("away");
   });
 
   it("keeps Next off until 1 s after the needle was locked", () => {

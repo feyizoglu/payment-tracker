@@ -53,6 +53,7 @@ vi.mock("@ptracker/shared/i18n", () => ({
           scaleNeedleValue: "{n} of 100",
           scaleTurnPoints: "{team} +{n}",
           scaleDistance: "{n} away",
+          scaleDistanceOne: "one away",
           scaleWins: "{team} wins",
         };
         return templates[String(key)] ?? String(key);
@@ -356,8 +357,13 @@ describe("ScaleReveal (mobile)", () => {
     expect(flat(points.props.style).color).toBe(teamColor(0));
     expect(text(tree)).toContain("scaleVeryClose");
     expect(text(tree)).toContain("7 away");
+    expect(text(render(43))).toContain("scaleSpotOn");
     expect(text(render(43))).toContain("scaleBullseye");
+    expect(text(render(43))).not.toContain("away");
     expect(text(render(43))).toContain("Red +4");
+    expect(text(render(44))).toContain("one away");
+    expect(text(render(46))).toContain("scaleSpotOn");
+    expect(text(render(46))).toContain("3 away");
     expect(text(render(90))).toContain("scaleMiss");
     expect(text(render(90))).toContain("Red +0");
     expect(find(tree, WordScores).props).toMatchObject({ teams: TEAMS, scores: [3, 0] });
