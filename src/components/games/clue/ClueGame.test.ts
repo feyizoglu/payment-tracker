@@ -330,6 +330,8 @@ describe("ClueGame round", () => {
     await call(() => p("end").onNewGame());
     expect(ui.screen).toBe("form");
     expect(p("form").value).toEqual({ ...valid, level: "hard" });
+    // Start was pressed on the last step: the wizard opens again on the first, with the quick start.
+    expect(p("form").step).toBe(0);
     expect(p("form").quickStart).toBe(true);
   });
 });

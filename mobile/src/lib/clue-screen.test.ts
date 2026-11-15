@@ -355,6 +355,7 @@ describe("One Clue screen: a round", () => {
     }
     call(ClueEnd, "onNewGame");
     await settle();
-    expect(props(ClueSetupWizard)).toMatchObject({ value: { ...valid, level: "hard" }, quickStart: true });
+    // Start was pressed on the last step: the wizard opens again on the first, with the quick start.
+    expect(props(ClueSetupWizard)).toMatchObject({ value: { ...valid, level: "hard" }, step: 0, quickStart: true });
   });
 });
