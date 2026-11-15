@@ -1,5 +1,6 @@
+import { useIsFocused } from "expo-router";
 import { useEffect, useReducer, useState, type ReactNode } from "react";
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator, BackHandler } from "react-native";
 
 import { localeFor, useLang } from "@ptracker/shared/i18n";
 import {
@@ -44,6 +45,7 @@ export default function ClueScreen() {
   // A game was played on this device before: the wizard may offer to skip its steps.
   const [played, setPlayed] = useState(false);
   const pinReady = useEnterGameModeOnce();
+  const focused = useIsFocused();
 
   useEffect(() => {
     getStoredClueSetup().then((saved) => {
@@ -79,6 +81,16 @@ export default function ClueScreen() {
     setPlayed(true);
     setStep(0);
   }, [phase, round, setup]);
+
+  // Android's back button and back gesture would leave the round while the word or the clues
+  // are on screen. Only while this screen is on top: the game-mode PIN screen over it keeps
+  // its back.
+  const midRound = phase === "clue" || phase === "check" || phase === "guess";
+  useEffect(() => {
+    if (!midRound || !focused) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+    return () => sub.remove();
+  }, [midRound, focused]);
 
   if (!pinReady) return <GamesPinSetup title={t.clueTitle} />;
 

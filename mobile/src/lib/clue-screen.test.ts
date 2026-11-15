@@ -16,7 +16,8 @@ const storage = vi.hoisted(() => ({
   getStoredClueSeen: vi.fn(),
   setStoredClueSeen: vi.fn(async (_lang: unknown, _seen: unknown) => undefined),
 }));
-const entry = vi.hoisted(() => ({ pinReady: true, lang: "en" as "en" | "tr" }));
+const entry = vi.hoisted(() => ({ pinReady: true, focused: true, lang: "en" as "en" | "tr" }));
+const back = vi.hoisted(() => ({ handlers: [] as { fn: () => boolean | null | undefined; removed: boolean }[] }));
 const clock = vi.hoisted(() => ({ now: 0 }));
 // 20 animals per language, plus an idiom that must never be dealt.
 const words = vi.hoisted(() => {
@@ -65,7 +66,17 @@ vi.mock("react", async (importOriginal) => {
     },
   };
 });
-vi.mock("react-native", () => ({ ActivityIndicator: () => null }));
+vi.mock("react-native", () => ({
+  ActivityIndicator: () => null,
+  BackHandler: {
+    addEventListener: (_type: string, fn: () => boolean | null | undefined) => {
+      const handler = { fn, removed: false };
+      back.handlers.push(handler);
+      return { remove: () => (handler.removed = true) };
+    },
+  },
+}));
+vi.mock("expo-router", () => ({ useIsFocused: () => entry.focused }));
 vi.mock("@ptracker/shared/i18n", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@ptracker/shared/i18n")>()),
   useLang: () => ({
@@ -217,7 +228,9 @@ beforeEach(() => {
   unmount();
   log = [];
   entry.pinReady = true;
+  entry.focused = true;
   entry.lang = "en";
+  back.handlers = [];
   clock.now = 1_800_000_000_000;
   vi.spyOn(Date, "now").mockImplementation(() => clock.now);
   vi.spyOn(Math, "random").mockReturnValue(0);
@@ -357,5 +370,54 @@ describe("One Clue screen: a round", () => {
     await settle();
     // Start was pressed on the last step: the wizard opens again on the first, with the quick start.
     expect(props(ClueSetupWizard)).toMatchObject({ value: { ...valid, level: "hard" }, step: 0, quickStart: true });
+  });
+});
+
+/** Back handlers still listening. */
+const listening = () => back.handlers.filter((h) => !h.removed);
+
+describe("One Clue screen: Android back", () => {
+  it("is swallowed while the clues are written, checked and guessed, and only then", async () => {
+    await start();
+    expect(listening()).toHaveLength(0);
+    call(ClueHandoff, "onBegin");
+    await settle();
+    expect(listening()).toHaveLength(1);
+    expect(listening()[0].fn()).toBe(true);
+    for (const clue of ["Night", "Sky"]) {
+      call(ClueWrite, "onReveal");
+      call(ClueWrite, "onSubmit", clue);
+    }
+    await settle();
+    expect(has(ClueGate)).toBe(true);
+    expect(listening()).toHaveLength(1);
+    call(ClueGate, "onReveal");
+    call(ClueCheck, "onDone");
+    await settle();
+    expect(has(ClueGate)).toBe(true);
+    expect(listening()).toHaveLength(1);
+    expect(listening()[0].fn()).toBe(true);
+    call(ClueGate, "onReveal");
+    call(ClueGuess, "onAnswer", "got");
+    await settle();
+    expect(has(ClueResult)).toBe(true);
+    expect(listening()).toHaveLength(0);
+    call(ClueResult, "onNext");
+    await settle();
+    expect(has(ClueHandoff)).toBe(true);
+    expect(listening()).toHaveLength(0);
+  });
+
+  it("is left alone while another screen covers the game, and released on unmount", async () => {
+    await start();
+    call(ClueHandoff, "onBegin");
+    entry.focused = false;
+    await settle();
+    expect(listening()).toHaveLength(0);
+    entry.focused = true;
+    await settle();
+    expect(listening()).toHaveLength(1);
+    unmount();
+    expect(listening()).toHaveLength(0);
   });
 });
