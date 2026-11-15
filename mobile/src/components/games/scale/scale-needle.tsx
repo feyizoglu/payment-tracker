@@ -71,7 +71,7 @@ export function ScaleNeedle({ value, onMove }: { value: number; onMove: (needle:
       </View>
       <View className="flex-row items-center justify-between gap-3">
         {nudge(t.scaleNudgeLeft, "◀", -1, value <= SCALE_MIN)}
-        <Text importantForAccessibility="no" className="text-2xl font-bold text-gray-900">
+        <Text importantForAccessibility="no" accessibilityElementsHidden className="text-2xl font-bold text-gray-900">
           {value}
         </Text>
         {nudge(t.scaleNudgeRight, "▶", 1, value >= SCALE_MAX)}

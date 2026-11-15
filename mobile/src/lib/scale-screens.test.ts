@@ -223,6 +223,11 @@ describe("ScaleNeedle (mobile)", () => {
     expect(find(control(tree), ScaleBar).props.target).toBeUndefined();
   });
 
+  it("hides the number under the line from screen readers on both platforms, as the control reads it out", () => {
+    const number = nodes(render(40, vi.fn())).find((n) => n.type === Text && text(n) === "40")!;
+    expect(number.props).toMatchObject({ importantForAccessibility: "no", accessibilityElementsHidden: true });
+  });
+
   it("moves by one on the screen reader's increment and decrement", () => {
     const onMove = vi.fn();
     const act = handler(render(40, onMove), "onAccessibilityAction");
