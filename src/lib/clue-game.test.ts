@@ -570,6 +570,13 @@ describe("score and rating", () => {
     expect(clueRating(0, 0)).toBe("clueRatingFew");
   });
 
+  it("uses the reviewed Turkish wording, names without case endings", () => {
+    const tr = translationsFor("tr");
+    expect(tr.clueStruckManual).toBe("Elle silindi");
+    expect(tr.clueToGuess).toBe("{name} ipuçlarını görsün");
+    expect(tr.clueGuesses).toBe("Bu turda {name} tahmin ediyor");
+  });
+
   it("has every rating, outcome and strike string in both languages", () => {
     for (const lang of ["en", "tr"] as const) {
       const t = translationsFor(lang);
