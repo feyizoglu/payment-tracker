@@ -418,14 +418,12 @@ export function clueReducer(state: ClueState, action: ClueAction): ClueState {
         clues: clues.map((c, i) => ({ ...c, auto: strikes[i], struck: strikes[i] !== null })),
       };
     }
+    // Guarded right after a button, as the clues appear where Show the clues was, but never
+    // the guard's start: the table strikes several clues quickly and taps Done straight after.
     case "strike": {
       const target = state.clues[action.index];
       if (state.phase !== "check" || !state.revealed || !target) return state;
-      return {
-        ...state,
-        clues: state.clues.map((c, i) => (i === action.index ? { ...c, struck: !c.struck } : c)),
-        lastActionAt: action.at,
-      };
+      return { ...state, clues: state.clues.map((c, i) => (i === action.index ? { ...c, struck: !c.struck } : c)) };
     }
     case "toGuess":
       if (state.phase !== "check" || !state.revealed) return state;

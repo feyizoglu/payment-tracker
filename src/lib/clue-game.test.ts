@@ -416,6 +416,28 @@ describe("clueReducer: a round", () => {
     expect(act(s, { type: "strike", index: 5 })).toEqual(s);
   });
 
+  it("takes quick strikes on the check one after another, without holding up its buttons", () => {
+    const four = started({ ...three, players: ["Ann", "Bob", "Cem", "Dan"] });
+    const shown = act(giveClues(act(four, { type: "begin" }), ["Night", "Sky", "Moon"]), { type: "reveal" });
+    const tap = (s: ClueState, action: Act, at: number) => clueReducer(s, { ...action, at } as ClueAction);
+    const t0 = shown.lastActionAt + 1000;
+    let s = tap(shown, { type: "strike", index: 0 }, t0);
+    s = tap(s, { type: "strike", index: 1 }, t0 + 100);
+    expect(s.clues.map((c) => c.struck)).toEqual([true, true, false]);
+    expect(s.lastActionAt).toBe(shown.lastActionAt);
+    const handed = tap(s, { type: "toGuess" }, t0 + 200);
+    expect(handed.phase).toBe("guess");
+    expect(survivingClues(handed.clues)).toEqual(["Moon"]);
+  });
+
+  it("still ignores a strike right after Show the clues, so a double tap strikes nothing", () => {
+    const hidden = giveClues(act(started(), { type: "begin" }), ["Night", "Sky"]);
+    const shown = clueReducer(hidden, { type: "reveal", at: hidden.lastActionAt + 1000 });
+    expect(clueReducer(shown, { type: "strike", index: 0, at: shown.lastActionAt + 100 })).toEqual(shown);
+    const later = clueReducer(shown, { type: "strike", index: 0, at: shown.lastActionAt + CLUE_TAP_GUARD_MS });
+    expect(later.clues[0].struck).toBe(true);
+  });
+
   it("hands the surviving clues to the guesser behind a gate", () => {
     let s = giveClues(act(started(), { type: "begin" }), ["Night", "Sky"]);
     expect(act(s, { type: "toGuess" })).toEqual(s);
