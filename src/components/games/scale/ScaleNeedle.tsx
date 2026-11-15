@@ -36,6 +36,7 @@ export default function ScaleNeedle({ value, onMove }: { value: number; onMove: 
         aria-valuenow={value}
         aria-valuetext={fillTemplate(t.scaleNeedleValue, { n: String(value) })}
         onPointerDown={(e) => {
+          if (e.pointerType === "mouse" && e.button !== 0) return;
           e.currentTarget.setPointerCapture(e.pointerId);
           onMove(at(e));
         }}

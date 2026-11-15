@@ -162,9 +162,11 @@ describe("ScaleNeedle", () => {
   const onMove = vi.fn();
   const render = (value = 50) => ScaleNeedle({ value, onMove }) as Node;
   const slider = (tree: Node) => nodes(tree).find((n) => n.props.role === "slider")!;
-  const pointer = (clientX: number, captured = true) => ({
+  const pointer = (clientX: number, captured = true, pointerType = "touch", button = 0) => ({
     clientX,
     pointerId: 7,
+    pointerType,
+    button,
     currentTarget: {
       getBoundingClientRect: () => ({ left: 100, width: 200 }),
       setPointerCapture: vi.fn(),
@@ -192,6 +194,20 @@ describe("ScaleNeedle", () => {
     (slider(render()).props.onPointerDown as (e: unknown) => void)(down);
     expect(down.currentTarget.setPointerCapture).toHaveBeenCalledWith(7);
     expect(onMove).toHaveBeenLastCalledWith(25);
+  });
+
+  it("takes the main mouse button only", () => {
+    const down = slider(render()).props.onPointerDown as (e: unknown) => void;
+    const right = pointer(150, true, "mouse", 2);
+    down(right);
+    expect(right.currentTarget.setPointerCapture).not.toHaveBeenCalled();
+    expect(onMove).not.toHaveBeenCalled();
+    down(pointer(150, true, "mouse", 1));
+    expect(onMove).not.toHaveBeenCalled();
+    down(pointer(150, true, "mouse", 0));
+    expect(onMove).toHaveBeenLastCalledWith(25);
+    down(pointer(250, true, "pen", 0));
+    expect(onMove).toHaveBeenLastCalledWith(75);
   });
 
   it("follows a drag only while the pointer is held, past the ends included", () => {
