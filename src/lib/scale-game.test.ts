@@ -310,6 +310,13 @@ describe("Scale turn", () => {
     expect(s.revealedAt).toBe(s.lastActionAt);
   });
 
+  it("adds each team's points to that team", () => {
+    // rng 0: the target is 3 on every turn.
+    const first = finish(run(started(), turn(3)));
+    expect(first.scores).toEqual([4, 0]);
+    expect(run(first, turn(10)).scores).toEqual([4, 3]);
+  });
+
   it("opens Next 1 s after the reveal", () => {
     const s = run(started(), turn());
     expect(scaleReducer(s, { type: "next", at: s.revealedAt + SCALE_REVEAL_LOCK_MS - 1 }).phase).toBe("reveal");
