@@ -52,7 +52,10 @@ The guesser rotates through the players in seat order, one word each.
    - The word and every clue with its writer.
    - Clues that match another clue are struck out automatically. Matching ignores case (with the
      language's locale), accents and punctuation.
-   - Clues that contain the word, or are contained in it, are struck out too.
+   - A clue that is the word is struck out too, and so is one that contains the word or is
+     contained in it, when the part inside has at least 4 letters or digits ("kedicik" for
+     "kedi"). A shorter part inside is often another word ("uzay" for "ay", "hear" for "ear"):
+     those are left to the table.
    - Any clue can be struck or restored by tapping it, for near-duplicates such as plural forms or
      the same word family; the table decides.
    - **Show Ayşe the clues**.
