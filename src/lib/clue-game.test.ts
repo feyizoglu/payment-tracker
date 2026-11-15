@@ -277,10 +277,28 @@ describe("autoStrikes", () => {
     expect(autoStrikes("Ay", clues, TR)).toEqual(["duplicate", "duplicate", "duplicate", null]);
   });
 
-  it("strikes a clue that contains the word or is contained in it", () => {
+  it("strikes a clue that contains the word or is contained in it, when the part inside has 4 letters or more", () => {
     expect(autoStrikes("Moon", ["Moonlight", "Honeymoon", "Night"], EN)).toEqual(["word", "word", null]);
-    expect(autoStrikes("Sunflower", ["Sun", "flower", "Yellow"], EN)).toEqual(["word", "word", null]);
+    expect(autoStrikes("Sunflower", ["flower", "Yellow"], EN)).toEqual(["word", null]);
     expect(autoStrikes("Ice cream", ["icecream", "Cream", "Cone"], EN)).toEqual(["word", "word", null]);
+    expect(autoStrikes("Kedi", ["kedicik", "Miyav"], TR)).toEqual(["word", null]);
+    expect(autoStrikes("Kedicik", ["kedi"], TR)).toEqual(["word"]);
+  });
+
+  it("leaves a shorter part inside to the table", () => {
+    expect(autoStrikes("Ay", ["uzay", "Gece"], TR)).toEqual([null, null]);
+    expect(autoStrikes("Ear", ["hear", "Listen"], EN)).toEqual([null, null]);
+    expect(autoStrikes("Sunflower", ["Sun", "Yellow"], EN)).toEqual([null, null]);
+    expect(autoStrikes("Uzay", ["ay"], TR)).toEqual([null]);
+  });
+
+  it("strikes a clue that is the word itself, however short", () => {
+    expect(autoStrikes("Ay", ["AY", "Gece"], TR)).toEqual(["word", null]);
+    expect(autoStrikes("Ear", ["ear!", "Listen"], EN)).toEqual(["word", null]);
+  });
+
+  it("strikes short duplicates however short", () => {
+    expect(autoStrikes("Moon", ["Up", "up", "Sky"], EN)).toEqual(["duplicate", "duplicate", null]);
   });
 
   it("matches the word with the language's rules", () => {

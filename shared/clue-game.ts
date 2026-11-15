@@ -23,6 +23,8 @@ export const CLUE_LEVELS = ["easy", "hard", "mixed"] as const satisfies readonly
 export const CLUE_SETUP_STORAGE_KEY = "clue_setup";
 export const CLUE_TAP_GUARD_MS = 400;
 export const CLUE_MAX_LENGTH = 24;
+/** The fewest letters and digits a part inside the other must have to be struck on its own. */
+export const CLUE_CONTAIN_MIN = 4;
 /** The Describe It categories dealt from: a clue for an idiom is rarely one word. */
 export const CLUE_CATEGORIES: readonly WordCategory[] = WORD_CATEGORIES.filter((c) => c !== "idioms");
 
@@ -185,13 +187,18 @@ export function clueKey(text: string, locale: string): string {
 
 export type StrikeReason = "duplicate" | "word";
 
-/** Per clue, why it is struck automatically: it matches another, or it and the word contain one another. */
+/**
+ * Per clue, why it is struck automatically: it matches another clue, it is the word, or it and
+ * the word contain one another with at least CLUE_CONTAIN_MIN characters inside. A shorter
+ * part ("ay" in "uzay", "ear" in "hear") is often a different word: the table decides.
+ */
 export function autoStrikes(word: string, clues: readonly string[], locale: string): (StrikeReason | null)[] {
   const wordKey = clueKey(word, locale);
   const keys = clues.map((c) => clueKey(c, locale));
+  const inside = (outer: string, part: string) => part.length >= CLUE_CONTAIN_MIN && outer.includes(part);
   return keys.map((key, i) => {
     if (keys.some((other, j) => j !== i && other === key)) return "duplicate";
-    if (key.includes(wordKey) || wordKey.includes(key)) return "word";
+    if (key === wordKey || inside(key, wordKey) || inside(wordKey, key)) return "word";
     return null;
   });
 }
