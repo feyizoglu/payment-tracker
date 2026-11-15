@@ -30,7 +30,7 @@
 8. **End:** the higher score wins, equal scores are a tie. Play again keeps the setup, the givers and `used`; New game returns to the wizard with the last setup.
 9. **Geometry:** `needleAt(offset, width)` turns a pointer offset along the track into a needle value; web takes it from `getBoundingClientRect` (stateless, with pointer capture), mobile from PanResponder's `locationX` at grant plus `dx`, with the track's children `pointerEvents="none"` so `locationX` is the track's.
 10. **Web language:** as Who Am I?, until a setup is saved the default team names follow the page's language (`scaleSetupInLang`).
-11. **Games list:** web lucide `Gauge` on `bg-sky-50`, icon `text-sky-600 dark:text-sky-400`, `hover:border-sky-200` (`--color-sky-50` and `--color-sky-200` in `.dark`); mobile 🎯 on `bg-sky-50`, themed in `tailwind.config.js`, `tailwind.css` (light and dark) and `game-theme.ts`.
+11. **Games list:** web lucide `Gauge` on `bg-teal-50`, icon `text-teal-600 dark:text-teal-400`, `hover:border-teal-200` (`--color-teal-50` and `--color-teal-200` in `.dark`); mobile 🎯 on `bg-teal-50`, themed in `tailwind.config.js`, `tailwind.css` (light and dark) and `game-theme.ts`.
 
 ## File map
 
@@ -54,7 +54,7 @@ Mobile: create `mobile/src/lib/scale-game-storage.ts` (+ test), `mobile/src/app/
 ### Task 2: Web screens
 
 - Tests first: `ScaleSetup.test.ts` (teams adapter, turns choice, two-step wizard with dots, Back / Next, errors per step, quick start), `ScaleScreens.test.ts` (handoff names the team and the giver; secret shows the pair and the zones with their points written; needle: `role="slider"` with aria values, arrow / Home / End / Page keys, pointer down and drag through capture, ◀ ▶ at the ends; guess: Lock in and its confirm label; reveal: zones, needle, points, distance and line, Next disabled until the lock ends; end: winner or tie and both buttons), `ScaleGame.test.ts` (react-dom container with mocked screens and pairs: saved setup, language follow, start saves, a whole turn, givers, end, Play again, New game), `src/app/games/scale/page.test.ts`.
-- Implement the components and the page; add the entry to `src/app/games/page.tsx` (+ test) and the sky tones to `globals.css`.
+- Implement the components and the page; add the entry to `src/app/games/page.tsx` (+ test) and the teal tones to `globals.css`.
 - Commit `feat(games): add the Scale web screens`.
 
 ### Task 3: Offline web
@@ -66,7 +66,7 @@ Mobile: create `mobile/src/lib/scale-game-storage.ts` (+ test), `mobile/src/app/
 ### Task 4: Mobile
 
 - Tests first: `scale-game-storage.test.ts` (key, parse, fail-soft reads and writes), `scale-screen.test.ts` (route with mocked hooks: PIN gate, loading, start, a whole turn, end, header and scroll per phase), `scale-screens.test.ts` (handoff, secret, needle: PanResponder grant and move, adjustable actions, ◀ ▶; guess, reveal lock, end), `scale-setup.test.ts` (steps and wizard), root layout guard, the games list (seven presses, Scale at 5, the flag at 6) and the game theme tokens.
-- Implement the storage, route, components, `_layout.tsx` registration, the games list entry and the sky tone.
+- Implement the storage, route, components, `_layout.tsx` registration, the games list entry and the teal tone.
 - Commit `feat(games): add Scale to the mobile app`.
 
 ### Task 5: Verify

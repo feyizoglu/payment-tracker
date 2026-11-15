@@ -23,7 +23,7 @@ module.exports = {
         amber: { ...defaults.amber, ...themed("amber", [50, 700]) },
         blue: { ...defaults.blue, ...themed("blue", [50, 600]) },
         purple: { ...defaults.purple, ...themed("purple", [50]) },
-        sky: { ...defaults.sky, ...themed("sky", [50]) },
+        teal: { ...defaults.teal, ...themed("teal", [50]) },
       },
     },
   },

@@ -76,10 +76,10 @@ export default function GamesPage() {
         </a>
         <a
           href="/games/scale"
-          className="flex items-center gap-4 rounded-xl border border-gray-100 bg-surface p-4 hover:border-sky-200 transition"
+          className="flex items-center gap-4 rounded-xl border border-gray-100 bg-surface p-4 hover:border-teal-200 transition"
         >
-          <div className="rounded-lg bg-sky-50 p-3">
-            <Gauge className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+          <div className="rounded-lg bg-teal-50 p-3">
+            <Gauge className="w-6 h-6 text-teal-600 dark:text-teal-400" />
           </div>
           <div className="flex-1">
             <p className="font-semibold text-gray-900">{t.scaleTitle}</p>

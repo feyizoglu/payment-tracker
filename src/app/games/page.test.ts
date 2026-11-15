@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { createElement, Fragment, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 vi.mock("lucide-react", () => ({
   ChevronRight: () => null,
@@ -57,5 +59,19 @@ describe("GamesPage", () => {
     const link = html().match(/<a href="\/games\/scale"[^>]*>(.*?)<\/a>/)?.[1] ?? "";
 
     expect(link).toMatch(/>scaleTitle<\/p><p[^>]*>scaleDesc<\/p>/);
+  });
+
+  it("gives Scale a tone of its own, remapped in the dark theme", () => {
+    const links = [...html().matchAll(/<a href="([^"]+)"[^>]*>(.*?)<\/a>/g)];
+    const teal = links.filter(([, , body]) => body.includes("teal-")).map(([, href]) => href);
+    const scale = links.find(([, href]) => href === "/games/scale")![0];
+
+    expect(teal).toEqual(["/games/scale"]);
+    expect(scale).toContain("hover:border-teal-200");
+    expect(scale).toContain("bg-teal-50");
+    const css = readFileSync(fileURLToPath(new URL("../globals.css", import.meta.url)), "utf8");
+    const dark = css.slice(css.indexOf(".dark {"));
+    expect(dark).toMatch(/--color-teal-50:/);
+    expect(dark).toMatch(/--color-teal-200:/);
   });
 });
