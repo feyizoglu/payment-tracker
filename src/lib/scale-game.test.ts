@@ -15,7 +15,9 @@ import {
   scaleDistance,
   scaleOutcome,
   scalePoints,
+  parseSavedScaleSeen,
   scaleReducer,
+  scaleSeenKey,
   scaleSetupInLang,
   scaleStepErrors,
   scaleTeam,
@@ -56,8 +58,8 @@ function run(state: ScaleState, actions: ((at: number) => ScaleAction)[], wait =
 }
 
 const start =
-  (setup: ScaleSetup = valid, pairs: readonly ScalePair[] = PAIRS) =>
-  (at: number): ScaleAction => ({ type: "start", setup, lang: "en", pairs, at });
+  (setup: ScaleSetup = valid, pairs: readonly ScalePair[] = PAIRS, seen: readonly string[] = [], lang: "en" | "tr" = "en") =>
+  (at: number): ScaleAction => ({ type: "start", setup, lang, pairs, seen, at });
 const show =
   (rng = zero) =>
   (at: number): ScaleAction => ({ type: "show", rng, at });
@@ -71,7 +73,8 @@ const playAgain = (at: number): ScaleAction => ({ type: "playAgain", at });
 const newGame = (at: number): ScaleAction => ({ type: "newGame", at });
 
 const fresh = () => ({ ...initialScaleState(defaultScaleSetup(TEAMS)), lastActionAt: T0 });
-const started = (setup?: ScaleSetup, pairs?: readonly ScalePair[]) => run(fresh(), [start(setup, pairs)]);
+const started = (setup?: ScaleSetup, pairs?: readonly ScalePair[], seen?: readonly string[]) =>
+  run(fresh(), [start(setup, pairs, seen)]);
 /** One whole turn with the needle on `needle`, ending on the reveal. */
 const turn = (needle = 50, rng = zero) => [show(rng), hide, move(needle), lock, lock];
 const finish = (state: ScaleState) => run(state, [next], SCALE_REVEAL_LOCK_MS);
@@ -420,20 +423,40 @@ describe("Scale pairs", () => {
     expect(s.pair).toEqual(PAIRS[0]);
   });
 
-  it("carries the pairs played into Play again and New game", () => {
+  it("carries the pairs played into Play again", () => {
     let s = started();
-    s = finish(run(s, turn()));
-    for (let i = 0; i < 7; i++) s = finish(run(s, turn()));
-    const used = s.used;
-    expect(run(s, [playAgain]).used).toEqual(used);
-    const back = run(s, [newGame]);
-    expect(back.used).toEqual(used);
-    expect(run(back, [start()]).used).toEqual(used);
+    for (let i = 0; i < 2; i++) s = finish(run(s, turn()));
+    for (let i = 0; i < 6; i++) s = finish(run(s, turn()));
+    expect(run(s, [playAgain]).used).toEqual(s.used);
   });
 
-  it("keeps another language's pairs played when starting with this list", () => {
-    const s = { ...fresh(), used: ["tr-1", "tr-2"] };
-    const played = run(s, [start(), show()]);
-    expect(played.used).toEqual(["tr-1", "tr-2", "en-1"]);
+  it("deals the pairs the device has not played in this language first", () => {
+    const s = started(valid, PAIRS, ["en-1", "en-3"]);
+    expect(s.used).toEqual(["en-1", "en-3"]);
+    expect(run(s, [show(() => 0.9999)]).pair!.id).toBe("en-2");
+  });
+
+  it("starts a new game from the device's list, not the last game's", () => {
+    let s = started();
+    for (let i = 0; i < 8; i++) s = finish(run(s, turn()));
+    const back = run(s, [newGame]);
+    expect(run(back, [start(valid, PAIRS, ["en-2"])]).used).toEqual(["en-2"]);
+  });
+
+  it("clears the device's list once every pair of the language has been played", () => {
+    const s = run(started(valid, PAIRS, ["en-1", "en-2", "en-3"]), [show()]);
+    expect(s.used).toEqual([s.pair!.id]);
+  });
+
+  it("keeps the language the game was started in", () => {
+    expect(started().lang).toBe("en");
+    expect(run(fresh(), [start(valid, PAIRS, [], "tr")]).lang).toBe("tr");
+  });
+
+  it("names the device's list after the language", () => {
+    expect(scaleSeenKey("tr")).toBe("scale_seen_tr");
+    expect(scaleSeenKey("en")).toBe("scale_seen_en");
+    expect(parseSavedScaleSeen('["en-1", 3, "en-1", "en-2"]')).toEqual(["en-1", "en-2"]);
+    expect(parseSavedScaleSeen("{bad")).toEqual([]);
   });
 });

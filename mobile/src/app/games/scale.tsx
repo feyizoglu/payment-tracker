@@ -24,7 +24,7 @@ import { ScaleHandoff } from "@/components/games/scale/scale-handoff";
 import { ScaleReveal } from "@/components/games/scale/scale-reveal";
 import { ScaleSecret } from "@/components/games/scale/scale-secret";
 import { ScaleSetupWizard } from "@/components/games/scale/scale-setup";
-import { getStoredScaleSetup, setStoredScaleSetup } from "@/lib/scale-game-storage";
+import { getStoredScaleSeen, getStoredScaleSetup, setStoredScaleSeen, setStoredScaleSetup } from "@/lib/scale-game-storage";
 
 export default function ScaleScreen() {
   const { t, lang } = useLang();
@@ -34,6 +34,9 @@ export default function ScaleScreen() {
   const [openLang] = useState(lang);
   const [state, dispatch] = useReducer(scaleReducer, undefined, () => initialScaleState(defaultScaleSetup(teamNames)));
   const [draft, setDraft] = useState<ScaleSetup | null>(null);
+  // This device's pairs played in `lang`. Updated on every save, so the next game never starts
+  // from a copy older than the last turn.
+  const [seen, setSeen] = useState<string[] | null>(null);
   const [step, setStep] = useState(0);
   // A game was played on this device before: the wizard may offer to skip its steps.
   const [played, setPlayed] = useState(false);
@@ -48,7 +51,24 @@ export default function ScaleScreen() {
     });
   }, [teamNames, openLang]);
 
-  const { phase, setup, pair } = state;
+  useEffect(() => {
+    let live = true;
+    // Until this language's list is read, no game may start with the last language's list.
+    setSeen(null);
+    getStoredScaleSeen(lang).then((ids) => {
+      if (live) setSeen(ids);
+    });
+    return () => {
+      live = false;
+    };
+  }, [lang]);
+
+  const { phase, setup, pair, pairs, used } = state;
+  useEffect(() => {
+    if (pairs.length === 0 || (phase !== "reveal" && phase !== "end")) return;
+    void setStoredScaleSeen(state.lang, used);
+    if (state.lang === lang) setSeen(used);
+  }, [phase, pairs, used, state.lang, lang]);
 
   // Only a game the reducer started is remembered: a refused Start leaves the setup and the
   // wizard as they were. Play again saves the same setup again.
@@ -76,18 +96,21 @@ export default function ScaleScreen() {
   let body: ReactNode = null;
 
   if (phase === "setup") {
-    body = draft ? (
-      <ScaleSetupWizard
-        value={draft}
-        onChange={setDraft}
-        step={step}
-        onStep={setStep}
-        quickStart={played}
-        onStart={() => dispatch({ type: "start", setup: draft, lang, pairs: SCALE_PAIRS[lang], at: Date.now() })}
-      />
-    ) : (
-      <ActivityIndicator />
-    );
+    body =
+      draft && seen ? (
+        <ScaleSetupWizard
+          value={draft}
+          onChange={setDraft}
+          step={step}
+          onStep={setStep}
+          quickStart={played}
+          onStart={() =>
+            dispatch({ type: "start", setup: draft, lang, pairs: SCALE_PAIRS[lang], seen, at: Date.now() })
+          }
+        />
+      ) : (
+        <ActivityIndicator />
+      );
   } else if (phase === "handoff") {
     body = (
       <ScaleHandoff

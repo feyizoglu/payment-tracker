@@ -10,6 +10,7 @@ export {
   defaultTeamNames,
   defaultWordSetup,
   fillTemplate,
+  parseSavedSeen as parseSavedScaleSeen,
   teamColor,
   type WordSetup,
   type WordTeam,
@@ -25,6 +26,11 @@ export interface ScaleSetup {
 
 export const SCALE_TURN_CHOICES = [4, 6, 8] as const;
 export const SCALE_SETUP_STORAGE_KEY = "scale_setup";
+
+/** The device's list of pairs played in `lang`, kept until every pair of the language has been. */
+export function scaleSeenKey(lang: Lang): string {
+  return `scale_seen_${lang}`;
+}
 export const SCALE_TAP_GUARD_MS = 400;
 /** Next ignores taps this long after the reveal, so the confirming tap cannot skip it. */
 export const SCALE_REVEAL_LOCK_MS = 1000;
@@ -206,9 +212,11 @@ export type ScalePhase = "setup" | "handoff" | "secret" | "guess" | "reveal" | "
 export interface ScaleState {
   phase: ScalePhase;
   setup: ScaleSetup;
+  /** The pairs' language, fixed when the game starts. */
+  lang: Lang;
   /** The game's pairs, fixed at start; empty before it. */
   pairs: ScalePair[];
-  /** Ids of the pairs played, of every list, since the screen opened; a list's ids leave when it runs out. */
+  /** Ids played on this device in `lang`; they leave when every pair has been played. Saved after every turn. */
   used: string[];
   /** This turn's pair, kept after the turn so the next draw can avoid it. */
   pair: ScalePair | null;
@@ -232,7 +240,7 @@ export interface ScaleState {
 
 /** `at` is the tap's (or, for move, the drag's) timestamp in ms. */
 export type ScaleAction =
-  | { type: "start"; setup: ScaleSetup; lang: Lang; pairs: readonly ScalePair[]; at: number }
+  | { type: "start"; setup: ScaleSetup; lang: Lang; pairs: readonly ScalePair[]; seen: readonly string[]; at: number }
   | { type: "show"; rng: Rng; at: number }
   | { type: "hide"; at: number }
   | { type: "move"; needle: number; at: number }
@@ -245,6 +253,7 @@ export function initialScaleState(setup: ScaleSetup): ScaleState {
   return {
     phase: "setup",
     setup,
+    lang: "en",
     pairs: [],
     used: [],
     pair: null,
@@ -315,12 +324,21 @@ function trimSetup(setup: ScaleSetup): ScaleSetup {
   };
 }
 
-function deal(state: ScaleState, setup: ScaleSetup, pairs: ScalePair[], clueGivers: [number, number], at: number): ScaleState {
+function deal(
+  state: ScaleState,
+  setup: ScaleSetup,
+  lang: Lang,
+  pairs: ScalePair[],
+  used: string[],
+  clueGivers: [number, number],
+  at: number
+): ScaleState {
   return {
     ...initialScaleState(setup),
     phase: "handoff",
+    lang,
     pairs,
-    used: state.used,
+    used,
     pair: state.pair,
     clueGivers,
     lastActionAt: at,
@@ -332,7 +350,7 @@ export function scaleReducer(state: ScaleState, action: ScaleAction): ScaleState
     case "start":
       if (state.phase !== "setup" || action.pairs.length === 0 || tooSoon(state, action.at)) return state;
       if (validateScaleSetup(action.setup, localeFor(action.lang)).length > 0) return state;
-      return deal(state, trimSetup(action.setup), [...action.pairs], [0, 0], action.at);
+      return deal(state, trimSetup(action.setup), action.lang, [...action.pairs], [...action.seen], [0, 0], action.at);
     case "show":
       if (state.phase !== "handoff" || tooSoon(state, action.at)) return state;
       return {
@@ -373,11 +391,11 @@ export function scaleReducer(state: ScaleState, action: ScaleAction): ScaleState
     }
     case "playAgain":
       if (state.phase !== "end" || tooSoon(state, action.at)) return state;
-      return deal(state, state.setup, state.pairs, state.clueGivers, action.at);
+      return deal(state, state.setup, state.lang, state.pairs, state.used, state.clueGivers, action.at);
     case "newGame":
       if (state.phase !== "end" || tooSoon(state, action.at)) return state;
       // The setup's buttons can sit where New game was: keep the time so they are guarded too.
-      return { ...initialScaleState(state.setup), used: state.used, pair: state.pair, lastActionAt: action.at };
+      return { ...initialScaleState(state.setup), pair: state.pair, lastActionAt: action.at };
   }
 }
 

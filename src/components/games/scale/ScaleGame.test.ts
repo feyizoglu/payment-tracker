@@ -201,7 +201,7 @@ describe("ScaleGame setup", () => {
     expect(p("form")).toMatchObject({ step: 1, quickStart: false });
   });
 
-  it("starts even when storage cannot be written", async () => {
+  it("starts and plays even when storage cannot be written", async () => {
     vi.stubGlobal("localStorage", {
       getItem: () => null,
       setItem: () => {
@@ -210,6 +210,8 @@ describe("ScaleGame setup", () => {
     });
     await start();
     expect(ui.screen).toBe("handoff");
+    await turn();
+    expect(ui.screen).toBe("reveal");
   });
 
 });
@@ -260,6 +262,54 @@ describe("ScaleGame turn", () => {
     expect(ui.screen).toBe("handoff");
     expect(p("handoff")).toMatchObject({ team: "Blue", giver: "Cem", turn: 1, scores: [4, 0] });
     expect(ui.frameColor).toBe(teamColor(1));
+  });
+});
+
+describe("ScaleGame pairs played", () => {
+  it("remembers the pairs played in the game's language once the needle is locked", async () => {
+    await start();
+    await call(() => p("handoff").onShow());
+    const pair = p("secret").pair.id;
+    expect(store.has("scale_seen_en")).toBe(false);
+    await call(() => p("secret").onHide());
+    await call(() => p("guess").onLock());
+    await call(() => p("guess").onLock());
+    expect(JSON.parse(store.get("scale_seen_en")!)).toEqual([pair]);
+  });
+
+  it("deals the pairs this device has not played in this language first", async () => {
+    store.set("scale_seen_en", JSON.stringify(["en-1", "en-2"]));
+    store.set("scale_seen_tr", JSON.stringify(["tr-3"]));
+    await start();
+    await call(() => p("handoff").onShow());
+    expect(p("secret").pair.id).toBe("en-3");
+  });
+
+  it("keeps saving under the game's language when the page switches mid-game", async () => {
+    await start();
+    await switchLang("tr");
+    await turn();
+    expect(JSON.parse(store.get("scale_seen_en")!)).toHaveLength(1);
+    expect(store.has("scale_seen_tr")).toBe(false);
+  });
+
+  it("starts the next game after the pairs the last one played", async () => {
+    await start({ ...valid, turns: 4 });
+    for (let i = 0; i < 2; i++) {
+      await turn();
+      await call(() => p("reveal").onNext());
+    }
+    const played = JSON.parse(store.get("scale_seen_en")!);
+    expect(played).toHaveLength(2);
+    for (let i = 0; i < 6; i++) {
+      await turn();
+      await call(() => p("reveal").onNext());
+    }
+    await call(() => p("end").onNewGame());
+    await call(() => p("form").onStep(1));
+    await call(() => p("form").onStart());
+    await call(() => p("handoff").onShow());
+    expect(JSON.parse(store.get("scale_seen_en")!)).not.toContain(p("secret").pair.id);
   });
 });
 

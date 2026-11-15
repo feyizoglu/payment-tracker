@@ -11,7 +11,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 import { SCALE_SETUP_STORAGE_KEY, defaultScaleSetup, type ScaleSetup } from "@ptracker/shared/scale-game";
-import { getStoredScaleSetup, setStoredScaleSetup } from "./scale-game-storage";
+import { getStoredScaleSeen, getStoredScaleSetup, setStoredScaleSeen, setStoredScaleSetup } from "./scale-game-storage";
 
 const TEAMS = ["Takım 1", "Takım 2"] as const;
 const saved: ScaleSetup = {
@@ -51,5 +51,22 @@ describe("Scale setup storage", () => {
     setItem.mockRejectedValue(new Error("full"));
     await expect(setStoredScaleSetup(saved)).resolves.toBeUndefined();
     expect(setItem).toHaveBeenCalledWith(SCALE_SETUP_STORAGE_KEY, JSON.stringify(saved));
+  });
+});
+
+describe("Scale pairs played storage", () => {
+  it("keeps one list per language", async () => {
+    getItem.mockResolvedValue('["tr-1", 3, "tr-2", "tr-1"]');
+    expect(await getStoredScaleSeen("tr")).toEqual(["tr-1", "tr-2"]);
+    expect(getItem).toHaveBeenCalledWith("scale_seen_tr");
+    await setStoredScaleSeen("en", ["en-4"]);
+    expect(setItem).toHaveBeenCalledWith("scale_seen_en", '["en-4"]');
+  });
+
+  it("reads an empty list and swallows write errors when storage fails", async () => {
+    getItem.mockRejectedValue(new Error("boom"));
+    expect(await getStoredScaleSeen("en")).toEqual([]);
+    setItem.mockRejectedValue(new Error("full"));
+    await expect(setStoredScaleSeen("en", ["en-1"])).resolves.toBeUndefined();
   });
 });

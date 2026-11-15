@@ -13,6 +13,8 @@ const hooks = vi.hoisted(() => ({
 const storage = vi.hoisted(() => ({
   getStoredScaleSetup: vi.fn(),
   setStoredScaleSetup: vi.fn(async (_setup: unknown) => undefined),
+  getStoredScaleSeen: vi.fn(),
+  setStoredScaleSeen: vi.fn(async (_lang: unknown, _seen: unknown) => undefined),
 }));
 const entry = vi.hoisted(() => ({ pinReady: true, focused: true }));
 const back = vi.hoisted(() => ({ handlers: [] as { fn: () => boolean | null | undefined; removed: boolean }[] }));
@@ -162,14 +164,15 @@ async function settle() {
   await Promise.resolve();
 }
 
-async function load(setup: ScaleSetup) {
+async function load(setup: ScaleSetup, seen: string[] = []) {
   storage.getStoredScaleSetup.mockResolvedValue(setup);
+  storage.getStoredScaleSeen.mockResolvedValue(seen);
   await settle();
 }
 
 /** Loads the setup and presses Start on the wizard's last step. */
-async function start(setup: ScaleSetup = valid) {
-  await load(setup);
+async function start(setup: ScaleSetup = valid, seen: string[] = []) {
+  await load(setup, seen);
   call(ScaleSetupWizard, "onStep", 1);
   call(ScaleSetupWizard, "onStart");
   await settle();
@@ -220,6 +223,7 @@ describe("Scale screen: setup", () => {
 
   it("shows no setup until the stored setup has been read", async () => {
     storage.getStoredScaleSetup.mockReturnValue(new Promise(() => {}));
+    storage.getStoredScaleSeen.mockResolvedValue([]);
     await settle();
     expect(has(ActivityIndicator)).toBe(true);
     expect(has(ScaleSetupWizard)).toBe(false);
@@ -334,6 +338,55 @@ describe("Scale screen: a turn", () => {
     }
     expect(givers).toEqual(["Ann", "Cem", "Bob", "Dan"]);
     expect(props(ScaleHandoff).turn).toBe(3);
+  });
+});
+
+describe("Scale screen: pairs played", () => {
+  it("shows no setup until the pairs played in the screen's language have been read", async () => {
+    storage.getStoredScaleSetup.mockResolvedValue(valid);
+    storage.getStoredScaleSeen.mockReturnValue(new Promise(() => {}));
+    await settle();
+    expect(has(ScaleSetupWizard)).toBe(false);
+    expect(has(ActivityIndicator)).toBe(true);
+    expect(storage.getStoredScaleSeen).toHaveBeenCalledWith("en");
+  });
+
+  it("deals the pairs this device has not played first", async () => {
+    await start(valid, ["en-1", "en-2"]);
+    vi.spyOn(Math, "random").mockReturnValue(0.9999);
+    call(ScaleHandoff, "onShow");
+    expect(props(ScaleSecret).pair.id).toBe("en-3");
+  });
+
+  it("saves the pairs played in the game's language once the needle is locked", async () => {
+    await start(valid, ["en-2"]);
+    call(ScaleHandoff, "onShow");
+    await settle();
+    expect(storage.setStoredScaleSeen).not.toHaveBeenCalled();
+    call(ScaleSecret, "onHide");
+    call(ScaleGuess, "onLock");
+    call(ScaleGuess, "onLock");
+    await settle();
+    expect(storage.setStoredScaleSeen).toHaveBeenCalledWith("en", ["en-2", "en-1"]);
+  });
+
+  it("starts the next game after the last one's pairs even when they could not be saved", async () => {
+    storage.setStoredScaleSeen.mockRejectedValue(new Error("full"));
+    await start({ ...valid, turns: 4 });
+    for (let i = 0; i < 8; i++) {
+      turn();
+      await settle();
+      call(ScaleReveal, "onNext", undefined, SCALE_REVEAL_LOCK_MS);
+      await settle();
+    }
+    const last = storage.setStoredScaleSeen.mock.calls.at(-1)![1] as string[];
+    call(ScaleEnd, "onNewGame");
+    await settle();
+    call(ScaleSetupWizard, "onStep", 1);
+    call(ScaleSetupWizard, "onStart");
+    await settle();
+    call(ScaleHandoff, "onShow");
+    expect(last).not.toContain(props(ScaleSecret).pair.id);
   });
 });
 

@@ -8,9 +8,11 @@ import {
   defaultScaleSetup,
   defaultTeamNames,
   initialScaleState,
+  parseSavedScaleSeen,
   parseSavedScaleSetup,
   scaleClueGiver,
   scaleReducer,
+  scaleSeenKey,
   scaleSetupInLang,
   scaleTeam,
   scaleTurn,
@@ -75,7 +77,10 @@ export default function ScaleGame() {
     setDraft((d) => scaleSetupInLang(d, teamNames));
   }, [saved, teamNames]);
 
-  const { phase, setup, pair } = state;
+  const { phase, setup, pair, pairs, used } = state;
+  useEffect(() => {
+    if (pairs.length > 0 && (phase === "reveal" || phase === "end")) write(scaleSeenKey(state.lang), JSON.stringify(used));
+  }, [phase, pairs, used, state.lang]);
 
   // Only a game the reducer started is remembered: a refused Start leaves the setup and the
   // wizard as they were. Play again saves the same setup again.
@@ -100,7 +105,16 @@ export default function ScaleGame() {
           step={step}
           onStep={setStep}
           quickStart={played}
-          onStart={() => dispatch({ type: "start", setup: draft, lang, pairs: SCALE_PAIRS[lang], at: Date.now() })}
+          onStart={() =>
+            dispatch({
+              type: "start",
+              setup: draft,
+              lang,
+              pairs: SCALE_PAIRS[lang],
+              seen: parseSavedScaleSeen(read(scaleSeenKey(lang))),
+              at: Date.now(),
+            })
+          }
         />
       </GameFrame>
     );
