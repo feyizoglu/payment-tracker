@@ -24,6 +24,7 @@ module.exports = {
         blue: { ...defaults.blue, ...themed("blue", [50, 600]) },
         purple: { ...defaults.purple, ...themed("purple", [50]) },
         teal: { ...defaults.teal, ...themed("teal", [50]) },
+        rose: { ...defaults.rose, ...themed("rose", [50]) },
       },
     },
   },

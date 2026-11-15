@@ -12,7 +12,7 @@ describe("games offline helper", () => {
   });
 
   it("keeps the seven games pages in the sixth cache version", () => {
-    expect(GAMES_PAGES).toEqual(["/games", "/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who", "/games/scale"]);
+    expect(GAMES_PAGES).toEqual(["/games", "/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who", "/games/scale", "/games/clue"]);
     expect(GAMES_CACHE).toBe("games-v6");
   });
 });
@@ -48,6 +48,7 @@ describe("syncGamesCache", () => {
     "/games/potato": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/potato.js?dpl=1\"]"])</script>`,
     "/games/who": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/who.js?dpl=1\"]"])</script>`,
     "/games/scale": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/scale.js?dpl=1\"]"])</script>`,
+    "/games/clue": String.raw`<script src="/_next/static/chunks/main.js?dpl=1"></script><script>self.__next_f.push([1,"[\"/_next/static/chunks/clue.js?dpl=1\"]"])</script>`,
   };
   const assets = [
     "/_next/static/chunks/main.js?dpl=1",
@@ -58,6 +59,7 @@ describe("syncGamesCache", () => {
     "/_next/static/chunks/potato.js?dpl=1",
     "/_next/static/chunks/who.js?dpl=1",
     "/_next/static/chunks/scale.js?dpl=1",
+    "/_next/static/chunks/clue.js?dpl=1",
   ];
 
   function fakeCache(initial: string[] = [], failing: string[] = []) {

@@ -60,6 +60,8 @@
   --color-emerald-200: rgb(6 78 59);
   --color-teal-50: rgb(4 47 46);
   --color-teal-200: rgb(19 78 74);
+  --color-rose-50: rgb(76 5 25);
+  --color-rose-200: rgb(136 19 55);
 }
 
 body {
