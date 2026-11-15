@@ -1,5 +1,6 @@
+import { useIsFocused } from "expo-router";
 import { useCallback, useEffect, useReducer, useState, type ReactNode } from "react";
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator, BackHandler } from "react-native";
 
 import { localeFor, useLang } from "@ptracker/shared/i18n";
 import {
@@ -37,6 +38,7 @@ export default function ScaleScreen() {
   // A game was played on this device before: the wizard may offer to skip its steps.
   const [played, setPlayed] = useState(false);
   const pinReady = useEnterGameModeOnce();
+  const focused = useIsFocused();
   const move = useCallback((needle: number) => dispatch({ type: "move", needle, at: Date.now() }), []);
 
   useEffect(() => {
@@ -56,6 +58,16 @@ export default function ScaleScreen() {
     setPlayed(true);
     setStep(0);
   }, [phase, state.turnsPlayed, setup]);
+
+  // Android's back button and back gesture would end the turn while the target is shown or the
+  // needle is moved. Only while this screen is on top: the game-mode PIN screen over it keeps
+  // its back.
+  const midTurn = phase === "secret" || phase === "guess";
+  useEffect(() => {
+    if (!midTurn || !focused) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+    return () => sub.remove();
+  }, [midTurn, focused]);
 
   if (!pinReady) return <GamesPinSetup title={t.scaleTitle} />;
 

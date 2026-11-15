@@ -14,7 +14,8 @@ const storage = vi.hoisted(() => ({
   getStoredScaleSetup: vi.fn(),
   setStoredScaleSetup: vi.fn(async (_setup: unknown) => undefined),
 }));
-const entry = vi.hoisted(() => ({ pinReady: true }));
+const entry = vi.hoisted(() => ({ pinReady: true, focused: true }));
+const back = vi.hoisted(() => ({ handlers: [] as { fn: () => boolean | null | undefined; removed: boolean }[] }));
 const clock = vi.hoisted(() => ({ now: 0 }));
 const pairs = vi.hoisted(() => ({
   SCALE_PAIRS: {
@@ -53,7 +54,17 @@ vi.mock("react", async (importOriginal) => {
     },
   };
 });
-vi.mock("react-native", () => ({ ActivityIndicator: () => null }));
+vi.mock("react-native", () => ({
+  ActivityIndicator: () => null,
+  BackHandler: {
+    addEventListener: (_type: string, fn: () => boolean | null | undefined) => {
+      const handler = { fn, removed: false };
+      back.handlers.push(handler);
+      return { remove: () => (handler.removed = true) };
+    },
+  },
+}));
+vi.mock("expo-router", () => ({ useIsFocused: () => entry.focused }));
 vi.mock("@ptracker/shared/i18n", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@ptracker/shared/i18n")>()),
   useLang: () => ({ t: new Proxy({}, { get: (_, key) => (key === "wordTeamDefault" ? "Team {n}" : String(key)) }), lang: "en" }),
@@ -173,6 +184,9 @@ function turn(needle = 50) {
   call(ScaleGuess, "onLock");
 }
 
+/** Back handlers still listening. */
+const listening = () => back.handlers.filter((h) => !h.removed);
+
 /** Plays every turn of the game. */
 function playAll(turns = 2 * valid.turns) {
   for (let i = 0; i < turns; i++) {
@@ -185,6 +199,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   unmount();
   entry.pinReady = true;
+  entry.focused = true;
+  back.handlers = [];
   clock.now = 1_800_000_000_000;
   vi.spyOn(Date, "now").mockImplementation(() => clock.now);
   vi.spyOn(Math, "random").mockReturnValue(0);
@@ -318,6 +334,43 @@ describe("Scale screen: a turn", () => {
     }
     expect(givers).toEqual(["Ann", "Cem", "Bob", "Dan"]);
     expect(props(ScaleHandoff).turn).toBe(3);
+  });
+});
+
+describe("Scale screen: Android back", () => {
+  it("is swallowed while the target is shown and the needle is moved, and only then", async () => {
+    await start();
+    expect(listening()).toHaveLength(0);
+    call(ScaleHandoff, "onShow");
+    await settle();
+    expect(listening()).toHaveLength(1);
+    expect(listening()[0].fn()).toBe(true);
+    call(ScaleSecret, "onHide");
+    await settle();
+    expect(listening()).toHaveLength(1);
+    expect(listening()[0].fn()).toBe(true);
+    call(ScaleGuess, "onLock");
+    call(ScaleGuess, "onLock");
+    await settle();
+    expect(has(ScaleReveal)).toBe(true);
+    expect(listening()).toHaveLength(0);
+    call(ScaleReveal, "onNext", undefined, SCALE_REVEAL_LOCK_MS);
+    await settle();
+    expect(has(ScaleHandoff)).toBe(true);
+    expect(listening()).toHaveLength(0);
+  });
+
+  it("is left alone while another screen covers the game, and released on unmount", async () => {
+    await start();
+    call(ScaleHandoff, "onShow");
+    entry.focused = false;
+    await settle();
+    expect(listening()).toHaveLength(0);
+    entry.focused = true;
+    await settle();
+    expect(listening()).toHaveLength(1);
+    unmount();
+    expect(listening()).toHaveLength(0);
   });
 });
 
