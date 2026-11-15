@@ -197,7 +197,7 @@ describe("GamesScreen", () => {
     state.lock = { ...withPin, gameMode: true };
     await render(GamesScreen);
     expect(state.pinSetups).toBe(0);
-    expect(state.presses).toHaveLength(6);
+    expect(state.presses).toHaveLength(7);
     state.presses[0]();
     expect(router.push).toHaveBeenCalledTimes(1);
     expect(router.push).toHaveBeenCalledWith("/games/imposter");
@@ -234,6 +234,14 @@ describe("GamesScreen", () => {
     expect(router.push).toHaveBeenCalledWith("/games/who");
   });
 
+  it("opens One Clue from its entry", async () => {
+    state.lock = { ...withPin, gameMode: true };
+    await render(GamesScreen);
+    state.presses[5]();
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith("/games/clue");
+  });
+
   it("enters game mode when the games list is opened with a PIN", async () => {
     state.lock = withPin;
     await render(GamesScreen);
@@ -248,7 +256,7 @@ describe("GamesScreen", () => {
     state.lock = { ...withPin, gameMode: true };
     state.lang = from;
     await render(GamesScreen);
-    state.presses[5]();
+    state.presses[6]();
     expect(router.push).not.toHaveBeenCalled();
     expect(state.setLang).toHaveBeenCalledTimes(1);
     expect(state.setLang).toHaveBeenCalledWith(to);

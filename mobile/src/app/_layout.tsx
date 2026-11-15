@@ -84,6 +84,7 @@ function RootNavigator() {
         <Stack.Screen name="games/wolf" />
         <Stack.Screen name="games/potato" />
         <Stack.Screen name="games/who" />
+        <Stack.Screen name="games/clue" />
       </Stack.Protected>
       <Stack.Protected guard={isAuthenticated && lock.gameMode}>
         <Stack.Screen name="app-lock" />
