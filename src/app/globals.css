@@ -58,6 +58,8 @@
   --color-orange-200: rgb(124 45 18);
   --color-emerald-50: rgb(2 44 34);
   --color-emerald-200: rgb(6 78 59);
+  --color-sky-50: rgb(8 47 73);
+  --color-sky-200: rgb(7 89 133);
 }
 
 body {

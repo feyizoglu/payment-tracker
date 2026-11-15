@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Flame, MessageSquareText, Moon, UserRoundSearch, VenetianMask } from "lucide-react";
+import { ChevronRight, Flame, Lightbulb, MessageSquareText, Moon, UserRoundSearch, VenetianMask } from "lucide-react";
 import GamesShell from "@/components/games/GamesShell";
 import { useLang } from "@/lib/i18n";
 
@@ -71,6 +71,19 @@ export default function GamesPage() {
           <div className="flex-1">
             <p className="font-semibold text-gray-900">{t.whoTitle}</p>
             <p className="text-sm text-gray-500">{t.whoDesc}</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-gray-400" />
+        </a>
+        <a
+          href="/games/clue"
+          className="flex items-center gap-4 rounded-xl border border-gray-100 bg-surface p-4 hover:border-sky-200 transition"
+        >
+          <div className="rounded-lg bg-sky-50 p-3">
+            <Lightbulb className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-gray-900">{t.clueTitle}</p>
+            <p className="text-sm text-gray-500">{t.clueDesc}</p>
           </div>
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </a>

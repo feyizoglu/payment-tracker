@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("lucide-react", () => ({
   ChevronRight: () => null,
   Flame: () => null,
+  Lightbulb: () => null,
   MessageSquareText: () => null,
   Moon: () => null,
   UserRoundSearch: () => null,
@@ -22,10 +23,10 @@ import GamesPage from "./page";
 const html = () => renderToStaticMarkup(createElement(GamesPage));
 
 describe("GamesPage", () => {
-  it("links the word game after the Imposter game, then Wolf Night, Hot Potato and Who Am I?", () => {
+  it("links the word game after the Imposter game, then Wolf Night, Hot Potato, Who Am I? and One Clue", () => {
     const hrefs = [...html().matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]);
 
-    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who"]);
+    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who", "/games/clue"]);
   });
 
   it("shows the word game's title and description on its link", () => {
@@ -50,5 +51,13 @@ describe("GamesPage", () => {
     const link = html().match(/<a href="\/games\/who"[^>]*>(.*?)<\/a>/)?.[1] ?? "";
 
     expect(link).toMatch(/>whoTitle<\/p><p[^>]*>whoDesc<\/p>/);
+  });
+
+  it("shows One Clue's title and description on its link, in its own colour", () => {
+    const link = html().match(/<a href="\/games\/clue"[^>]*>(.*?)<\/a>/)?.[0] ?? "";
+
+    expect(link).toMatch(/>clueTitle<\/p><p[^>]*>clueDesc<\/p>/);
+    expect(link).toContain("hover:border-sky-200");
+    expect(link).toContain("bg-sky-50");
   });
 });

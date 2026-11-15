@@ -300,6 +300,12 @@ export function clueWord(state: Pick<ClueState, "deck" | "round">): WordCard | n
   return state.deck[state.round] ?? null;
 }
 
+/** Why a clue is struck, as the screens write it; null when it stays. */
+export function clueStrikeReason(clue: Pick<ClueEntry, "auto" | "struck">): StrikeReason | "manual" | null {
+  if (!clue.struck) return null;
+  return clue.auto ?? "manual";
+}
+
 /** What the guesser sees: the clues nobody struck. */
 export function survivingClues(clues: readonly ClueEntry[]): string[] {
   return clues.filter((c) => !c.struck).map((c) => c.text);

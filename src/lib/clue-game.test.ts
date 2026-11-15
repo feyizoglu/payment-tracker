@@ -24,6 +24,7 @@ import {
   clueRating,
   clueReducer,
   clueScore,
+  clueStrikeReason,
   clueSeenKey,
   clueStepErrors,
   clueWord,
@@ -523,6 +524,16 @@ describe("clueReducer: the end", () => {
     expect(fresh.lastActionAt).toBe(now);
     const tooSoon = act(fresh, { type: "start", setup: three, lang: "en", words: WORDS, seen: [], rng: zero }, 100);
     expect(tooSoon.phase).toBe("setup");
+  });
+});
+
+describe("clueStrikeReason", () => {
+  it("names why a clue is struck, by the rules or by the table, and nothing for a kept clue", () => {
+    expect(clueStrikeReason({ auto: "duplicate", struck: true })).toBe("duplicate");
+    expect(clueStrikeReason({ auto: "word", struck: true })).toBe("word");
+    expect(clueStrikeReason({ auto: null, struck: true })).toBe("manual");
+    expect(clueStrikeReason({ auto: "duplicate", struck: false })).toBeNull();
+    expect(clueStrikeReason({ auto: null, struck: false })).toBeNull();
   });
 });
 
