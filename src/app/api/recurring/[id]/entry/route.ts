@@ -51,7 +51,7 @@ export async function PUT(
     return NextResponse.json({ error: "period is required" }, { status: 400 });
   }
 
-  const payload: Record<string, any> = {
+  const payload: Record<string, unknown> = {
     recurring_id: id,
     period: normalizePeriod(String(body.period)),
   };

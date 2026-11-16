@@ -241,7 +241,7 @@ export async function GET(req: NextRequest) {
 
     results.push({
       email: user.email,
-      status: sendError ? `error: ${(sendError as any).message}` : "sent",
+      status: sendError ? `error: ${sendError.message}` : "sent",
     });
   }
 

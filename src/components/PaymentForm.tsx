@@ -123,8 +123,8 @@ export default function PaymentForm({ teams, currentUserId, defaultTeamId, defau
 
       onCreated();
       onClose();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }

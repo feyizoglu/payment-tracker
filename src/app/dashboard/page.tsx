@@ -73,7 +73,7 @@ function Dashboard() {
   }, [status, router]);
 
   const fetchPayments = useCallback(async () => {
-    let url = "/api/payments?filter=all";
+    const url = "/api/payments?filter=all";
     const res = await fetch(url);
     if (res.ok) setPayments(await res.json());
   }, []);
@@ -115,6 +115,7 @@ function Dashboard() {
 
   useEffect(() => {
     if (status === "authenticated") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the fetches set state after their responses arrive, not during the effect
       fetchPayments();
       fetchTeams();
       fetchRecurrings();
@@ -124,7 +125,8 @@ function Dashboard() {
   // Load current user's saved color from teams data
   useEffect(() => {
     if (teams.length > 0 && session?.user) {
-      const uid = (session.user as any).id;
+      const uid = (session.user as { id?: string }).id;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TeamPanel's onColorChanged also sets myColor, so it cannot be derived from teams alone
       setMyColor(myColorFromTeams(teams, uid));
     }
   }, [teams, session]);
@@ -133,7 +135,7 @@ function Dashboard() {
   const userMap = useMemo<UserMap>(() => {
     const map: UserMap = {};
     if (session?.user) {
-      const uid = (session.user as any).id;
+      const uid = (session.user as { id?: string }).id;
       if (uid) map[uid] = {
         name: session.user.name ?? null,
         email: session.user.email!,
@@ -144,7 +146,7 @@ function Dashboard() {
     teams.forEach((team) => {
       team.members?.forEach((m) => {
         if (m.user) {
-          const isMe = m.user_id === (session?.user as any)?.id;
+          const isMe = m.user_id === (session?.user as { id?: string } | undefined)?.id;
           map[m.user_id] = {
             name: m.user.name,
             email: m.user.email,
@@ -413,7 +415,7 @@ function Dashboard() {
             ) : (
               <div className="space-y-3">
                 {filteredRecurrings.map((r) => {
-                  const currentUserId = (session?.user as any)?.id;
+                  const currentUserId = (session?.user as { id?: string } | undefined)?.id;
                   const isOwner = r.user_id === currentUserId;
                   const isTeamAdmin = r.team_id
                     ? teams.find((tm) => tm.id === r.team_id)?.members?.find((m) => m.user_id === currentUserId)?.role === "owner"
@@ -430,7 +432,7 @@ function Dashboard() {
                   );
                 })}
                 {filteredPayments.map((p) => {
-                  const currentUserId = (session?.user as any)?.id;
+                  const currentUserId = (session?.user as { id?: string } | undefined)?.id;
                   const isOwner = p.user_id === currentUserId;
                   const isTeamAdmin = p.team_id
                     ? teams.find((tm) => tm.id === p.team_id)?.members?.find((m) => m.user_id === currentUserId)?.role === "owner"
@@ -456,7 +458,7 @@ function Dashboard() {
       {showPaymentForm && (
         <PaymentForm
           teams={teams}
-          currentUserId={(session?.user as any)?.id}
+          currentUserId={(session?.user as { id?: string } | undefined)?.id}
           defaultTeamId={activeFilter !== "all" && activeFilter !== "personal" ? activeFilter : null}
           defaultDate={selectedCalendarDay ? (() => {
             const d = selectedCalendarDay;
@@ -486,7 +488,7 @@ function Dashboard() {
             <div className="p-5">
               <TeamPanel
                 teams={teams}
-                currentUserId={(session?.user as any)?.id}
+                currentUserId={(session?.user as { id?: string } | undefined)?.id}
                 currentUserColor={myColor}
                 onCreated={() => { fetchTeams(); }}
                 onColorChanged={(color) => setMyColor(color)}

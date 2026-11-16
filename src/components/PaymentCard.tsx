@@ -5,7 +5,7 @@ import { Payment } from "@/types";
 import { getInstallments, getRemainingAmount, getTotalMonthly, getCurrencySymbol } from "@/lib/payments";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Trash2, CheckCircle2, Circle, Pencil, X } from "lucide-react";
-import { useLang } from "@/lib/i18n";
+import { useLang, type Translations } from "@/lib/i18n";
 import { UserMap } from "@/components/CalendarView";
 
 const PALETTE = [
@@ -208,7 +208,7 @@ function EditPaymentModal({
   payment: Payment;
   onClose: () => void;
   onSaved: () => void;
-  t: any;
+  t: Translations;
 }) {
   const [name, setName] = useState(payment.name);
   const [amount, setAmount] = useState(String(payment.amount));

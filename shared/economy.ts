@@ -6,7 +6,9 @@ import type { Asset, Currency, ExchangeRates, FiatCurrency, GoldType, Team } fro
 
 export const FIAT_CURRENCIES: FiatCurrency[] = ["USD", "EUR", "GBP", "TRY"];
 
-export const GOLD_TYPES: { value: GoldType; labelKey: string; unit: "gr" | "adet" }[] = [
+export type GoldLabelKey = "goldBilezik" | "goldGram" | "goldCeyrek" | "goldYarim" | "goldTam";
+
+export const GOLD_TYPES: { value: GoldType; labelKey: GoldLabelKey; unit: "gr" | "adet" }[] = [
   { value: "BILEZIK", labelKey: "goldBilezik", unit: "gr" },
   { value: "GRAM_ALTIN", labelKey: "goldGram", unit: "gr" },
   { value: "CEYREK_ALTIN", labelKey: "goldCeyrek", unit: "adet" },

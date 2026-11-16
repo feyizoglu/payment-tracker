@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const teams = data?.map((d: any) => d.team).filter(Boolean) ?? [];
+  const teams = data?.map((d: { team: unknown }) => d.team).filter(Boolean) ?? [];
   return NextResponse.json(teams);
 }
 

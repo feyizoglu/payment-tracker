@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     .from("team_members")
     .select("team_id")
     .eq("user_id", userId);
-  const myTeamIds = (memberRows ?? []).map((r: any) => r.team_id);
+  const myTeamIds = (memberRows ?? []).map((r: { team_id: string }) => r.team_id);
 
   let query = db
     .from("recurring_payments")
