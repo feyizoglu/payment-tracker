@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test
+
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      # shared/ resolves its dependencies from the root node_modules.
+      - run: npm ci
+      - run: npm ci
+        working-directory: mobile
+      # Expo Router's typed routes are generated, not committed.
+      - run: npx expo customize tsconfig.json
+        working-directory: mobile
+      - run: npx tsc --noEmit
+        working-directory: mobile
+      - run: npm test
+        working-directory: mobile
+      # tsc misses code Metro cannot bundle (JSX or imports under shared/).
+      - run: npx expo export --platform android --output-dir "$RUNNER_TEMP/expo-export"
+        working-directory: mobile
