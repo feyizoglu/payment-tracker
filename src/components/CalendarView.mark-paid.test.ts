@@ -84,6 +84,8 @@ function tick() {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 4, 15, 9, 0, 0));
   vi.stubGlobal("window", { HTMLIFrameElement: class {} });
   host.nodes.length = 0;
 });
@@ -92,6 +94,7 @@ afterEach(async () => {
   await act(async () => root?.unmount());
   root = null;
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("CalendarView tick", () => {
