@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
-import { createEvent, listMyEventIds, loadEventDetail } from "@/lib/events-repo";
+import { createEvent, loadMyEvents } from "@/lib/events-repo";
 import { isIsoDate, jsonError, readJson } from "@/lib/events-api";
 import { balances } from "@/lib/split";
 import type { EventSummary } from "@/types";
@@ -13,13 +13,11 @@ export async function GET(req: NextRequest) {
   if (!user) return jsonError(401, "Unauthorized");
   try {
     const db = supabaseAdmin();
-    const ids = await listMyEventIds(db, user.id);
-    const details = (await Promise.all(ids.map((id) => loadEventDetail(db, id)))).filter((d) => d !== null);
-    const summaries: EventSummary[] = details.map(({ participants, expenses, settlements, ...event }) => {
-      const meId = participants.find((p) => p.user_id === user.id)?.id;
+    const rows = await loadMyEvents(db, user.id);
+    const summaries: EventSummary[] = rows.map(({ event, myParticipantId, expenses, settlements }) => {
       const my_balance: Record<string, number> = {};
       for (const [currency, row] of Object.entries(balances(expenses, settlements))) {
-        if (meId && row[meId]) my_balance[currency] = row[meId];
+        if (row[myParticipantId]) my_balance[currency] = row[myParticipantId];
       }
       return { ...event, my_balance };
     });

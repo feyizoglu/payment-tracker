@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import type {
   EventDetail,
+  EventExpense,
   EventExpenseShare,
   EventParticipant,
   EventSettlement,
@@ -65,11 +66,42 @@ export async function loadEventDetail(db: Db, eventId: string, preloaded?: Split
   return { ...event, participants, expenses: expenses.data ?? [], settlements: settlements.data ?? [] };
 }
 
-// Ids of the events the user takes part in, unordered; GET /api/events sorts them.
-export async function listMyEventIds(db: Db, userId: string): Promise<string[]> {
-  const { data, error } = await db.from("event_participants").select("event_id").eq("user_id", userId);
-  if (error) fail("listMyEventIds", error);
-  return (data ?? []).map((r: { event_id: string }) => r.event_id);
+export interface MyEventRows {
+  event: SplitEvent;
+  myParticipantId: string;
+  expenses: EventExpense[];
+  settlements: EventSettlement[];
+}
+
+// Every event the user takes part in, with what GET /api/events needs to compute their
+// balance, in four queries however many events there are. Unordered; the route sorts.
+export async function loadMyEvents(db: Db, userId: string): Promise<MyEventRows[]> {
+  const mine = await db.from("event_participants").select("id, event_id").eq("user_id", userId);
+  if (mine.error) fail("loadMyEvents participants", mine.error);
+  const myIdByEvent = new Map((mine.data ?? []).map((r: { id: string; event_id: string }) => [r.event_id, r.id]));
+  const ids = [...myIdByEvent.keys()];
+  if (ids.length === 0) return [];
+  const [events, expenses, settlements] = await Promise.all([
+    db.from("events").select("*").in("id", ids),
+    db.from("event_expenses").select("*, shares:event_expense_shares(participant_id, amount_minor)").in("event_id", ids),
+    db.from("event_settlements").select("*").in("event_id", ids),
+  ]);
+  if (events.error) fail("loadMyEvents events", events.error);
+  if (expenses.error) fail("loadMyEvents expenses", expenses.error);
+  if (settlements.error) fail("loadMyEvents settlements", settlements.error);
+  const byEvent = <T extends { event_id: string }>(rows: T[] | null) => {
+    const out = new Map<string, T[]>();
+    for (const r of rows ?? []) out.set(r.event_id, [...(out.get(r.event_id) ?? []), r]);
+    return out;
+  };
+  const expensesByEvent = byEvent<EventExpense>(expenses.data);
+  const settlementsByEvent = byEvent<EventSettlement>(settlements.data);
+  return ((events.data ?? []) as SplitEvent[]).map((event) => ({
+    event,
+    myParticipantId: myIdByEvent.get(event.id)!,
+    expenses: expensesByEvent.get(event.id) ?? [],
+    settlements: settlementsByEvent.get(event.id) ?? [],
+  }));
 }
 
 export async function createEvent(db: Db, userId: string, name: string, eventDate: string | null): Promise<SplitEvent> {
