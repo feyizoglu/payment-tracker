@@ -328,6 +328,61 @@ $$;
 revoke all on function event_expense_insert(uuid, uuid, text, bigint, text, uuid, date, jsonb) from public, anon, authenticated;
 revoke all on function event_expense_replace(uuid, text, bigint, text, uuid, date, jsonb) from public, anon, authenticated;
 
+-- A participant's net in one currency, as balances() in shared/split.ts computes it:
+-- paid - share + sent - received (positive = owed money).
+create or replace function event_participant_balance(p_event_id uuid, p_participant uuid, p_currency text)
+returns bigint
+language sql
+stable
+set search_path = public
+as $$
+  select (
+    coalesce((select sum(amount_minor) from event_expenses
+      where event_id = p_event_id and currency = p_currency and paid_by = p_participant), 0)
+    - coalesce((select sum(s.amount_minor) from event_expense_shares s
+      join event_expenses e on e.id = s.expense_id
+      where e.event_id = p_event_id and e.currency = p_currency and s.participant_id = p_participant), 0)
+    + coalesce((select sum(amount_minor) from event_settlements
+      where event_id = p_event_id and currency = p_currency and from_participant = p_participant), 0)
+    - coalesce((select sum(amount_minor) from event_settlements
+      where event_id = p_event_id and currency = p_currency and to_participant = p_participant), 0)
+  )::bigint;
+$$;
+
+-- Records a payment only up to the current debt. The event row lock serialises
+-- payments per event, so two clients paying the same debt cannot both pass the check.
+create or replace function event_settlement_insert(
+  p_event_id uuid,
+  p_created_by uuid,
+  p_from uuid,
+  p_to uuid,
+  p_amount_minor bigint,
+  p_currency text
+) returns event_settlements
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_from bigint;
+  v_to bigint;
+  v_row event_settlements;
+begin
+  perform 1 from events where id = p_event_id for update;
+  v_from := event_participant_balance(p_event_id, p_from, p_currency);
+  v_to := event_participant_balance(p_event_id, p_to, p_currency);
+  if v_from >= 0 or v_to <= 0 or p_amount_minor > least(-v_from, v_to) then
+    raise exception 'settlement exceeds debt' using errcode = 'P0409';
+  end if;
+  insert into event_settlements (event_id, created_by, from_participant, to_participant, amount_minor, currency)
+  values (p_event_id, p_created_by, p_from, p_to, p_amount_minor, p_currency)
+  returning * into v_row;
+  return v_row;
+end;
+$$;
+
+revoke all on function event_participant_balance(uuid, uuid, text) from public, anon, authenticated;
+revoke all on function event_settlement_insert(uuid, uuid, uuid, uuid, bigint, text) from public, anon, authenticated;
+
 -- Web push subscriptions for the installed web app. RLS on with no policies:
 -- service role only.
 create table if not exists web_push_subscriptions (

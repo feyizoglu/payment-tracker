@@ -207,17 +207,30 @@ export async function deleteExpense(db: Db, expenseId: string): Promise<void> {
   if (error) fail("deleteExpense", error);
 }
 
+export class SettlementExceedsDebt extends Error {
+  constructor() {
+    super("Settlement exceeds the current debt");
+    this.name = "SettlementExceedsDebt";
+  }
+}
+
+// The database function locks the event and refuses (P0409) an amount above what
+// `from` owes and `to` is owed in that currency, so two clients cannot both pay one debt.
 export async function insertSettlement(
   db: Db,
   eventId: string,
   userId: string,
   s: Pick<EventSettlement, "from_participant" | "to_participant" | "amount_minor" | "currency">
 ): Promise<EventSettlement> {
-  const { data, error } = await db
-    .from("event_settlements")
-    .insert({ event_id: eventId, created_by: userId, ...s })
-    .select()
-    .single();
+  const { data, error } = await db.rpc("event_settlement_insert", {
+    p_event_id: eventId,
+    p_created_by: userId,
+    p_from: s.from_participant,
+    p_to: s.to_participant,
+    p_amount_minor: s.amount_minor,
+    p_currency: s.currency,
+  });
+  if (error?.code === "P0409") throw new SettlementExceedsDebt();
   if (error) fail("insertSettlement", error);
   return data;
 }

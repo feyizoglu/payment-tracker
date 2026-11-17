@@ -8,9 +8,11 @@ import {
   deleteParticipant,
   findUserByEmail,
   insertExpense,
+  insertSettlement,
   loadEventDetail,
   participantIsReferenced,
   replaceExpense,
+  SettlementExceedsDebt,
   shareATeam,
 } from "./events-repo";
 
@@ -293,5 +295,33 @@ describe("loadEventDetail", () => {
       event_settlements: [{ error: { message: "settlements failed" } }],
     });
     await expect(loadEventDetail(db, "e1")).rejects.toThrow("settlements failed");
+  });
+});
+
+describe("insertSettlement", () => {
+  const input = { from_participant: "p2", to_participant: "p1", amount_minor: 500, currency: "TRY" };
+
+  it("records the payment through the capped RPC and returns the row", async () => {
+    const row = { id: "s1", event_id: "e1", created_by: "u1", ...input };
+    const { db, calls } = fakeDb({ event_settlement_insert: [{ data: row }] });
+    expect(await insertSettlement(db, "e1", "u1", input)).toEqual(row);
+    expect(calls).toEqual([
+      {
+        table: "event_settlement_insert",
+        ops: [["rpc", [{ p_event_id: "e1", p_created_by: "u1", p_from: "p2", p_to: "p1", p_amount_minor: 500, p_currency: "TRY" }]]],
+      },
+    ]);
+  });
+
+  it("throws SettlementExceedsDebt when the database refuses an amount above the debt", async () => {
+    const { db } = fakeDb({ event_settlement_insert: [{ error: { message: "settlement exceeds debt", code: "P0409" } }] });
+    await expect(insertSettlement(db, "e1", "u1", input)).rejects.toBeInstanceOf(SettlementExceedsDebt);
+  });
+
+  it("rejects with the database message on any other error", async () => {
+    const { db } = fakeDb({ event_settlement_insert: [{ error: { message: "rpc missing", code: "PGRST202" } }] });
+    const err = await insertSettlement(db, "e1", "u1", input).catch((e) => e);
+    expect(err).not.toBeInstanceOf(SettlementExceedsDebt);
+    expect(err.message).toBe("rpc missing");
   });
 });

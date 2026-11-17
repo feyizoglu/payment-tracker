@@ -50,6 +50,7 @@ export default function SettleUp({
       });
       if (!res.ok) {
         await failed(res);
+        if (res.status === 409) onChanged();
         return;
       }
       setPartial((prev) => {
