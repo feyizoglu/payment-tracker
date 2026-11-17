@@ -15,7 +15,7 @@ interface Props {
   onColorChanged?: (color: string) => void;
 }
 
-export default function TeamPanel({ teams, currentUserId, currentUserColor, onCreated, onColorChanged }: Props) {
+export default function TeamPanel({ teams, currentUserColor, onCreated, onColorChanged }: Props) {
   const { t } = useLang();
   const [newTeamName, setNewTeamName] = useState("");
   const [creatingTeam, setCreatingTeam] = useState(false);

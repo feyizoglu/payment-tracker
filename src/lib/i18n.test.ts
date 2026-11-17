@@ -13,6 +13,13 @@ function Probe() {
   return createElement("span", null, `${lang}|${t.addPayment}`);
 }
 
+type LangContext = ReturnType<typeof useLang>;
+
+function Capture({ onContext }: { onContext: (c: LangContext) => void }) {
+  onContext(useLang());
+  return null;
+}
+
 describe("LanguageProvider", () => {
   it("supplies the default English translations and language to consumers", () => {
     const html = renderToStaticMarkup(
@@ -25,12 +32,8 @@ describe("LanguageProvider", () => {
 describe("useLang", () => {
   it("exposes lang, a setLang function, and the translation table from context", () => {
     let ctx: ReturnType<typeof useLang> | undefined;
-    function Capture() {
-      ctx = useLang();
-      return null;
-    }
     renderToStaticMarkup(
-      createElement(LanguageProvider, null, createElement(Capture))
+      createElement(LanguageProvider, null, createElement(Capture, { onContext: (c: LangContext) => (ctx = c) }))
     );
     expect(ctx?.lang).toBe("en");
     expect(typeof ctx?.setLang).toBe("function");
@@ -42,15 +45,11 @@ describe("useLang", () => {
 // mounts the provider with initialLang="tr" instead of the web app's English default.
 function captureContext(initialLang?: "en" | "tr") {
   let ctx: ReturnType<typeof useLang> | undefined;
-  function Capture() {
-    ctx = useLang();
-    return null;
-  }
   renderToStaticMarkup(
     createElement(
       LanguageProvider,
       initialLang ? { initialLang } : null,
-      createElement(Capture)
+      createElement(Capture, { onContext: (c: LangContext) => (ctx = c) })
     )
   );
   return ctx!;
@@ -126,15 +125,11 @@ describe("onLangChange", () => {
   it("fires with the newly selected language", () => {
     const seen: string[] = [];
     let ctx: ReturnType<typeof useLang> | undefined;
-    function Capture() {
-      ctx = useLang();
-      return null;
-    }
     renderToStaticMarkup(
       createElement(
         LanguageProvider,
         { initialLang: "tr", onLangChange: (lang: "en" | "tr") => seen.push(lang) },
-        createElement(Capture)
+        createElement(Capture, { onContext: (c: LangContext) => (ctx = c) })
       )
     );
 

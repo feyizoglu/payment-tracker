@@ -46,7 +46,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           console.error("session user lookup error:", error);
         }
         if (data) {
-          (session.user as any).id = data.id;
+          (session.user as { id?: string }).id = data.id;
           console.log("session user id set:", data.id);
         } else {
           console.error("session: no user found for email:", session.user.email);

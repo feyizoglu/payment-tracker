@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Asset, Currency, FiatCurrency, GoldType, ExchangeRates, Team } from "@/types";
-import { useLang } from "@/lib/i18n";
+import { useLang, type Translations } from "@/lib/i18n";
 import {
   FIAT_CURRENCIES,
   FIAT_SYMBOLS,
   GOLD_TYPES,
+  type GoldLabelKey,
   assetTotalIn,
   canManageAsset,
   filterAssets,
@@ -73,6 +74,7 @@ export default function Economy() {
   // Persist preferred currency + restore cached rates
   useEffect(() => {
     const saved = localStorage.getItem("economy_preferred_currency") as FiatCurrency | null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is only readable after hydration
     if (saved && FIAT_CURRENCIES.includes(saved)) setPreferredCurrency(saved);
 
     const cachedRates = localStorage.getItem("economy_rates");
@@ -128,6 +130,7 @@ export default function Economy() {
 
   useEffect(() => {
     if (status === "authenticated") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the fetches set state after their responses arrive, not during the effect
       fetchAssets();
       fetchTeams();
     }
@@ -135,7 +138,8 @@ export default function Economy() {
 
   useEffect(() => {
     if (teams.length > 0 && session?.user) {
-      const uid = (session.user as any).id;
+      const uid = (session.user as { id?: string }).id;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TeamPanel's onColorChanged also sets myColor, so it cannot be derived from teams alone
       setMyColor(myColorFromTeams(teams, uid));
     }
   }, [teams, session]);
@@ -353,7 +357,7 @@ export default function Economy() {
         ) : (
           <div className="space-y-3">
             {groupByBank(filteredAssets).map(({ bankName, assets: bankAssets }) => {
-              const currentUserId = (session?.user as any)?.id;
+              const currentUserId = (session?.user as { id?: string } | undefined)?.id;
               return (
                 <BankGroup
                   key={bankName}
@@ -391,7 +395,7 @@ export default function Economy() {
       {showAddForm && (
         <AddAssetForm
           teams={teams}
-          currentUserId={(session?.user as any)?.id}
+          currentUserId={(session?.user as { id?: string } | undefined)?.id}
           defaultBankName={addToBankName ?? undefined}
           onClose={() => { setShowAddForm(false); setAddToBankName(null); }}
           onCreated={fetchAssets}
@@ -417,7 +421,7 @@ export default function Economy() {
             <div className="p-5">
               <TeamPanel
                 teams={teams}
-                currentUserId={(session?.user as any)?.id}
+                currentUserId={(session?.user as { id?: string } | undefined)?.id}
                 currentUserColor={myColor}
                 onCreated={() => { fetchTeams(); }}
                 onColorChanged={(color) => setMyColor(color)}
@@ -437,7 +441,7 @@ export default function Economy() {
 
 // ── Asset Card ────────────────────────────────────────────────────────────────
 
-function getGoldLabel(currency: GoldType, t: any): string {
+function getGoldLabel(currency: GoldType, t: Translations): string {
   const map: Record<GoldType, string> = {
     BILEZIK: t.goldBilezik,
     GRAM_ALTIN: t.goldGram,
@@ -448,7 +452,7 @@ function getGoldLabel(currency: GoldType, t: any): string {
   return map[currency];
 }
 
-function getCurrencyLabel(currency: Currency, t: any): string {
+function getCurrencyLabel(currency: Currency, t: Translations): string {
   if (isGoldType(currency)) return getGoldLabel(currency, t);
   const labels: Record<FiatCurrency, string> = {
     USD: t.currencyUSD, EUR: t.currencyEUR, GBP: t.currencyGBP, TRY: t.currencyTRY,
@@ -479,7 +483,7 @@ function BankGroup({
   onUpdated: () => void;
   onDeleted: () => void;
   onAddToBank: () => void;
-  t: any;
+  t: Translations;
 }) {
   const [expanded, setExpanded] = useState(true);
 
@@ -554,7 +558,7 @@ function AssetRow({
   canManage: boolean;
   onUpdated: () => void;
   onDeleted: () => void;
-  t: any;
+  t: Translations;
 }) {
   const [deleting, setDeleting] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -567,7 +571,7 @@ function AssetRow({
     convertedValue = formatPreferred(fromUSD(usd, preferredCurrency, rates), preferredCurrency, t.numberLocale);
   }
 
-  const owner = asset.user as any;
+  const owner = asset.user;
   const ownerColor = owner?.color ?? hashColor(asset.user_id);
 
   async function handleDelete() {
@@ -664,7 +668,7 @@ function EditAssetModal({
   asset: Asset;
   onClose: () => void;
   onSaved: () => void;
-  t: any;
+  t: Translations;
 }) {
   const [bankName, setBankName] = useState(asset.bank_name);
   const [amount, setAmount] = useState(String(asset.amount));
@@ -775,7 +779,7 @@ function AddAssetForm({
   defaultBankName?: string;
   onClose: () => void;
   onCreated: () => void;
-  t: any;
+  t: Translations;
 }) {
   const [bankName, setBankName] = useState(defaultBankName ?? "");
   const [currency, setCurrency] = useState<Currency>("USD");
@@ -890,7 +894,7 @@ function AddAssetForm({
                       : "bg-surface text-gray-700 border-gray-200 hover:border-amber-400"
                   }`}
                 >
-                  <span className="font-medium">{(t as any)[g.labelKey]}</span>
+                  <span className="font-medium">{t[g.labelKey]}</span>
                   <span className={`text-xs ${currency === g.value ? "text-amber-100 dark:text-white/80" : "text-gray-400"}`}>
                     {g.unit}
                   </span>
@@ -948,7 +952,7 @@ function AddAssetForm({
                 <option value="">{t.myself}</option>
                 {otherMembers.map((m) => (
                   <option key={m.user_id} value={m.user_id}>
-                    {(m.user as any)?.name ?? (m.user as any)?.email ?? m.user_id}
+                    {m.user?.name ?? m.user?.email ?? m.user_id}
                   </option>
                 ))}
               </select>
@@ -983,7 +987,7 @@ function AddAssetForm({
 
 // ── Manual Gold Prices Modal ───────────────────────────────────────────────────
 
-const GOLD_FIELDS: { key: GoldType; labelKey: string }[] = [
+const GOLD_FIELDS: { key: GoldType; labelKey: GoldLabelKey }[] = [
   { key: "GRAM_ALTIN",   labelKey: "goldGram"    },
   { key: "BILEZIK",      labelKey: "goldBilezik" },
   { key: "CEYREK_ALTIN", labelKey: "goldCeyrek"  },
@@ -1000,7 +1004,7 @@ function ManualGoldModal({
   rates: ExchangeRates | null;
   onClose: () => void;
   onApply: (updated: ExchangeRates) => void;
-  t: any;
+  t: Translations;
 }) {
   const tryRate = rates?.TRY ?? 0; // USD per 1 TRY
 

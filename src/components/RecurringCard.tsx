@@ -4,7 +4,7 @@ import { useState } from "react";
 import { RecurringPayment } from "@/types";
 import { getCurrencySymbol } from "@/lib/payments";
 import { Trash2, Pencil, X, RefreshCw } from "lucide-react";
-import { useLang } from "@/lib/i18n";
+import { useLang, type Translations } from "@/lib/i18n";
 import { UserMap } from "@/components/CalendarView";
 
 const PALETTE = ["#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444", "#10B981", "#EC4899", "#F97316", "#14B8A6"];
@@ -109,7 +109,7 @@ function EditRecurringModal({
   recurring: RecurringPayment;
   onClose: () => void;
   onSaved: () => void;
-  t: any;
+  t: Translations;
 }) {
   const [name, setName] = useState(recurring.name);
   const [day, setDay] = useState(String(recurring.day_of_month));

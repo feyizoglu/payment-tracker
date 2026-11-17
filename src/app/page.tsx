@@ -7,7 +7,7 @@ import { CreditCard, Users, Calendar, TrendingDown } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
 export default function LandingPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const { lang, setLang, t } = useLang();
 

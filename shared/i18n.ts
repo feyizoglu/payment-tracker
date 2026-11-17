@@ -1420,7 +1420,7 @@ const translations = {
   },
 };
 
-type Translations = typeof translations.en;
+export type Translations = typeof translations.en;
 
 // For code outside the React tree (the home screen widget's headless task).
 export function translationsFor(lang: Lang): Translations {

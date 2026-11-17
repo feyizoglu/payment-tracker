@@ -19,7 +19,7 @@ import {
 } from "date-fns";
 import { enUS, tr as dateFnsTr } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Trash2, Pencil } from "lucide-react";
-import { useLang } from "@/lib/i18n";
+import { useLang, type Translations } from "@/lib/i18n";
 
 export type UserMap = Record<string, { name: string | null; email: string; avatar_url: string | null; color?: string | null }>;
 
@@ -408,7 +408,7 @@ function EditOccurrenceModal({
   initialAmounts?: CurrencyAmount[];
   onClose: () => void;
   onSaved: () => void;
-  t: any;
+  t: Translations;
 }) {
   const isRecurring = occurrence.kind === "recurring";
   const initialDate = format(occurrence.dueDate, "yyyy-MM-dd");

@@ -46,7 +46,7 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const patch: Record<string, any> = {};
+  const patch: Record<string, unknown> = {};
   if (body.name !== undefined) patch.name = body.name;
   if (body.currency !== undefined) patch.currency = body.currency;
   if (body.day_of_month !== undefined) patch.day_of_month = body.day_of_month;

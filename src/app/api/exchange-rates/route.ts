@@ -68,8 +68,8 @@ export async function GET() {
         YARIM_ALTIN: toUSD(parseTRY(byKey["ESKİ YARIM"] ?? "0")),   // TRY per piece
         TAM_ALTIN: toUSD(parseTRY(byKey["ESKİ ATA"] ?? "0")),       // TRY per piece
       };
-    } catch (e: any) {
-      goldError = e?.message ?? "Gold price unavailable";
+    } catch (e) {
+      goldError = (e as Error | undefined)?.message ?? "Gold price unavailable";
     }
 
     return NextResponse.json({
@@ -81,7 +81,7 @@ export async function GET() {
       fetchedAt: new Date().toISOString(),
       goldError,
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }
