@@ -43,6 +43,12 @@ describe("drawTowerScene", () => {
     expect(calls.findIndex((c) => c.name === "clip")).toBeGreaterThan(calls.indexOf(rect!));
   });
 
+  it("moves the world down by the camera, in pixels", () => {
+    const { ctx, calls } = recorder();
+    drawTowerScene(ctx, { ...newTowerGame(), camera: 21 }, 400, 500, false);
+    expect(calls.find((c) => c.name === "translate")?.args).toEqual([0, 452 + 21 * 4]);
+  });
+
   it("draws a falling piece turned by its angle", () => {
     const { ctx, calls } = recorder();
     const s = { ...newTowerGame(), pieces: [{ x: 10, w: 8, y: 7, vy: 0, angle: 30, spin: 90, index: 1 }] };

@@ -85,6 +85,47 @@ describe("TowerWorld", () => {
     expect(styleOf(shown).width).toBe(50 * 4);
   });
 
+  it("draws the slider where the drop lands", () => {
+    const view = useTowerView();
+    view.slider.value = 40;
+    const shown = world(books(2), true, view).find(
+      (n) => n.type === animated.View && styleOf(n).backgroundColor === towerBookColour(2)
+    )!;
+    expect(styleOf(shown).left).toBe((40 - 25) * 4);
+  });
+
+  it("draws a falling piece at its place, in its colour, turned by its angle", () => {
+    const view = useTowerView();
+    view.sync({ ...newTowerGame(), pieces: [{ x: 10, w: 8, y: 14, vy: 0, angle: 30, spin: 90, index: 1 }] });
+    const slot = world(books(2), false, view).find((n) => typeof n.type === "function" && n.props.slot === 0)!;
+    const piece = (slot.type as (p: Props) => Node)(slot.props);
+    expect(styleOf(piece)).toMatchObject({
+      left: 40,
+      width: 32,
+      bottom: 56,
+      height: BOOK_H * 4,
+      backgroundColor: towerBookColour(1),
+      transform: [{ rotate: "30deg" }],
+    });
+  });
+
+  it("draws a book at its level, in its colour, with a stripe near each end", () => {
+    const shown = world(books(3), false).find((n) => typeof n.type === "function" && n.props.level === 2)!;
+    const book = (shown.type as (p: Props) => Node)(shown.props);
+    expect(book.props.style).toMatchObject({ left: 100, bottom: 2 * BOOK_H * 4, width: 200, height: 28, backgroundColor: towerBookColour(2) });
+    const [leftStripe, rightStripe] = book.props.children as Node[];
+    expect((leftStripe.props.style as Style).left).toBe(12);
+    expect((rightStripe.props.style as Style).right).toBe(12);
+  });
+
+  it("keeps the shown books at their own levels once the stack passes forty", () => {
+    const levels = world(books(55), false)
+      .filter((n) => typeof n.type === "function" && "book" in n.props)
+      .map((n) => n.props.level);
+    expect(levels[0]).toBe(15);
+    expect(levels[levels.length - 1]).toBe(54);
+  });
+
   it("moves the world down by the camera", () => {
     const view = useTowerView();
     view.camera.value = 21;
