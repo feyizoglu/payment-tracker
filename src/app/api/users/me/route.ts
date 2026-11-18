@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest) {
   const { error } = await db
     .from("users")
     .update({ color })
-    .eq("email", user.email);
+    .eq("id", user.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

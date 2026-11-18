@@ -5,7 +5,7 @@ vi.mock("@/lib/supabase", () => ({ supabaseAdmin: vi.fn() }));
 
 import { getSessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
-import { GET } from "./route";
+import { GET, PATCH } from "./route";
 
 // Minimal stub of the fluent chain GET uses:
 // .from("users").select(...).eq("id", ...).maybeSingle() → { data, error }
@@ -103,5 +103,30 @@ describe("GET /api/users/me", () => {
 
     expect(res.status).toBe(500);
     await expect(res.json()).resolves.toEqual({ error: "connection reset" });
+  });
+});
+
+describe("PATCH /api/users/me", () => {
+  it("updates the caller's row by id, so a mixed-case session email still matches", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue({ id: "u-1", email: "Ann@Example.com" } as never);
+    const ops: unknown[][] = [];
+    const builder = {
+      update: (v: unknown) => {
+        ops.push(["update", v]);
+        return builder;
+      },
+      eq: (column: string, value: unknown) => {
+        ops.push(["eq", column, value]);
+        return Promise.resolve({ error: null });
+      },
+    };
+    vi.mocked(supabaseAdmin).mockReturnValue({ from: () => builder } as never);
+
+    const res = await PATCH(
+      new Request("http://localhost/api/users/me", { method: "PATCH", body: JSON.stringify({ color: "#f00" }) }) as never
+    );
+
+    expect(res.status).toBe(200);
+    expect(ops).toEqual([["update", { color: "#f00" }], ["eq", "id", "u-1"]]);
   });
 });

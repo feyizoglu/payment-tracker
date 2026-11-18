@@ -54,6 +54,13 @@ create table if not exists assets (
 -- color column for users (added after initial schema)
 alter table users add column if not exists color text;
 
+-- Emails are stored lowercase, so unique(email) is case-insensitive.
+-- Apply only after the code that lowercases emails is live.
+do $$ begin
+  alter table users add constraint users_email_lowercase check (email = lower(email));
+exception when duplicate_object then null;
+end $$;
+
 -- currency column for payments (added after initial schema)
 alter table payments add column if not exists currency text not null default 'TRY';
 

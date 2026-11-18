@@ -156,22 +156,17 @@ describe("replaceExpense", () => {
 });
 
 describe("findUserByEmail", () => {
-  it("matches case-insensitively with LIKE wildcards and backslash escaped", async () => {
+  it("looks up the lowercased address with an exact match", async () => {
     const { db, calls } = fakeDb({ users: [{ data: { id: "u7" } }] });
-    expect(await findUserByEmail(db, "A_b%c\\d@X.com")).toEqual({ id: "u7" });
-    expect(calls[0].ops).toContainEqual(["ilike", ["email", "A\\_b\\%c\\\\d@X.com"]]);
+    expect(await findUserByEmail(db, "Ann@Example.com")).toEqual({ id: "u7" });
+    expect(calls[0].ops).toContainEqual(["eq", ["email", "ann@example.com"]]);
   });
 
-  it("refuses an email containing *, which PostgREST would treat as a wildcard", async () => {
-    const { db, calls } = fakeDb({ users: [{ data: { id: "u7" } }] });
-    expect(await findUserByEmail(db, "*@example.com")).toBeNull();
-    expect(calls).toEqual([]);
-  });
-
-  it("passes a plain email through unchanged", async () => {
+  it("treats LIKE wildcards as literal characters", async () => {
     const { db, calls } = fakeDb({ users: [{ data: null }] });
-    expect(await findUserByEmail(db, "Ann@Example.com")).toBeNull();
-    expect(calls[0].ops).toContainEqual(["ilike", ["email", "Ann@Example.com"]]);
+    expect(await findUserByEmail(db, "*_%@x.com")).toBeNull();
+    expect(calls[0].ops).toContainEqual(["eq", ["email", "*_%@x.com"]]);
+    expect(calls[0].ops.map(([op]) => op)).not.toContain("ilike");
   });
 });
 

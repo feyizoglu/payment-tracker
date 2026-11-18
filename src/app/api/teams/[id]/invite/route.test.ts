@@ -17,12 +17,17 @@ function makeDb(opts: {
   upsertError?: unknown;
 } = {}) {
   const upserts: unknown[] = [];
+  const eqs: { table: string; column: string; value: unknown }[] = [];
   const db = {
     _upserts: upserts,
+    _eqs: eqs,
     from(table: string) {
       const builder = {
         select: () => builder,
-        eq: () => builder,
+        eq: (column: string, value: unknown) => {
+          eqs.push({ table, column, value });
+          return builder;
+        },
         maybeSingle: () => Promise.resolve(opts.membership ?? { data: null }),
         single: () => Promise.resolve(opts.invitee ?? { data: null, error: "not found" }),
         upsert: (payload: unknown) => {
@@ -123,5 +128,19 @@ describe("POST /api/teams/[id]/invite", () => {
     expect(db._upserts).toEqual([
       { table: "team_members", payload: { team_id: "t-1", user_id: "u-invited", role: "member" } },
     ]);
+  });
+
+  it("finds the user for a mixed-case address, since stored emails are lowercase", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue({ id: "u-owner" } as never);
+    const db = makeDb({
+      membership: { data: { role: "owner" } },
+      invitee: { data: { id: "u-invited" }, error: null },
+    });
+    vi.mocked(supabaseAdmin).mockReturnValue(db as never);
+
+    const res = await POST(post({ email: " Ali@Gmail.COM " }) as never, { params });
+
+    expect(res.status).toBe(200);
+    expect(db._eqs).toContainEqual({ table: "users", column: "email", value: "ali@gmail.com" });
   });
 });

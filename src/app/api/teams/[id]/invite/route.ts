@@ -39,7 +39,7 @@ export async function POST(
   const { data: invitedUser, error: userError } = await db
     .from("users")
     .select("id")
-    .eq("email", email.trim())
+    .eq("email", email.trim().toLowerCase())
     .single();
 
   if (userError || !invitedUser) {

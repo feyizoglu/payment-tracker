@@ -134,13 +134,8 @@ export async function deleteEvent(db: Db, eventId: string): Promise<void> {
   if (error) fail("deleteEvent", error);
 }
 
-// Case-insensitive exact match: ilike with its wildcards and escape character escaped.
 export async function findUserByEmail(db: Db, email: string): Promise<{ id: string } | null> {
-  // PostgREST reads `*` in an ilike value as `%` and has no escape for it, so a `*`
-  // would turn the exact lookup into a wildcard search over other users' emails.
-  if (email.includes("*")) return null;
-  const pattern = email.replace(/[\\%_]/g, "\\$&");
-  const { data, error } = await db.from("users").select("id").ilike("email", pattern).maybeSingle();
+  const { data, error } = await db.from("users").select("id").eq("email", email.toLowerCase()).maybeSingle();
   if (error) fail("findUserByEmail", error);
   return data;
 }
