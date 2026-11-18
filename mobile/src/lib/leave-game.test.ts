@@ -150,3 +150,14 @@ describe("leave question guards", () => {
     expect(isGameDialogOpen()).toBe(false);
   });
 });
+
+describe("leaving that fails", () => {
+  it("still lets the clocks run again when leaving throws", () => {
+    const t = { gameLeaveTitle: "TITLE", gameLeaveBody: "BODY", gameLeaveConfirm: "LEAVE", cancel: "CANCEL" } as never;
+    askToLeave(t, () => {
+      throw new Error("navigation failed");
+    });
+    expect(() => buttons()[1].onPress!()).toThrow("navigation failed");
+    expect(isGameDialogOpen()).toBe(false);
+  });
+});

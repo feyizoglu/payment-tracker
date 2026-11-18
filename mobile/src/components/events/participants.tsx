@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import type { EventDetail, Team } from "@ptracker/shared/types";
 import { useLang } from "@ptracker/shared/i18n";
+import { eventErrorText } from "@ptracker/shared/event-errors";
 import { canRemoveParticipant, participantLabel } from "@ptracker/shared/split";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { SelectField, type SelectOption } from "@/components/ui/select-field";
@@ -65,7 +66,7 @@ export function Participants({
       reset();
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t.updateFailed);
+      setError(e instanceof Error ? (eventErrorText(e.message, t) ?? e.message) : t.updateFailed);
       if (e instanceof ApiError && e.status === 409) onChanged();
     } finally {
       setBusy(false);
@@ -83,7 +84,7 @@ export function Participants({
       else onChanged();
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        setError(e.message === "Event is closed" ? t.eventIsClosed : t.cannotRemoveParticipant);
+        setError(eventErrorText(e.message, t) ?? t.cannotRemoveParticipant);
         onChanged();
       } else setError(e instanceof Error ? e.message : t.updateFailed);
     } finally {

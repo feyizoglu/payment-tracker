@@ -20,6 +20,7 @@ import { gameDarkVars } from "@/lib/game-theme";
 // - `nav={false}`: no back, exit or own action in the header, only the title, for a screen
 //   tapped blind or a game being played.
 // - `confirmBack`: a game is in progress, so the back asks before leaving it.
+// - `onBack`: the screen handles its header back itself (Wolf Night's This game goes to setup).
 export function GameScreen({
   title,
   tone = "app",
@@ -27,6 +28,7 @@ export function GameScreen({
   scroll = true,
   nav = true,
   confirmBack = false,
+  onBack,
   right,
   children,
 }: {
@@ -36,6 +38,7 @@ export function GameScreen({
   scroll?: boolean;
   nav?: boolean;
   confirmBack?: boolean;
+  onBack?: () => void;
   right?: ReactNode;
   children: ReactNode;
 }) {
@@ -55,6 +58,7 @@ export function GameScreen({
     ) : null;
   const spacer = <View className="w-14" />;
   const back = () => {
+    if (onBack) return onBack();
     const leave = () => leaveGameScreen(lock.gameMode);
     if (confirmBack) askToLeave(t, leave);
     else leave();

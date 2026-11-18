@@ -7,6 +7,7 @@ import type { EventDetail, EventExpense, ExpenseInput } from "@/types";
 import { formatMinor, parseDecimalToMinor, participantLabel, splitEqually } from "@/lib/split";
 import { ALLOWED_CURRENCIES } from "@/lib/payments";
 import { useLang } from "@/lib/i18n";
+import { eventErrorText } from "@/lib/event-errors";
 
 type Mode = "equal" | "exact";
 
@@ -113,7 +114,7 @@ export default function ExpenseForm({
       );
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setError(typeof data?.error === "string" ? data.error : t.updateFailed);
+        setError(eventErrorText(data?.error, t) ?? (typeof data?.error === "string" ? data.error : t.updateFailed));
         return;
       }
       onDone();

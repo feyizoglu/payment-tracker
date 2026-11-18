@@ -454,6 +454,15 @@ describe("Wolf Night screen: leaving the game", () => {
     expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, true]);
   });
 
+  it("takes the header back on This game to the setup too", async () => {
+    await start();
+    (screen().onBack as () => void)();
+    expect(has(WolfSetupWizard)).toBe(true);
+    call(WolfSetupWizard, "onStart");
+    call(WolfThisGame, "onDeal");
+    expect(screen().onBack).toBeUndefined();
+  });
+
   it("goes back to the setup when back is pressed on This game before the deal", async () => {
     await start();
     render();

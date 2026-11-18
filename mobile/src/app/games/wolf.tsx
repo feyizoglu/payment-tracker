@@ -59,20 +59,24 @@ export default function WolfScreen() {
   const inProgress = state.phase !== "setup" && state.phase !== "rules" && state.phase !== "end";
   useConfirmLeave(inProgress && !rulesOpen);
 
-  // Back closes the rules over the game, as their own Close does.
+  // Back closes the rules over the game, as their own Close does; before the deal, both backs
+  // go to the setup, as This game's own back does.
   const focused = useIsFocused();
   const preDeal = state.phase === "rules";
+  const backToSetup = () => {
+    setDraft(state.setup);
+    dispatch({ type: "newGame", at: Date.now() });
+  };
   useEffect(() => {
     if ((!rulesOpen && !preDeal) || !focused) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (rulesOpen) setRulesOpen(false);
-      else {
-        setDraft(state.setup);
-        dispatch({ type: "newGame", at: Date.now() });
-      }
+      else backToSetup();
       return true;
     });
     return () => sub.remove();
+    // backToSetup reads only state.setup, which is in the list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rulesOpen, preDeal, focused, state.setup]);
 
   if (!pinReady) return <GamesPinSetup title={t.wolfTitle} />;
@@ -84,10 +88,7 @@ export default function WolfScreen() {
   const pick = (target: number | null) => dispatch({ type: "choose", target, at: Date.now() });
   const heal = () => dispatch({ type: "heal", at: Date.now() });
   const openRules = () => setRulesOpen(true);
-  const newGame = () => {
-    setDraft(setup);
-    dispatch({ type: "newGame", at: Date.now() });
-  };
+  const newGame = backToSetup;
 
   let body: React.ReactNode = null;
   // A screen that belongs to one player takes that player's colour.
@@ -200,7 +201,8 @@ export default function WolfScreen() {
       color={color}
       scroll={!held}
       nav={!inProgress}
-      confirmBack={inProgress}>
+      confirmBack={inProgress}
+      onBack={preDeal ? backToSetup : undefined}>
       {body}
     </GameScreen>
   );

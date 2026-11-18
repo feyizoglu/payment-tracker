@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { format } from "date-fns";
 import type { EventDetail } from "@ptracker/shared/types";
 import { localeFor, useLang } from "@ptracker/shared/i18n";
+import { eventErrorText } from "@ptracker/shared/event-errors";
 import { ALLOWED_CURRENCIES, getCurrencySymbol } from "@ptracker/shared/payments";
 import { formatMinor, participantLabel } from "@ptracker/shared/split";
 import { DateField } from "@/components/ui/date-field";
@@ -106,7 +107,7 @@ export default function EventExpenseScreen() {
       else await api.post(`/api/events/${eventId}/expenses`, result.body);
       router.back();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t.updateFailed);
+      setError(e instanceof Error ? (eventErrorText(e.message, t) ?? e.message) : t.updateFailed);
       setBusy(false);
     }
   }

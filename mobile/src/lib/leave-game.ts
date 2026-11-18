@@ -30,8 +30,11 @@ export function askToLeave(t: Translations, onLeave: () => void) {
         style: "destructive",
         // Leave first: closing first would start the clocks for the frames before the screen goes.
         onPress: () => {
-          onLeave();
-          close();
+          try {
+            onLeave();
+          } finally {
+            close();
+          }
         },
       },
     ],
