@@ -25,6 +25,7 @@ import {
   type PlaneState,
   type Rng,
 } from "@/lib/paper-plane";
+import { bestAfter, newSessionBest, parseSavedBest as sharedParse, sessionRead } from "@/lib/best-score";
 
 function seeded(seed: number): Rng {
   let a = seed >>> 0;
@@ -246,44 +247,11 @@ describe("pause", () => {
   });
 });
 
-describe("planeBestAfter", () => {
-  const read = (stored: number | null) => planeSessionRead(newPlaneSessionBest(), stored);
-
-  it("claims and saves a score above every best known", () => {
-    expect(planeBestAfter(9, read(5), 5)).toEqual({ session: { best: 9, known: true }, isNew: true, save: 9 });
-    expect(planeBestAfter(9, read(5), 12)).toEqual({ session: { best: 12, known: true }, isNew: false, save: null });
-    expect(planeBestAfter(5, read(5), 5)).toEqual({ session: { best: 5, known: true }, isNew: false, save: null });
-    expect(planeBestAfter(3, read(0), 0)).toEqual({ session: { best: 3, known: true }, isNew: true, save: 3 });
-  });
-
-  it("claims and saves nothing while no read has succeeded, but remembers the score", () => {
-    expect(planeBestAfter(10, read(null), null)).toEqual({ session: { best: 10, known: false }, isNew: false, save: null });
-  });
-
-  it("saves the session's best once a read succeeds, without claiming a lower score", () => {
-    const after = planeBestAfter(10, newPlaneSessionBest(), null).session;
-    expect(planeBestAfter(6, after, 4)).toEqual({ session: { best: 10, known: true }, isNew: false, save: 10 });
-  });
-
-  it("keeps claiming against an earlier read when the read at the end fails", () => {
-    expect(planeBestAfter(25, read(20), null)).toEqual({ session: { best: 25, known: true }, isNew: true, save: 25 });
-    expect(planeBestAfter(15, read(20), null)).toEqual({ session: { best: 20, known: true }, isNew: false, save: null });
-  });
-
-  it("does not claim again a best this session already played", () => {
-    const first = planeBestAfter(10, read(0), 0);
-    expect(first.save).toBe(10);
-    expect(planeBestAfter(5, first.session, 0)).toEqual({ session: { best: 10, known: true }, isNew: false, save: 10 });
-  });
-});
-
-describe("parseSavedBest", () => {
-  it("accepts a non-negative whole number and nothing else", () => {
-    expect(parseSavedBest("23")).toBe(23);
-    expect(parseSavedBest(null)).toBe(0);
-    expect(parseSavedBest("-4")).toBe(0);
-    expect(parseSavedBest("2.5")).toBe(0);
-    expect(parseSavedBest("abc")).toBe(0);
-    expect(parseSavedBest("")).toBe(0);
+describe("best-score re-exports", () => {
+  it("keeps Paper Plane's names for the shared rule", () => {
+    expect(planeBestAfter).toBe(bestAfter);
+    expect(planeSessionRead).toBe(sessionRead);
+    expect(newPlaneSessionBest).toBe(newSessionBest);
+    expect(parseSavedBest).toBe(sharedParse);
   });
 });
