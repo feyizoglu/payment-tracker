@@ -86,16 +86,22 @@ export default function PlaneScreen() {
   useEffect(() => {
     if (shown.phase !== "over") return;
     const score = live.current.score;
-    if (score > best) {
-      setNewBest(true);
-      setBest(score);
-      void setStoredPlaneBest(score);
-    }
+    let alive = true;
+    // Compare with what is stored now, not the first read, which may not have landed yet.
+    void getStoredPlaneBest().then((stored) => {
+      if (!alive) return;
+      if (score > stored) {
+        setNewBest(true);
+        void setStoredPlaneBest(score);
+      }
+      setBest(Math.max(stored, score));
+    });
     setGuard(true);
     const id = setTimeout(() => setGuard(false), PLANE_OVER_GUARD_MS);
-    return () => clearTimeout(id);
-    // Only the end of a game saves; `best` is read at that moment.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      alive = false;
+      clearTimeout(id);
+    };
   }, [shown.phase]);
 
   const playing = shown.phase === "flying" || shown.phase === "paused";
