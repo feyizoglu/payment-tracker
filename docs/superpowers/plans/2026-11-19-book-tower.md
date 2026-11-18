@@ -89,6 +89,7 @@ import {
   towerBookColour,
   towerCameraTarget,
   towerPause,
+  towerSliderRange,
   towerSpeed,
   towerTap,
   TOWER_BOOKS,
@@ -107,7 +108,7 @@ describe("start", () => {
     const p = towerTap(s);
     expect(p.phase).toBe("playing");
     expect(p.stack).toHaveLength(1);
-    expect(p.slider).toEqual({ x: 0, dir: 1 });
+    expect(p.slider).toEqual({ x: -25, dir: 1 });
     expect(stepTower(s, 0.5)).toBe(s);
   });
 });
@@ -116,16 +117,21 @@ describe("sliding", () => {
   it("moves at the current speed and bounces at both ends", () => {
     let s = playing();
     s = stepTower(s, 1 / 60);
-    expect(s.slider.x).toBeCloseTo(towerSpeed(0) / 60);
-    s = stepTower({ ...s, slider: { x: 99, dir: 1 } }, 1 / 30);
+    expect(s.slider.x).toBeCloseTo(-25 + towerSpeed(0) / 60);
+    s = stepTower({ ...s, slider: { x: 124, dir: 1 } }, 1 / 30);
     expect(s.slider.dir).toBe(-1);
-    expect(s.slider.x).toBeCloseTo(100 - (towerSpeed(0) / 30 - 1));
-    s = stepTower({ ...s, slider: { x: 0.5, dir: -1 } }, 1 / 30);
+    expect(s.slider.x).toBeCloseTo(125 - (towerSpeed(0) / 30 - 1));
+    s = stepTower({ ...s, slider: { x: -24.5, dir: -1 } }, 1 / 30);
     expect(s.slider.dir).toBe(1);
   });
 
+  it("lets the book slide fully past each edge, so it can miss from the first drop", () => {
+    expect(towerSliderRange(50)).toEqual({ lo: -25, hi: 125 });
+    expect(towerTap(at(playing(), -10)).phase).toBe("over");
+  });
+
   it("treats a long frame as at most 1/30 s", () => {
-    expect(stepTower(playing(), 1).slider.x).toBeCloseTo(towerSpeed(0) / 30);
+    expect(stepTower(playing(), 1).slider.x).toBeCloseTo(-25 + towerSpeed(0) / 30);
   });
 
   it("speeds up by score and stops at 40 points", () => {
@@ -143,7 +149,7 @@ describe("dropping", () => {
     expect(top(s)).toEqual({ x: 35, w: 40, index: 1 });
     expect(s.pieces).toHaveLength(1);
     expect(s.pieces[0]).toMatchObject({ x: 75, w: 10, y: BOOK_H, index: 1 });
-    expect(s.slider).toEqual({ x: TOWER_WIDTH, dir: -1 });
+    expect(s.slider).toEqual({ x: TOWER_WIDTH + 20, dir: -1 });
   });
 
   it("cuts what hangs over on the left", () => {
@@ -309,16 +315,20 @@ export function towerCameraTarget(s: TowerState): number {
   return Math.max(0, (s.stack.length - (KEEP_BELOW + 1)) * BOOK_H);
 }
 
+/** How far the slider's centre goes: the book slides fully past each edge of the page. */
+export const towerSliderRange = (w: number) => ({ lo: -w / 2, hi: TOWER_WIDTH + w / 2 });
+
 /** Books come alternately from the left and the right end. */
-function sliderFor(index: number): TowerState["slider"] {
-  return index % 2 === 1 ? { x: 0, dir: 1 } : { x: TOWER_WIDTH, dir: -1 };
+function sliderFor(index: number, w: number): TowerState["slider"] {
+  const { lo, hi } = towerSliderRange(w);
+  return index % 2 === 1 ? { x: lo, dir: 1 } : { x: hi, dir: -1 };
 }
 
 export function newTowerGame(): TowerState {
   return {
     phase: "ready",
     stack: [{ x: (TOWER_WIDTH - START_W) / 2, w: START_W, index: 0 }],
-    slider: sliderFor(1),
+    slider: sliderFor(1, START_W),
     score: 0,
     streak: 0,
     camera: 0,
@@ -341,7 +351,7 @@ function drop(s: TowerState): TowerState {
     const streak = s.streak + 1;
     const w = streak % GROW_EVERY === 0 ? Math.min(START_W, below.w + GROW) : below.w;
     const book = { x: centre - w / 2, w, index };
-    return { ...s, stack: [...s.stack, book], score: s.score + 1, streak, slider: sliderFor(index + 1), perfect: PERFECT_FLASH };
+    return { ...s, stack: [...s.stack, book], score: s.score + 1, streak, slider: sliderFor(index + 1, w), perfect: PERFECT_FLASH };
   }
   const lo = Math.max(left, below.x);
   const hi = Math.min(right, below.x + below.w);
@@ -354,7 +364,7 @@ function drop(s: TowerState): TowerState {
     stack: [...s.stack, { x: lo, w: hi - lo, index }],
     score: s.score + 1,
     streak: 0,
-    slider: sliderFor(index + 1),
+    slider: sliderFor(index + 1, hi - lo),
     pieces: [...s.pieces, cut],
   };
 }
@@ -377,13 +387,14 @@ export function stepTower(s: TowerState, dt: number): TowerState {
   if (t === 0) return s;
   let slider = s.slider;
   if (s.phase === "playing") {
+    const { lo, hi } = towerSliderRange(s.stack[s.stack.length - 1].w);
     let x = slider.x + slider.dir * towerSpeed(s.score) * t;
     let dir = slider.dir;
-    if (x > TOWER_WIDTH) {
-      x = 2 * TOWER_WIDTH - x;
+    if (x > hi) {
+      x = 2 * hi - x;
       dir = -1;
-    } else if (x < 0) {
-      x = -x;
+    } else if (x < lo) {
+      x = 2 * lo - x;
       dir = 1;
     }
     slider = { x, dir };

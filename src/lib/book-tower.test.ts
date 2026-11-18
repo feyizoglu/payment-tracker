@@ -8,6 +8,7 @@ import {
   towerBookColour,
   towerCameraTarget,
   towerPause,
+  towerSliderRange,
   towerSpeed,
   towerTap,
   TOWER_BOOKS,
@@ -26,7 +27,7 @@ describe("start", () => {
     const p = towerTap(s);
     expect(p.phase).toBe("playing");
     expect(p.stack).toHaveLength(1);
-    expect(p.slider).toEqual({ x: 0, dir: 1 });
+    expect(p.slider).toEqual({ x: -25, dir: 1 });
     expect(stepTower(s, 0.5)).toBe(s);
   });
 });
@@ -35,16 +36,21 @@ describe("sliding", () => {
   it("moves at the current speed and bounces at both ends", () => {
     let s = playing();
     s = stepTower(s, 1 / 60);
-    expect(s.slider.x).toBeCloseTo(towerSpeed(0) / 60);
-    s = stepTower({ ...s, slider: { x: 99, dir: 1 } }, 1 / 30);
+    expect(s.slider.x).toBeCloseTo(-25 + towerSpeed(0) / 60);
+    s = stepTower({ ...s, slider: { x: 124, dir: 1 } }, 1 / 30);
     expect(s.slider.dir).toBe(-1);
-    expect(s.slider.x).toBeCloseTo(100 - (towerSpeed(0) / 30 - 1));
-    s = stepTower({ ...s, slider: { x: 0.5, dir: -1 } }, 1 / 30);
+    expect(s.slider.x).toBeCloseTo(125 - (towerSpeed(0) / 30 - 1));
+    s = stepTower({ ...s, slider: { x: -24.5, dir: -1 } }, 1 / 30);
     expect(s.slider.dir).toBe(1);
   });
 
+  it("lets the book slide fully past each edge, so it can miss from the first drop", () => {
+    expect(towerSliderRange(50)).toEqual({ lo: -25, hi: 125 });
+    expect(towerTap(at(playing(), -10)).phase).toBe("over");
+  });
+
   it("treats a long frame as at most 1/30 s", () => {
-    expect(stepTower(playing(), 1).slider.x).toBeCloseTo(towerSpeed(0) / 30);
+    expect(stepTower(playing(), 1).slider.x).toBeCloseTo(-25 + towerSpeed(0) / 30);
   });
 
   it("speeds up by score and stops at 40 points", () => {
@@ -62,7 +68,7 @@ describe("dropping", () => {
     expect(top(s)).toEqual({ x: 35, w: 40, index: 1 });
     expect(s.pieces).toHaveLength(1);
     expect(s.pieces[0]).toMatchObject({ x: 75, w: 10, y: BOOK_H, index: 1 });
-    expect(s.slider).toEqual({ x: TOWER_WIDTH, dir: -1 });
+    expect(s.slider).toEqual({ x: TOWER_WIDTH + 20, dir: -1 });
   });
 
   it("cuts what hangs over on the left", () => {

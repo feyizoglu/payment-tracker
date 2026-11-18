@@ -61,16 +61,20 @@ export function towerCameraTarget(s: TowerState): number {
   return Math.max(0, (s.stack.length - (KEEP_BELOW + 1)) * BOOK_H);
 }
 
+/** How far the slider's centre goes: the book slides fully past each edge of the page. */
+export const towerSliderRange = (w: number) => ({ lo: -w / 2, hi: TOWER_WIDTH + w / 2 });
+
 /** Books come alternately from the left and the right end. */
-function sliderFor(index: number): TowerState["slider"] {
-  return index % 2 === 1 ? { x: 0, dir: 1 } : { x: TOWER_WIDTH, dir: -1 };
+function sliderFor(index: number, w: number): TowerState["slider"] {
+  const { lo, hi } = towerSliderRange(w);
+  return index % 2 === 1 ? { x: lo, dir: 1 } : { x: hi, dir: -1 };
 }
 
 export function newTowerGame(): TowerState {
   return {
     phase: "ready",
     stack: [{ x: (TOWER_WIDTH - START_W) / 2, w: START_W, index: 0 }],
-    slider: sliderFor(1),
+    slider: sliderFor(1, START_W),
     score: 0,
     streak: 0,
     camera: 0,
@@ -93,7 +97,7 @@ function drop(s: TowerState): TowerState {
     const streak = s.streak + 1;
     const w = streak % GROW_EVERY === 0 ? Math.min(START_W, below.w + GROW) : below.w;
     const book = { x: centre - w / 2, w, index };
-    return { ...s, stack: [...s.stack, book], score: s.score + 1, streak, slider: sliderFor(index + 1), perfect: PERFECT_FLASH };
+    return { ...s, stack: [...s.stack, book], score: s.score + 1, streak, slider: sliderFor(index + 1, w), perfect: PERFECT_FLASH };
   }
   const lo = Math.max(left, below.x);
   const hi = Math.min(right, below.x + below.w);
@@ -106,7 +110,7 @@ function drop(s: TowerState): TowerState {
     stack: [...s.stack, { x: lo, w: hi - lo, index }],
     score: s.score + 1,
     streak: 0,
-    slider: sliderFor(index + 1),
+    slider: sliderFor(index + 1, hi - lo),
     pieces: [...s.pieces, cut],
   };
 }
@@ -129,13 +133,14 @@ export function stepTower(s: TowerState, dt: number): TowerState {
   if (t === 0) return s;
   let slider = s.slider;
   if (s.phase === "playing") {
+    const { lo, hi } = towerSliderRange(s.stack[s.stack.length - 1].w);
     let x = slider.x + slider.dir * towerSpeed(s.score) * t;
     let dir = slider.dir;
-    if (x > TOWER_WIDTH) {
-      x = 2 * TOWER_WIDTH - x;
+    if (x > hi) {
+      x = 2 * hi - x;
       dir = -1;
-    } else if (x < 0) {
-      x = -x;
+    } else if (x < lo) {
+      x = 2 * lo - x;
       dir = 1;
     }
     slider = { x, dir };

@@ -43,9 +43,9 @@ clamped to 1/30 s.
 
 - The world is 100 units wide. A book is 7 units thick. The base book lies on the desk, 50 units
   wide and centred.
-- The sliding book has the width of the top book. Its centre moves between 0 and 100 (half the book
-  off the page at each end) and bounces at the ends. Books start alternately from the left and the
-  right end.
+- The sliding book has the width of the top book. It slides fully past each edge of the page (its
+  centre moves between −w/2 and 100 + w/2) and bounces there, so a drop can miss the stack from the
+  first book on. Books start alternately from the left and the right end.
 - Speed is 35 units/s and rises by 1.5 per point, up to 95 at 40 points. After 40 points nothing
   changes.
 - **Drop.** The overlap of the sliding book and the top book becomes the new top book. The part
