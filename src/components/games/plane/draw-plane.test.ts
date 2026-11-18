@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { newPlaneGame, planeTap, planeX, PLANE_COLORS, PLANE_PENCILS, PLANE_RULER } from "@/lib/paper-plane";
+import { newPlaneGame, planePencilColour, planeTap, planeX, PLANE_COLORS, PLANE_PENCILS, PLANE_RULER, PLANE_WORLD_HEIGHT } from "@/lib/paper-plane";
 import { drawPlaneScene, planeViewport } from "./draw-plane";
 
 function recorder() {
   const calls: { name: string; args: unknown[]; fill?: unknown }[] = [];
   const ctx: Record<string, unknown> = { fillStyle: "", strokeStyle: "", lineWidth: 1 };
   const record = (name: string) => (...args: unknown[]) => calls.push({ name, args, fill: ctx.fillStyle });
-  for (const name of ["save", "restore", "translate", "rotate", "scale", "beginPath", "moveTo", "lineTo", "closePath", "fill", "stroke", "fillRect", "strokeRect", "clearRect", "setTransform"]) {
+  for (const name of ["save", "restore", "translate", "rotate", "scale", "beginPath", "moveTo", "lineTo", "closePath", "fill", "stroke", "fillRect", "strokeRect", "clearRect", "setTransform", "rect", "clip"]) {
     ctx[name] = record(name);
   }
   return { ctx: ctx as unknown as CanvasRenderingContext2D, calls };
@@ -41,5 +41,28 @@ describe("drawPlaneScene", () => {
     expect(bodies).toHaveLength(2);
     expect(bodies.every((c) => c.fill === PLANE_RULER)).toBe(true);
     expect(calls.some((c) => c.fill === "#f3d9b1")).toBe(false);
+  });
+
+  it("colours a pencil by the obstacle, not by its place in the list", () => {
+    const s = planeTap(newPlaneGame(56), () => 0.5);
+    const pencil = { ...s.obstacles[0], x: 30, kind: 0, index: 4 };
+    const ruler = { ...s.obstacles[0], x: -5, kind: 1, index: 3 };
+    const bodies = (obstacles: (typeof pencil)[]) => {
+      const { ctx, calls } = recorder();
+      drawPlaneScene(ctx, { ...s, obstacles }, 400, 500, false);
+      return calls.filter((c) => c.name === "fillRect" && c.fill !== PLANE_RULER).slice(1).map((c) => c.fill);
+    };
+    const expected = [planePencilColour(pencil, true), planePencilColour(pencil, false)];
+    expect(bodies([ruler, pencil])).toEqual(expected);
+    expect(bodies([pencil])).toEqual(expected);
+  });
+
+  it("clips the obstacles to the world, so none show in the side margins", () => {
+    const s = planeTap(newPlaneGame(56), () => 0.5);
+    const { ctx, calls } = recorder();
+    drawPlaneScene(ctx, s, 900, 500, false);
+    const rect = calls.find((c) => c.name === "rect");
+    expect(rect?.args).toEqual([0, 0, 56, PLANE_WORLD_HEIGHT]);
+    expect(calls.findIndex((c) => c.name === "clip")).toBeGreaterThan(calls.indexOf(rect!));
   });
 });

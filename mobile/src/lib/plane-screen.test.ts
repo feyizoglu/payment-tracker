@@ -205,6 +205,13 @@ describe("PlaneScreen", () => {
     expect(view.sync.mock.lastCall![0]).toMatchObject({ phase: "ready", width: 50 });
   });
 
+  it("draws the page at the world's new width on the first layout", async () => {
+    await settle();
+    props(Pressable).onLayout({ nativeEvent: { layout: { width: 480, height: 600 } } });
+    await settle();
+    expect(props(PlaneWorld)).toMatchObject({ width: 480, height: 600, worldWidth: 80 });
+  });
+
   it("pauses off screen, and a tap resumes", async () => {
     await settle();
     await tap();

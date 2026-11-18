@@ -2,10 +2,10 @@ import {
   OBSTACLE_WIDTH,
   PLANE_COLORS,
   PLANE_MARGIN_EVERY,
-  PLANE_PENCILS,
   PLANE_RULER,
   PLANE_WORLD_HEIGHT,
   planeAngle,
+  planePencilColour,
   planeX,
   type PlaneObstacle,
   type PlaneState,
@@ -19,7 +19,7 @@ export function planeViewport(worldWidth: number, cssWidth: number, cssHeight: n
 
 const TIP = 5;
 
-function drawPiece(ctx: CanvasRenderingContext2D, o: PlaneObstacle, top: boolean, ink: string, index: number) {
+function drawPiece(ctx: CanvasRenderingContext2D, o: PlaneObstacle, top: boolean, ink: string) {
   const x = o.x;
   const edge = top ? o.gapY - o.gap / 2 : o.gapY + o.gap / 2;
   const from = top ? 0 : PLANE_WORLD_HEIGHT;
@@ -37,7 +37,7 @@ function drawPiece(ctx: CanvasRenderingContext2D, o: PlaneObstacle, top: boolean
     return;
   }
   const bodyEnd = top ? edge - TIP : edge + TIP;
-  ctx.fillStyle = PLANE_PENCILS[index % PLANE_PENCILS.length];
+  ctx.fillStyle = planePencilColour(o, top);
   ctx.fillRect(x, Math.min(from, bodyEnd), OBSTACLE_WIDTH, Math.abs(bodyEnd - from));
   ctx.fillStyle = "#f3d9b1";
   ctx.beginPath();
@@ -65,6 +65,9 @@ export function drawPlaneScene(ctx: CanvasRenderingContext2D, s: PlaneState, css
   ctx.save();
   ctx.translate(left, 0);
   ctx.scale(scale, scale);
+  ctx.beginPath();
+  ctx.rect(0, 0, s.width, PLANE_WORLD_HEIGHT);
+  ctx.clip();
   ctx.strokeStyle = c.line;
   ctx.lineWidth = 0.25;
   ctx.beginPath();
@@ -82,11 +85,10 @@ export function drawPlaneScene(ctx: CanvasRenderingContext2D, s: PlaneState, css
     ctx.lineTo(margin, PLANE_WORLD_HEIGHT);
     ctx.stroke();
   }
-  s.obstacles.forEach((o, i) => {
-    const index = Math.round((s.distance + o.x) / 38) + i;
-    drawPiece(ctx, o, true, c.ink, index);
-    drawPiece(ctx, o, false, c.ink, index + 1);
-  });
+  for (const o of s.obstacles) {
+    drawPiece(ctx, o, true, c.ink);
+    drawPiece(ctx, o, false, c.ink);
+  }
   ctx.restore();
 
   ctx.save();

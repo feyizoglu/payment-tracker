@@ -32,7 +32,7 @@ export default function PlaneScreen() {
   const view = usePlaneView();
   const live = useRef<PlaneState>(newPlaneGame(56));
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-  const [shown, setShown] = useState({ phase: live.current.phase, score: 0 });
+  const [shown, setShown] = useState({ phase: live.current.phase, score: 0, width: live.current.width });
   const [best, setBest] = useState(0);
   const [newBest, setNewBest] = useState(false);
   const [guard, setGuard] = useState(false);
@@ -41,7 +41,11 @@ export default function PlaneScreen() {
     (next: PlaneState) => {
       live.current = next;
       view.sync(next);
-      setShown((v) => (v.phase === next.phase && v.score === next.score ? v : { phase: next.phase, score: next.score }));
+      setShown((v) =>
+        v.phase === next.phase && v.score === next.score && v.width === next.width
+          ? v
+          : { phase: next.phase, score: next.score, width: next.width }
+      );
     },
     [view]
   );
@@ -99,7 +103,6 @@ export default function PlaneScreen() {
 
   if (!pinReady) return <GamesPinSetup title={t.planeTitle} />;
 
-  const worldWidth = live.current.width;
   return (
     <GameScreen title={t.planeTitle} tone="game" scroll={false} nav={!playing} confirmBack={playing}>
       <Pressable
@@ -109,7 +112,7 @@ export default function PlaneScreen() {
           const next = planeTap(live.current, Math.random);
           if (next !== live.current) publish(next);
         }}>
-        {size ? <PlaneWorld view={view} width={size.w} height={size.h} worldWidth={worldWidth} dark={dark} /> : <View />}
+        {size ? <PlaneWorld view={view} width={size.w} height={size.h} worldWidth={shown.width} dark={dark} /> : <View />}
         <PlaneOverlay
           phase={shown.phase}
           score={shown.score}

@@ -12,6 +12,8 @@ export interface PlaneObstacle {
   gap: number;
   /** Which drawing: 0 a pencil, 1 a ruler. */
   kind: number;
+  /** Order of creation from 0, so an obstacle keeps its colours while others come and go. */
+  index: number;
   scored: boolean;
 }
 
@@ -75,9 +77,9 @@ export function drawGapY(prev: number | null, gap: number, rng: Rng): number {
   return clamp(y, lo, hi);
 }
 
-function obstacleAfter(prev: PlaneObstacle | undefined, x: number, score: number, rng: Rng): PlaneObstacle {
+function obstacleAfter(prev: PlaneObstacle | undefined, x: number, score: number, rng: Rng, index: number): PlaneObstacle {
   const gap = planeGap(score);
-  return { x, gapY: drawGapY(prev ? prev.gapY : null, gap, rng), gap, kind: prev ? (prev.kind + 1) % 2 : 0, scored: false };
+  return { x, gapY: drawGapY(prev ? prev.gapY : null, gap, rng), gap, kind: prev ? (prev.kind + 1) % 2 : 0, index, scored: false };
 }
 
 export function newPlaneGame(width: number): PlaneState {
@@ -87,7 +89,7 @@ export function newPlaneGame(width: number): PlaneState {
 /** Ready: start with a flap. Flying: flap. Paused: resume without a flap. Over: nothing. */
 export function planeTap(s: PlaneState, rng: Rng): PlaneState {
   if (s.phase === "ready") {
-    const first = obstacleAfter(undefined, s.width + planeSpeed(0) * FIRST_OBSTACLE_DELAY, 0, rng);
+    const first = obstacleAfter(undefined, s.width + planeSpeed(0) * FIRST_OBSTACLE_DELAY, 0, rng, 0);
     return { ...s, phase: "flying", vy: PLANE_FLAP_SPEED, obstacles: [first], spawned: 1 };
   }
   if (s.phase === "flying") return { ...s, vy: PLANE_FLAP_SPEED };
@@ -132,7 +134,7 @@ export function stepPlane(state: PlaneState, dt: number, rng: Rng): PlaneState {
     s.obstacles = s.obstacles.filter((o) => o.x + OBSTACLE_WIDTH >= 0);
     let last = s.obstacles.at(-1);
     while (!last || last.x < s.width) {
-      const next = obstacleAfter(last, last ? last.x + OBSTACLE_SPACING : s.width, s.score, rng);
+      const next = obstacleAfter(last, last ? last.x + OBSTACLE_SPACING : s.width, s.score, rng, s.spawned);
       s.obstacles.push(next);
       s.spawned += 1;
       last = next;
@@ -153,3 +155,9 @@ export const PLANE_COLORS = {
 } as const;
 export const PLANE_PENCILS = ["#f2b134", "#e4572e", "#4c9f70", "#3d7dd8"] as const;
 export const PLANE_RULER = "#d9b77e";
+
+/** The pencil colour of one half of an obstacle, fixed for the obstacle's whole flight. */
+export function planePencilColour(o: Pick<PlaneObstacle, "index">, top: boolean): string {
+  const n = Math.floor(o.index / 2) + (top ? 0 : 1);
+  return PLANE_PENCILS[n % PLANE_PENCILS.length];
+}

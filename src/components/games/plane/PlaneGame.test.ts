@@ -233,6 +233,31 @@ describe("PlaneGame", () => {
     expect(calls.filter((c) => c.name === "translate")[1]?.args[0]).toBeCloseTo(90);
   });
 
+  it("refits a game not started yet when the window is resized, and keeps a game in play", async () => {
+    const { canvas, calls } = fakeCanvas();
+    host.attach.canvas = canvas;
+    await mount();
+    const planeAt = () => calls.filter((c) => c.name === "translate").at(-1)?.args[0];
+    canvas.clientWidth = 480;
+    await act(async () => listeners.get("resize")!());
+    expect(planeAt()).toBeCloseTo(24 * 6);
+    canvas.clientWidth = 300;
+    await act(async () => listeners.get("resize")!());
+    await tap();
+    canvas.clientWidth = 480;
+    await act(async () => listeners.get("resize")!());
+    expect(planeAt()).toBeCloseTo(90 + 15 * 6);
+  });
+
+  it("leaves Space to a focused button or link", async () => {
+    await mount();
+    let prevented = false;
+    const target = { closest: (sel: string) => (sel.includes("button") ? {} : null) };
+    await act(async () => listeners.get("keydown")!({ code: "Space", repeat: false, target, preventDefault: () => (prevented = true) }));
+    expect(prevented).toBe(false);
+    expect(text()).toContain("Tap to start");
+  });
+
   it("ignores a held Space on the ready page", async () => {
     await mount();
     await act(async () => listeners.get("keydown")!({ code: "Space", repeat: true, preventDefault() {} }));

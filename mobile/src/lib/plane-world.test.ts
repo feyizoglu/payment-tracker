@@ -18,9 +18,9 @@ import { View } from "react-native";
 import {
   PLANE_COLORS,
   PLANE_MAX_FALL,
-  PLANE_PENCILS,
   PLANE_RULER,
   newPlaneGame,
+  planePencilColour,
   planeTap,
   planeX,
   type PlaneState,
@@ -47,8 +47,8 @@ function flying(): PlaneState {
     vy: PLANE_MAX_FALL,
     distance: 250,
     obstacles: [
-      { ...o, x: 12, gap: 26, gapY: 44, kind: 0 },
-      { ...o, x: 50, gap: 28, gapY: 61, kind: 1 },
+      { ...o, x: 12, gap: 26, gapY: 44, kind: 0, index: 4 },
+      { ...o, x: 50, gap: 28, gapY: 61, kind: 1, index: 5 },
     ],
   };
 }
@@ -62,7 +62,7 @@ function piece(view: ReturnType<typeof usePlaneView>) {
   const first = all.find((n) => typeof n.type === "function" && n.props.slot === 0 && n.props.top === true)!;
   const parts = nodes((first.type as (p: Props) => unknown)(first.props));
   const [body, tip] = parts.filter((n) => n.type === animated.View);
-  return { colour: first.props.colour, body: (body.props.style as Style[])[1], tip: (tip.props.style as Style[])[1] };
+  return { body: (body.props.style as Style[])[1], tip: (tip.props.style as Style[])[1] };
 }
 
 describe("usePlaneView", () => {
@@ -76,6 +76,19 @@ describe("usePlaneView", () => {
     expect(view.gaps.value).toEqual([26, 28, 30, 30]);
     expect(view.centres.value).toEqual([44, 61, 50, 50]);
     expect(view.kinds.value).toEqual([0, 1, 0, 0]);
+  });
+
+  it("keeps each obstacle's pencil colours when the one before it leaves", () => {
+    const view = usePlaneView();
+    const s = flying();
+    view.sync(s);
+    const first = planePencilColour(s.obstacles[0], true);
+    expect(view.colours.value.slice(0, 2)).toEqual([first, planePencilColour(s.obstacles[0], false)]);
+    const next = { ...s.obstacles[0], x: 88, index: 6 };
+    view.sync({ ...s, obstacles: [s.obstacles[1], next] });
+    expect(view.colours.value.slice(2, 4)).toEqual([planePencilColour(next, true), planePencilColour(next, false)]);
+    view.sync({ ...s, obstacles: [next] });
+    expect(view.colours.value.slice(0, 2)).toEqual([planePencilColour(next, true), planePencilColour(next, false)]);
   });
 });
 
@@ -95,6 +108,14 @@ describe("PlaneWorld", () => {
   it("places the plane at its column", () => {
     const plane = world().find((n) => n.type === animated.View && (n.props.style as Style[])[0].height === 30)!;
     expect((plane.props.style as Style[])[0].left).toBe((planeX(56) - 5) * 5);
+  });
+
+  it("outlines the plane in ink behind its paper-white body", () => {
+    const triangles = world().filter((n) => n.type === View && (n.props.style as Style).borderLeftWidth !== undefined);
+    expect(triangles.map((n) => (n.props.style as Style).borderLeftColor)).toEqual([PLANE_COLORS.dark.ink, PLANE_COLORS.dark.plane]);
+    const [outline, body] = triangles.map((n) => n.props.style as Style);
+    expect(outline.borderLeftWidth as number).toBeGreaterThan(body.borderLeftWidth as number);
+    expect(outline.borderTopWidth as number).toBeGreaterThan(body.borderTopWidth as number);
   });
 
   it("scrolls the margin line with the distance flown", () => {
@@ -123,9 +144,9 @@ describe("Piece", () => {
     view.centres.value = [50, 50, 50, 50];
     view.gaps.value = [30, 30, 30, 30];
     view.kinds.value = [0, 0, 0, 0];
-    const { colour, body, tip } = piece(view);
-    expect(colour).toBe(PLANE_PENCILS[0]);
-    expect(body.backgroundColor).toBe(PLANE_PENCILS[0]);
+    view.colours.value = ["#a", "#b", "#c", "#d", "#e", "#f", "#g", "#h"];
+    const { body, tip } = piece(view);
+    expect(body.backgroundColor).toBe("#a");
     expect(body.height).toBe((35 - 5) * 5);
     expect(tip.opacity).toBe(1);
   });

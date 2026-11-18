@@ -6,12 +6,14 @@ import {
   PLANE_FLAP_SPEED,
   PLANE_GRAVITY,
   PLANE_MAX_FALL,
+  PLANE_PENCILS,
   drawGapY,
   newPlaneGame,
   parseSavedBest,
   planeAngle,
   planeGap,
   planePause,
+  planePencilColour,
   planeSpeed,
   planeTap,
   planeWorldWidth,
@@ -108,7 +110,7 @@ describe("obstacles", () => {
   const at = (s: PlaneState, x: number, gapY: number, gap = 32): PlaneState => ({
     ...s,
     vy: 0,
-    obstacles: [{ x, gapY, gap, kind: 0, scored: false }],
+    obstacles: [{ x, gapY, gap, kind: 0, index: 0, scored: false }],
   });
 
   it("hits an obstacle when the plane is outside its gap", () => {
@@ -154,6 +156,33 @@ describe("obstacles", () => {
       }
       expect(s.obstacles[0].x + OBSTACLE_WIDTH).toBeGreaterThanOrEqual(0);
     }
+  });
+
+  it("numbers obstacles in order, so each keeps its colours while others leave", () => {
+    let s = flying(45);
+    const seen = new Map<number, number>();
+    let dropped = 0;
+    for (let i = 0; i < 900 && s.phase === "flying"; i++) {
+      const ahead = s.obstacles.find((o) => !o.scored);
+      const before = s.obstacles[0].index;
+      s = stepPlane({ ...s, y: ahead?.gapY ?? 50, vy: 0 }, 1 / 60, seeded(i));
+      if (s.obstacles[0].index !== before) dropped += 1;
+      s.obstacles.forEach((o, k) => {
+        if (k > 0) expect(o.index).toBe(s.obstacles[k - 1].index + 1);
+        expect(o.kind).toBe(o.index % 2);
+        if (seen.has(o.index)) expect(o.x).toBeLessThan(seen.get(o.index)!);
+        seen.set(o.index, o.x);
+      });
+      expect(s.obstacles.at(-1)!.index).toBe(s.spawned - 1);
+    }
+    expect(dropped).toBeGreaterThan(2);
+  });
+
+  it("gives each pencil its own colour pair, the same for its whole flight", () => {
+    const pencils = [0, 2, 4, 6].map((index) => planePencilColour({ index }, true));
+    expect(new Set(pencils).size).toBe(PLANE_PENCILS.length);
+    expect(planePencilColour({ index: 2 }, false)).toBe(planePencilColour({ index: 4 }, true));
+    expect(planePencilColour({ index: 8 }, true)).toBe(planePencilColour({ index: 0 }, true));
   });
 
   it("can always be flown, even when every gap swings as far as it may", () => {

@@ -83,6 +83,8 @@ export default function PlaneGame() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== "Space" || e.repeat) return;
+      // A focused button or link takes Space itself, like the Again button on the game-over card.
+      if ((e.target as Element | null)?.closest?.("button, a, input, textarea, select")) return;
       e.preventDefault();
       tap();
     };
@@ -90,17 +92,19 @@ export default function PlaneGame() {
       if (document.hidden) publish(planePause(live.current));
     };
     const onBlur = () => publish(planePause(live.current));
+    // A game not started yet takes the new shape; one in play keeps its world.
+    const onResize = () => (live.current.phase === "ready" ? fresh() : draw());
     window.addEventListener("keydown", onKey);
     window.addEventListener("blur", onBlur);
-    window.addEventListener("resize", draw);
+    window.addEventListener("resize", onResize);
     document.addEventListener("visibilitychange", onHide);
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("blur", onBlur);
-      window.removeEventListener("resize", draw);
+      window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onHide);
     };
-  }, [tap, publish, draw]);
+  }, [tap, publish, draw, fresh]);
 
   useEffect(() => {
     if (view.phase !== "flying") return;

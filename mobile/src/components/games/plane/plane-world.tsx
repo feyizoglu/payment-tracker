@@ -6,10 +6,10 @@ import {
   OBSTACLE_WIDTH,
   PLANE_COLORS,
   PLANE_MARGIN_EVERY,
-  PLANE_PENCILS,
   PLANE_RULER,
   PLANE_WORLD_HEIGHT,
   planeAngle,
+  planePencilColour,
   planeX,
   type PlaneState,
 } from "@ptracker/shared/paper-plane";
@@ -25,6 +25,8 @@ export interface PlaneView {
   gaps: SharedValue<number[]>;
   centres: SharedValue<number[]>;
   kinds: SharedValue<number[]>;
+  /** Top and bottom pencil colour of each slot's obstacle: [slot0 top, slot0 bottom, slot1 top, ...]. */
+  colours: SharedValue<string[]>;
   sync: (s: PlaneState) => void;
 }
 
@@ -36,9 +38,10 @@ export function usePlaneView(): PlaneView {
   const gaps = useSharedValue<number[]>(Array(SLOTS).fill(30));
   const centres = useSharedValue<number[]>(Array(SLOTS).fill(50));
   const kinds = useSharedValue<number[]>(Array(SLOTS).fill(0));
+  const colours = useSharedValue<string[]>(Array(SLOTS * 2).fill(planePencilColour({ index: 0 }, true)));
   // Stable across renders: the screen's frame loop depends on it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  return useMemo(() => ({ y, angle, distance, xs, gaps, centres, kinds, sync: (s: PlaneState) => {
+  return useMemo(() => ({ y, angle, distance, xs, gaps, centres, kinds, colours, sync: (s: PlaneState) => {
     y.value = s.y;
     angle.value = planeAngle(s.vy);
     distance.value = s.distance;
@@ -47,12 +50,13 @@ export function usePlaneView(): PlaneView {
     gaps.value = Array.from({ length: SLOTS }, (_, i) => (o[i] ? o[i].gap : 30));
     centres.value = Array.from({ length: SLOTS }, (_, i) => (o[i] ? o[i].gapY : 50));
     kinds.value = Array.from({ length: SLOTS }, (_, i) => (o[i] ? o[i].kind : 0));
+    colours.value = Array.from({ length: SLOTS * 2 }, (_, i) => planePencilColour(o[i >> 1] ?? { index: 0 }, i % 2 === 0));
   } }), []);
 }
 
-function Piece({ view, slot, top, scale, colour }: { view: PlaneView; slot: number; top: boolean; scale: number; colour: string }) {
+function Piece({ view, slot, top, scale }: { view: PlaneView; slot: number; top: boolean; scale: number }) {
   // Only the shared values go into the worklets, not the view's JS `sync`.
-  const { xs, gaps, centres, kinds } = view;
+  const { xs, gaps, centres, kinds, colours } = view;
   const body = useAnimatedStyle(() => {
     const edge = top ? centres.value[slot] - gaps.value[slot] / 2 : centres.value[slot] + gaps.value[slot] / 2;
     const pencil = kinds.value[slot] === 0;
@@ -62,7 +66,7 @@ function Piece({ view, slot, top, scale, colour }: { view: PlaneView; slot: numb
       left: xs.value[slot] * scale,
       top: Math.min(from, end) * scale,
       height: Math.max(0, Math.abs(end - from)) * scale,
-      backgroundColor: pencil ? colour : PLANE_RULER,
+      backgroundColor: pencil ? colours.value[slot * 2 + (top ? 0 : 1)] : PLANE_RULER,
     };
   });
   const tip = useAnimatedStyle(() => {
@@ -119,11 +123,26 @@ export function PlaneWorld({ view, width, height, worldWidth, dark }: { view: Pl
         <Animated.View style={[{ position: "absolute", top: 0, bottom: 0, width: 2, backgroundColor: c.margin }, margin]} />
         {Array.from({ length: SLOTS }, (_, slot) => (
           <View key={slot} style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }}>
-            <Piece view={view} slot={slot} top scale={scale} colour={PLANE_PENCILS[slot % PLANE_PENCILS.length]} />
-            <Piece view={view} slot={slot} top={false} scale={scale} colour={PLANE_PENCILS[(slot + 2) % PLANE_PENCILS.length]} />
+            <Piece view={view} slot={slot} top scale={scale} />
+            <Piece view={view} slot={slot} top={false} scale={scale} />
           </View>
         ))}
         <Animated.View style={[{ position: "absolute", left: (planeX(worldWidth) - 5) * scale, width: 10 * scale, height: 6 * scale }, plane]}>
+          <View
+            style={{
+              position: "absolute",
+              left: -0.8 * scale,
+              top: -0.7 * scale,
+              width: 0,
+              height: 0,
+              borderTopWidth: 3.7 * scale,
+              borderBottomWidth: 3.7 * scale,
+              borderLeftWidth: 11.6 * scale,
+              borderTopColor: "transparent",
+              borderBottomColor: "transparent",
+              borderLeftColor: c.ink,
+            }}
+          />
           <View
             style={{
               position: "absolute",
