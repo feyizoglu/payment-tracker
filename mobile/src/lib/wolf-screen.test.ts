@@ -12,6 +12,10 @@ const storage = vi.hoisted(() => ({
   setStoredWolfSetup: vi.fn(async (_setup: unknown) => undefined),
 }));
 const entry = vi.hoisted(() => ({ pinReady: true }));
+const onScreen = vi.hoisted(() => ({
+  focused: true,
+  appState: undefined as undefined | ((next: string) => void),
+}));
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
@@ -33,13 +37,25 @@ vi.mock("react", async (importOriginal) => {
       };
       return [hooks.states[i], dispatch];
     },
-    useCallback: (fn: unknown) => fn,
     useEffect: (effect: () => void | (() => void)) => {
       hooks.effects.push(effect);
     },
   };
 });
-vi.mock("react-native", () => ({ ActivityIndicator: () => null, Pressable: () => null, Text: () => null, View: () => null }));
+vi.mock("react-native", () => ({
+  ActivityIndicator: () => null,
+  Pressable: () => null,
+  Text: () => null,
+  View: () => null,
+  AppState: {
+    currentState: "active",
+    addEventListener: (_: string, fn: (next: string) => void) => {
+      onScreen.appState = fn;
+      return { remove: () => undefined };
+    },
+  },
+}));
+vi.mock("expo-router", () => ({ useIsFocused: () => onScreen.focused }));
 vi.mock("@ptracker/shared/i18n", () => ({
   useLang: () => ({ t: new Proxy({}, { get: (_, key) => String(key) }), lang: "tr" }),
 }));
@@ -139,6 +155,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   hooks.states = [];
   entry.pinReady = true;
+  onScreen.focused = true;
+  onScreen.appState = undefined;
   let clock = 1_800_000_000_000;
   vi.spyOn(Date, "now").mockImplementation(() => (clock += 1000));
   vi.spyOn(Math, "random").mockReturnValue(0);
@@ -149,21 +167,47 @@ afterEach(() => {
 });
 
 describe("Wolf Night screen: day timer", () => {
-  it("stops the day's clock while the game is off screen and moves its end by the time away", async () => {
-    await start({ ...valid, timerMinutes: 2 });
+  const day = () => find(WolfDay)!.props.state as GameState;
+  const effects = () => {
+    render();
+    for (const effect of hooks.effects) effect();
+  };
+  async function toDay(timerMinutes: number) {
+    await start({ ...valid, timerMinutes });
     call(WolfThisGame, "onDeal");
     dealAll(5);
     passNight();
     call(WolfRemoval, "onContinue");
-    const day = () => find(WolfDay)!.props.state as GameState;
+  }
+
+  it("stops the day's clock while the game is off screen and moves its end by the time away", async () => {
+    await toDay(2);
     const { dayEndsAt } = day();
-    call(WolfDay, "onPause");
+    onScreen.focused = false;
+    effects();
     const pausedAt = day().dayPausedAt!;
     expect(pausedAt).toBeGreaterThan(0);
-    call(WolfDay, "onResume");
+    onScreen.focused = true;
+    effects();
     // Date.now() moves the test clock on by itself, a second per call.
     expect(day().dayPausedAt).toBeNull();
     expect(day().dayEndsAt).toBe(dayEndsAt + 1000);
+  });
+
+  it("stops it too while the rules cover the day, and when the app goes to the background", async () => {
+    await toDay(2);
+    call(WolfDay, "onRules");
+    expect(find(WolfDay)).toBeUndefined();
+    onScreen.appState!("background");
+    effects();
+    expect((hooks.states.find((s) => (s as GameState)?.phase === "day") as GameState).dayPausedAt).not.toBeNull();
+  });
+
+  it("leaves the clock alone when the day has no timer", async () => {
+    await toDay(0);
+    onScreen.focused = false;
+    effects();
+    expect(day().dayPausedAt).toBeNull();
   });
 });
 

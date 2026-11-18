@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { ActivityIndicator } from "react-native";
 
 import { useLang } from "@ptracker/shared/i18n";
@@ -24,13 +24,12 @@ import { WolfRoster } from "@/components/games/wolf/wolf-roster";
 import { WolfRulesButton } from "@/components/games/wolf/wolf-rules-button";
 import { WolfSetupWizard } from "@/components/games/wolf/wolf-setup";
 import { WolfThisGame } from "@/components/games/wolf/wolf-this-game";
+import { useGameOnScreen } from "@/lib/use-game-on-screen";
 import { getStoredWolfSetup, setStoredWolfSetup } from "@/lib/wolf-game-storage";
 
 export default function WolfScreen() {
   const { t } = useLang();
   const [state, dispatch] = useReducer(gameReducer, undefined, () => initialGameState());
-  const pauseDay = useCallback(() => dispatch({ type: "pause", at: Date.now() }), []);
-  const resumeDay = useCallback(() => dispatch({ type: "resume", at: Date.now() }), []);
   const [draft, setDraft] = useState<WolfSetup | null>(null);
   const [step, setStep] = useState(0);
   // A game was played on this device before: the wizard may offer to skip its steps.
@@ -38,6 +37,13 @@ export default function WolfScreen() {
   // The This game screen opened from a Rules button covers the game until it is closed.
   const [rulesOpen, setRulesOpen] = useState(false);
   const pinReady = useEnterGameModeOnce();
+  const onScreen = useGameOnScreen();
+  const dayTimer = state.phase === "day" && state.setup.timerMinutes > 0;
+
+  // The day timer stands still while the game is off screen, whatever covers the day (the rules too).
+  useEffect(() => {
+    if (dayTimer) dispatch({ type: onScreen ? "resume" : "pause", at: Date.now() });
+  }, [dayTimer, onScreen]);
 
   useEffect(() => {
     getStoredWolfSetup().then((saved) => {
@@ -158,8 +164,6 @@ export default function WolfScreen() {
         onTalk={() => dispatch({ type: "talk", at: Date.now() })}
         onVoteOut={(target) => dispatch({ type: "voteOut", target, at: Date.now() })}
         onRules={openRules}
-        onPause={pauseDay}
-        onResume={resumeDay}
       />
     );
   } else {

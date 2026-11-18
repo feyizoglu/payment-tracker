@@ -14,32 +14,25 @@ import {
 import { WolfPicker } from "@/components/games/wolf/wolf-picker";
 import { WolfRulesButton } from "@/components/games/wolf/wolf-rules-button";
 import { PrimaryButton } from "@/components/ui/primary-button";
-import { useGameOnScreen } from "@/lib/use-game-on-screen";
 
 // The day: the table talks (with the optional timer), then the phone holder enters the vote.
 // The timer counts to the day's end time in the game state, so leaving for the rules does not
-// restart it, but stands still while the game is off screen (background, PIN screen). It does
-// not buzz: the game has no sound or vibration. Pass stable `onPause` and `onResume`.
+// restart it; it stands still while the day is paused (the screen pauses it off screen). It does
+// not buzz: the game has no sound or vibration.
 export function WolfDay({
   state,
   onVote,
   onTalk,
   onVoteOut,
   onRules,
-  onPause,
-  onResume,
 }: {
   state: GameState;
   onVote: () => void;
   onTalk: () => void;
   onVoteOut: (seat: number | null) => void;
   onRules: () => void;
-  onPause: () => void;
-  onResume: () => void;
 }) {
   const { t } = useLang();
-  const onScreen = useGameOnScreen();
-  const timerOn = state.setup.timerMinutes > 0;
   const [now, setNow] = useState(() => Date.now());
   const ticking = state.setup.timerMinutes > 0 && state.dayStep === "talk";
 
@@ -49,11 +42,8 @@ export function WolfDay({
     return () => clearInterval(id);
   }, [ticking]);
 
-  useEffect(() => {
-    if (!timerOn) return;
-    if (onScreen) onResume();
-    else onPause();
-  }, [timerOn, onScreen, onPause, onResume]);
+  // Back from the background the last tick is old: read the clock again as it starts.
+  useEffect(() => setNow(Date.now()), [state.dayPausedAt]);
 
   // The clock stands still on the vote screen: read it again, so the talk never shows the old time.
   const backToTalk = () => {

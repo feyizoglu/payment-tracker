@@ -61,6 +61,9 @@ export function WordTurn({
     else onPause();
   }, [onScreen, onPause, onResume]);
 
+  // Back from the background the last tick is old: read the clock again as it starts.
+  useEffect(() => setNow(Date.now()), [pausedAt]);
+
   const left = remainingSeconds(endsAt, pausedAt ?? now);
   const over = left === 0;
   const warn = left <= WORD_WARN_SECONDS;

@@ -38,6 +38,7 @@ export function ImposterDiscuss({
   useEffect(() => {
     if (timerMinutes === 0) return;
     const at = Date.now();
+    setNow(at);
     if (!onScreen) setClock((c) => (c.pausedAt === null ? { ...c, pausedAt: at } : c));
     else setClock((c) => (c.pausedAt === null ? c : { endsAt: c.endsAt + Math.max(0, at - c.pausedAt), pausedAt: null }));
   }, [onScreen, timerMinutes]);
