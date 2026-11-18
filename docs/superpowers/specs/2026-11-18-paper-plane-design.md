@@ -58,16 +58,17 @@ no platform code, driven by elapsed time so 60 Hz and 120 Hz screens play the sa
 - The gap centre is drawn with the game's `Rng` between 12 units from the top and bottom edges
   (plus half the gap). Two consecutive gap centres differ by at most 30 units, so every layout
   can be flown.
-- Only the obstacles on screen are kept (at most 3 at the widest world); one leaving at the left
-  is reused at the right.
+- Up to 4 obstacles are kept: the ones on screen plus one waiting off screen at the right. One
+  leaving at the left is dropped.
 
 ## Look
 
 Everything is drawn in code; no image files.
 
 - **Page.** Light theme: cream paper (`#fdfbf3`), pale blue ruled lines every 6 units, one red
-  margin line at the left. Dark theme: deep navy paper with faint lines. The lines scroll with
-  the world, so they show the speed.
+  margin line at the left. Dark theme: deep navy paper with faint lines. The ruled lines stay
+  still; a red margin line repeats every 120 units of flight and scrolls with the world, so
+  passing pages show the speed.
 - **Plane.** A folded paper plane in pencil outline (white fill, dark grey stroke, one fold
   line), tilted by its nose angle.
 - **Obstacles.** Alternating coloured pencils (sharpened tip towards the gap) and a wooden ruler
@@ -85,8 +86,8 @@ re-render React; React renders again only when the score or the screen changes.
 - Mobile: a JS-thread frame loop (`requestAnimationFrame`) calls the same `step` and writes the
   plane and obstacle positions to shared values. If the device shows dropped frames, moving the
   step into a Reanimated worklet is the follow-up; it is not in this design.
-- A tap anywhere on the play area flaps (web: `pointerdown` and Space; mobile: a gesture-handler
-  tap, which fires on touch down).
+- A tap anywhere on the play area flaps (web: `pointerdown` and Space; mobile: `Pressable`
+  `onPressIn`, which fires on touch down).
 
 ## Storage
 
@@ -107,8 +108,9 @@ anything that is not a non-negative integer.
 - `shared/paper-plane.ts` (vitest, web root): gravity and the fall cap, flap, nose angle, dt
   clamping and sub-steps (a 1/30 s frame cannot skip through a 9-unit obstacle), scoring once per
   obstacle, edge and obstacle collisions with the forgiving hitbox, the difficulty curve and its
-  cap at 40, gap centres within bounds and the 30-unit step, and an autopilot that reaches 100
-  points on 200 seeds (every layout is flyable).
+  cap at 40, gap centres within bounds and the 30-unit step, and a reachability search over flap /
+  no-flap choices every 1/30 s that finds a way to 60 points on 10 seeds at widths 45 and 80
+  (every layout is flyable).
 - Web page: Ready → Flying → Game over with a fake clock, Space flaps, the best score saved and
   shown, the 500 ms tap guard.
 - Mobile: the screen with the existing hook-mock harness: pause on `useGameOnScreen` false and
