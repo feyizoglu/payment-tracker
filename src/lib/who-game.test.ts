@@ -314,6 +314,8 @@ describe("whoPool", () => {
     expect(whoPool(choice({ kinds: ["characters", "people"], region: "tr", level: "easy" }), sources, "en")).toBe(a);
     expect(whoPool(choice({ kinds: ["people", "characters"], region: "tr", level: "easy" }), sources, "tr")).not.toBe(a);
     expect(whoPool(choice({ kinds: ["people"], region: "tr", level: "easy" }), sources, "en")).not.toBe(a);
+    expect(whoPool(choice({ kinds: ["people", "characters"], region: "world", level: "easy" }), sources, "en")).not.toBe(a);
+    expect(whoPool(choice({ kinds: ["people", "characters"], region: "tr", level: "hard" }), sources, "en")).not.toBe(a);
     expect(whoPool(choice({ kinds: ["people", "characters"], region: "tr", level: "easy" }), { ...sources }, "en")).not.toBe(a);
   });
 });
@@ -367,7 +369,7 @@ describe("whoPool: one card per name", () => {
     let ids: string[];
     try {
       delete (String.prototype as { normalize?: unknown }).normalize;
-      ids = whoPool(all, dupes, "en").map((c) => c.id);
+      ids = whoPool(all, { ...dupes }, "en").map((c) => c.id);
     } finally {
       if (normalize) Object.defineProperty(String.prototype, "normalize", normalize);
     }
