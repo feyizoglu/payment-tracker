@@ -331,6 +331,21 @@ describe("PlaneScreen", () => {
     expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
   });
 
+  it("keeps the session's best on the card when every read of the best fails", async () => {
+    storage.getStoredPlaneBest.mockResolvedValue(null);
+    await settle();
+    await tap();
+    engine.endScore = 10;
+    await frames(2);
+    overlay().onAgain();
+    await settle();
+    await tap();
+    engine.endScore = 3;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 3, best: 10, newBest: false });
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
+  });
+
   it("guards the game-over buttons from the card's first frame", async () => {
     await settle();
     await tap();

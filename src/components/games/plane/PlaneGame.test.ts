@@ -257,6 +257,27 @@ describe("PlaneGame", () => {
     expect(wrote).toBe(false);
   });
 
+  it("keeps the session's best on the card when the browser refuses to read storage", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("SecurityError");
+      },
+      setItem: () => undefined,
+    });
+    await mount();
+    await tap();
+    engine.endWith = (s) => ({ ...s, phase: "over", score: 10 });
+    await frame();
+    await act(async () => vi.advanceTimersByTime(500));
+    engine.endWith = null;
+    await act(async () => (again().props.onClick as () => void)());
+    await tap();
+    engine.endWith = (s) => ({ ...s, phase: "over", score: 4 });
+    await frame();
+    expect(text()).toContain("Best: 10");
+  });
+
   it("guards the game-over buttons from the card's first frame", async () => {
     await mount();
     await tap();

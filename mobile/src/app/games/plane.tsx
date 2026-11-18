@@ -96,16 +96,16 @@ export default function PlaneScreen() {
     let alive = true;
     const now = planeBestAfter(score, bestRef.current);
     setNewBest(now.isNew);
-    setBest(now.best);
+    setBest((v) => Math.max(v, now.best));
     // Read the stored best again: the first read may not have landed yet. The save runs even if
     // the player has left the screen by then; only the card waits for the screen.
     void getStoredPlaneBest().then((stored) => {
       const after = planeBestAfter(score, stored, bestRef.current);
       if (after.isNew) void setStoredPlaneBest(score);
-      if (stored !== null || bestRef.current !== null) bestRef.current = after.best;
+      if (after.known) bestRef.current = after.best;
       if (!alive) return;
       setNewBest(after.isNew);
-      setBest(after.best);
+      setBest((v) => Math.max(v, after.best));
     });
     const id = setTimeout(() => setGuard(false), PLANE_OVER_GUARD_MS);
     return () => {

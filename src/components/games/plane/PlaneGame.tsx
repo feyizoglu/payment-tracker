@@ -143,7 +143,7 @@ export default function PlaneGame() {
     const { best: next, isNew } = planeBestAfter(score, readBest());
     if (isNew) writeBest(score);
     setNewBest(isNew);
-    setBest(next);
+    setBest((v) => Math.max(v, next));
     canRestart.current = false;
     const id = setTimeout(() => {
       setGuard(false);

@@ -154,10 +154,13 @@ export function parseSavedBest(raw: string | null): number {
  * A new best is claimed and saved only when at least one best is known, so a broken read can never
  * write a lower score over a higher one it could not see.
  */
-export function planeBestAfter(score: number, ...known: (number | null)[]): { best: number; isNew: boolean } {
+export function planeBestAfter(
+  score: number,
+  ...known: (number | null)[]
+): { best: number; isNew: boolean; known: boolean } {
   const seen = known.filter((n): n is number => n !== null);
   const top = seen.length ? Math.max(...seen) : 0;
-  return { best: Math.max(top, score), isNew: seen.length > 0 && score > top };
+  return { best: Math.max(top, score), isNew: seen.length > 0 && score > top, known: seen.length > 0 };
 }
 
 export const PLANE_COLORS = {

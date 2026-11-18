@@ -246,17 +246,17 @@ describe("pause", () => {
 
 describe("planeBestAfter", () => {
   it("claims a new best only above every best known", () => {
-    expect(planeBestAfter(9, 5)).toEqual({ best: 9, isNew: true });
-    expect(planeBestAfter(9, 5, 12)).toEqual({ best: 12, isNew: false });
-    expect(planeBestAfter(5, 5)).toEqual({ best: 5, isNew: false });
-    expect(planeBestAfter(3, 0)).toEqual({ best: 3, isNew: true });
+    expect(planeBestAfter(9, 5)).toEqual({ best: 9, isNew: true, known: true });
+    expect(planeBestAfter(9, 5, 12)).toEqual({ best: 12, isNew: false, known: true });
+    expect(planeBestAfter(5, 5)).toEqual({ best: 5, isNew: false, known: true });
+    expect(planeBestAfter(3, 0)).toEqual({ best: 3, isNew: true, known: true });
   });
 
   it("ignores failed reads, and claims nothing when no best is known", () => {
-    expect(planeBestAfter(9, null, 5)).toEqual({ best: 9, isNew: true });
-    expect(planeBestAfter(9, null, 12)).toEqual({ best: 12, isNew: false });
-    expect(planeBestAfter(9, null, null)).toEqual({ best: 9, isNew: false });
-    expect(planeBestAfter(9)).toEqual({ best: 9, isNew: false });
+    expect(planeBestAfter(9, null, 5)).toEqual({ best: 9, isNew: true, known: true });
+    expect(planeBestAfter(9, null, 12)).toEqual({ best: 12, isNew: false, known: true });
+    expect(planeBestAfter(9, null, null)).toEqual({ best: 9, isNew: false, known: false });
+    expect(planeBestAfter(9)).toEqual({ best: 9, isNew: false, known: false });
   });
 });
 
