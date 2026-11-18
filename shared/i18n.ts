@@ -719,6 +719,16 @@ const translations = {
     clueWords: "This game's words",
     cluePlayAgain: "Play again",
     clueNewGame: "New game",
+    planeTitle: "Paper Plane",
+    planeDesc: "Tap to climb, let go to glide. Fly through the gaps as far as you can.",
+    planeBest: "Best: {n}",
+    planeTapToStart: "Tap to start",
+    planeTapToContinue: "Tap to continue",
+    planeKeyHint: "Tap or press Space to climb.",
+    planeScore: "Score",
+    planeNewBest: "New best!",
+    planeAgain: "Again",
+    planeBackToGames: "Back to games",
   },
   tr: {
     // Landing
@@ -1425,6 +1435,16 @@ const translations = {
     clueWords: "Bu oyunun kelimeleri",
     cluePlayAgain: "Tekrar oyna",
     clueNewGame: "Yeni oyun",
+    planeTitle: "Kağıt Uçak",
+    planeDesc: "Dokun, yüksel; bırak, süzül. Boşluklardan geçerek olabildiğince uzağa uç.",
+    planeBest: "Rekor: {n}",
+    planeTapToStart: "Başlamak için dokun",
+    planeTapToContinue: "Devam etmek için dokun",
+    planeKeyHint: "Yükselmek için dokun ya da Boşluk tuşuna bas.",
+    planeScore: "Skor",
+    planeNewBest: "Yeni rekor!",
+    planeAgain: "Tekrar",
+    planeBackToGames: "Oyunlara dön",
   },
 };
 

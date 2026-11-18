@@ -30,6 +30,8 @@ export const GAME_DARK_TOKENS = {
   "--purple-50": "46 16 101",
   "--teal-50": "4 47 46",
   "--rose-50": "76 5 25",
+  "--sky-50": "8 47 73",
+  "--sky-600": "56 189 248",
 } as const;
 
 export const gameDarkVars = vars(GAME_DARK_TOKENS);
