@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
+import { normalizeEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export async function POST(
   const { data: invitedUser, error: userError } = await db
     .from("users")
     .select("id")
-    .eq("email", email.trim().toLowerCase())
+    .eq("email", normalizeEmail(email))
     .single();
 
   if (userError || !invitedUser) {
