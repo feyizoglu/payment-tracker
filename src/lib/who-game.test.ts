@@ -272,7 +272,7 @@ describe("whoSetupInLang", () => {
 });
 
 describe("whoPool", () => {
-  const ids = (cards: { id: string }[]) => cards.map((c) => c.id);
+  const ids = (cards: readonly { id: string }[]) => cards.map((c) => c.id);
   const choice = (patch: Partial<WhoSetup>) => ({ ...solo, ...patch });
 
   it("takes people and characters from the region and level chosen", () => {

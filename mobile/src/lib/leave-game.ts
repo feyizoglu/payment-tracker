@@ -28,9 +28,10 @@ export function askToLeave(t: Translations, onLeave: () => void) {
       {
         text: t.gameLeaveConfirm,
         style: "destructive",
+        // Leave first: closing first would start the clocks for the frames before the screen goes.
         onPress: () => {
-          close();
           onLeave();
+          close();
         },
       },
     ],

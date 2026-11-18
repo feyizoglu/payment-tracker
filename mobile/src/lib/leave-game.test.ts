@@ -117,9 +117,11 @@ describe("askToLeave", () => {
     expect(onLeave).not.toHaveBeenCalled();
 
     s.alert.mockClear();
-    askToLeave(t, onLeave);
+    // The game leaves while the clocks are still stopped, then the question closes.
+    const openWhenLeaving: boolean[] = [];
+    askToLeave(t, () => openWhenLeaving.push(isGameDialogOpen()));
     buttons()[1].onPress!();
-    expect([isGameDialogOpen(), onLeave.mock.calls.length]).toEqual([false, 1]);
+    expect([isGameDialogOpen(), openWhenLeaving]).toEqual([false, [true]]);
 
     s.alert.mockClear();
     askToLeave(t, onLeave);

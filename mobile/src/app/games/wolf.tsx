@@ -54,21 +54,26 @@ export default function WolfScreen() {
     });
   }, []);
 
-  // Back asks first once the game has started; from the deal on there is no back or exit in the header.
-  const inProgress = state.phase !== "setup" && state.phase !== "end";
-  const playing = inProgress && state.phase !== "rules";
+  // Back asks first once cards are dealt, and from then on there is no back or exit in the
+  // header. Before the deal, back on This game goes back to the setup, as its own back does.
+  const inProgress = state.phase !== "setup" && state.phase !== "rules" && state.phase !== "end";
   useConfirmLeave(inProgress && !rulesOpen);
 
   // Back closes the rules over the game, as their own Close does.
   const focused = useIsFocused();
+  const preDeal = state.phase === "rules";
   useEffect(() => {
-    if (!rulesOpen || !focused) return;
+    if ((!rulesOpen && !preDeal) || !focused) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      setRulesOpen(false);
+      if (rulesOpen) setRulesOpen(false);
+      else {
+        setDraft(state.setup);
+        dispatch({ type: "newGame", at: Date.now() });
+      }
       return true;
     });
     return () => sub.remove();
-  }, [rulesOpen, focused]);
+  }, [rulesOpen, preDeal, focused, state.setup]);
 
   if (!pinReady) return <GamesPinSetup title={t.wolfTitle} />;
 
@@ -194,7 +199,7 @@ export default function WolfScreen() {
       tone="game"
       color={color}
       scroll={!held}
-      nav={!playing}
+      nav={!inProgress}
       confirmBack={inProgress}>
       {body}
     </GameScreen>
