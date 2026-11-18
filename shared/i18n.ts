@@ -729,6 +729,10 @@ const translations = {
     planeNewBest: "New best!",
     planeAgain: "Again",
     planeBackToGames: "Back to games",
+    towerTitle: "Book Tower",
+    towerDesc: "Stack books as high as you can. One tap drops the next book.",
+    towerKeyHint: "Tap or press Space to drop.",
+    towerPerfect: "Perfect!",
   },
   tr: {
     // Landing
@@ -1445,6 +1449,10 @@ const translations = {
     planeNewBest: "Yeni rekor!",
     planeAgain: "Tekrar",
     planeBackToGames: "Oyunlara dön",
+    towerTitle: "Kitap Kulesi",
+    towerDesc: "Kitapları olabildiğince yükseğe diz. Bir dokunuş sıradaki kitabı bırakır.",
+    towerKeyHint: "Bırakmak için dokun ya da Boşluk tuşuna bas.",
+    towerPerfect: "Tam!",
   },
 };
 
