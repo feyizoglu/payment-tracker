@@ -7,6 +7,10 @@ const hooks = vi.hoisted(() => ({
   effects: [] as (() => void | (() => void))[],
   index: 0,
 }));
+const screen = vi.hoisted(() => ({
+  focused: true,
+  appState: undefined as undefined | ((next: string) => void),
+}));
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
@@ -31,7 +35,19 @@ const KEYS: Record<string, string> = {
   wolfHunterShoots: "shoots {name}",
   wolfHunterShot: "{name} took {target}",
 };
-vi.mock("react-native", () => ({ Pressable: () => null, Text: () => null, View: () => null }));
+vi.mock("react-native", () => ({
+  Pressable: () => null,
+  Text: () => null,
+  View: () => null,
+  AppState: {
+    currentState: "active",
+    addEventListener: (_: string, fn: (next: string) => void) => {
+      screen.appState = fn;
+      return { remove: () => undefined };
+    },
+  },
+}));
+vi.mock("expo-router", () => ({ useIsFocused: () => screen.focused }));
 vi.mock("@ptracker/shared/i18n", () => ({
   useLang: () => ({ t: new Proxy({}, { get: (_, key) => KEYS[String(key)] ?? String(key) }) }),
 }));
@@ -54,6 +70,8 @@ const onRules = vi.fn();
 const onVote = vi.fn();
 const onTalk = vi.fn();
 const onVoteOut = vi.fn();
+const onPause = vi.fn();
+const onResume = vi.fn();
 const onPlayAgain = vi.fn();
 const onNewGame = vi.fn();
 const NAMES = ["Ann", "Bob", "Cem", "Dan", "Eda"];
@@ -90,6 +108,8 @@ const rows = (tree: Node) =>
 beforeEach(() => {
   vi.clearAllMocks();
   hooks.states = [];
+  screen.focused = true;
+  screen.appState = undefined;
 });
 
 afterEach(() => {
@@ -145,7 +165,7 @@ describe("WolfDay", () => {
   function render(s: GameState): Node {
     hooks.index = 0;
     hooks.effects = [];
-    return WolfDay({ state: s, onVote, onTalk, onVoteOut, onRules }) as Node;
+    return WolfDay({ state: s, onVote, onTalk, onVoteOut, onRules, onPause, onResume }) as Node;
   }
   const day = (over: Partial<GameState> = {}, setup: Partial<WolfSetup> = {}) =>
     game({ phase: "day", dayStep: "talk", alive: [true, false, true, true, false], ...over }, setup);
@@ -181,6 +201,43 @@ describe("WolfDay", () => {
     expect(onTalk).toHaveBeenCalledTimes(1);
     // No effect has run and no timer has fired: the first talk render is already right.
     expect(text(render(talk))).toContain("1:00");
+  });
+
+  it("stands still at the time it stopped while the day's timer is paused", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const s = day({ dayEndsAt: 1_090_000, dayPausedAt: 1_030_000 }, { timerMinutes: 2 });
+    for (const effect of hooks.effects) effect();
+    vi.advanceTimersByTime(120_000);
+    expect(text(render(s))).toContain("1:00");
+  });
+
+  it("pauses the timer while the PIN screen covers the game or the app is in the background", () => {
+    const s = day({ dayEndsAt: 1_090_000 }, { timerMinutes: 2 });
+    const effects = () => {
+      render(s);
+      for (const effect of hooks.effects) effect();
+    };
+    effects();
+    expect([onPause.mock.calls.length, onResume.mock.calls.length]).toEqual([0, 1]);
+    screen.focused = false;
+    effects();
+    expect(onPause).toHaveBeenCalledTimes(1);
+    screen.focused = true;
+    screen.appState!("background");
+    effects();
+    expect(onPause).toHaveBeenCalledTimes(2);
+    screen.appState!("active");
+    effects();
+    expect(onResume).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not touch the clock when the timer is off", () => {
+    screen.focused = false;
+    render(day());
+    for (const effect of hooks.effects) effect();
+    expect(onPause).not.toHaveBeenCalled();
+    expect(onResume).not.toHaveBeenCalled();
   });
 
   it("shows no timer when it is off", () => {

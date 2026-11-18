@@ -10,6 +10,10 @@ const hooks = vi.hoisted(() => ({
   index: 0,
 }));
 const rn = vi.hoisted(() => ({ announce: vi.fn() }));
+const screen = vi.hoisted(() => ({
+  focused: true,
+  appState: undefined as undefined | ((next: string) => void),
+}));
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
@@ -35,10 +39,18 @@ vi.mock("react", async (importOriginal) => {
 });
 vi.mock("react-native", () => ({
   AccessibilityInfo: { announceForAccessibility: rn.announce },
+  AppState: {
+    currentState: "active",
+    addEventListener: (_: string, fn: (next: string) => void) => {
+      screen.appState = fn;
+      return { remove: () => undefined };
+    },
+  },
   Pressable: () => null,
   Text: () => null,
   View: () => null,
 }));
+vi.mock("expo-router", () => ({ useIsFocused: () => screen.focused }));
 vi.mock("react-native-reanimated", () => ({
   default: { View: () => null },
   ZoomIn: { duration: () => ({}) },
@@ -61,12 +73,28 @@ type Node = ReactElement<Props>;
 const card: WordCard = { id: "animals-1", word: "Cat", forbidden: ["meow", "pet", "whiskers", "mouse"], level: "easy" };
 const onAnswer = vi.fn();
 const onTimeUp = vi.fn();
+const onPause = vi.fn();
+const onResume = vi.fn();
 
-function render(props: { mode?: WordMode; passLimit?: number | null; passesLeft?: number | null } = {}): Node {
+function render(
+  props: { mode?: WordMode; passLimit?: number | null; passesLeft?: number | null; pausedAt?: number | null } = {}
+): Node {
   hooks.index = 0;
   hooks.effects = [];
-  const { mode = "forbidden", passLimit = 3, passesLeft = passLimit } = props;
-  return WordTurn({ card, teamName: "Red", mode, endsAt: NOW + 60_000, passLimit, passesLeft, onAnswer, onTimeUp }) as Node;
+  const { mode = "forbidden", passLimit = 3, passesLeft = passLimit, pausedAt = null } = props;
+  return WordTurn({
+    card,
+    teamName: "Red",
+    mode,
+    endsAt: NOW + 60_000,
+    pausedAt,
+    passLimit,
+    passesLeft,
+    onAnswer,
+    onTimeUp,
+    onPause,
+    onResume,
+  }) as Node;
 }
 
 function runEffects() {
@@ -94,6 +122,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval", "setTimeout", "clearTimeout"], now: NOW });
   hooks.states = [];
+  screen.focused = true;
+  screen.appState = undefined;
 });
 
 afterEach(() => {
@@ -191,6 +221,47 @@ describe("WordTurn (mobile) clock", () => {
     vi.advanceTimersByTime(WORD_TIME_UP_MS - 1);
     expect(onTimeUp).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
+    expect(onTimeUp).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("WordTurn (mobile) pause", () => {
+  it("stands still at the time it stopped while the turn is paused", () => {
+    vi.advanceTimersByTime(30_000);
+    expect(text(clock(render({ pausedAt: NOW + 20_000 })))).toBe("0:40");
+  });
+
+  it("pauses while the PIN screen covers the game or the app is in the background, and resumes after", () => {
+    render();
+    runEffects();
+    expect(onResume).toHaveBeenCalledTimes(1);
+    expect(onPause).not.toHaveBeenCalled();
+    screen.focused = false;
+    render();
+    runEffects();
+    expect(onPause).toHaveBeenCalledTimes(1);
+    screen.focused = true;
+    screen.appState!("background");
+    render();
+    runEffects();
+    expect(onPause).toHaveBeenCalledTimes(2);
+    screen.appState!("active");
+    render();
+    runEffects();
+    expect(onResume).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not end the turn under the PIN screen, and ends it once the game is back", () => {
+    vi.advanceTimersByTime(60_000);
+    screen.focused = false;
+    render();
+    runEffects();
+    vi.advanceTimersByTime(WORD_TIME_UP_MS * 2);
+    expect(onTimeUp).not.toHaveBeenCalled();
+    screen.focused = true;
+    render();
+    runEffects();
+    vi.advanceTimersByTime(WORD_TIME_UP_MS);
     expect(onTimeUp).toHaveBeenCalledTimes(1);
   });
 });

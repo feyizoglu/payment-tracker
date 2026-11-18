@@ -4,6 +4,7 @@ import { Text, Vibration, View } from "react-native";
 import { useLang } from "@ptracker/shared/i18n";
 import { GAME_THEME, formatCountdown, remainingSeconds } from "@ptracker/shared/imposter";
 import { PrimaryButton } from "@/components/ui/primary-button";
+import { useGameOnScreen } from "@/lib/use-game-on-screen";
 
 export function ImposterDiscuss({
   starter,
@@ -19,15 +20,29 @@ export function ImposterDiscuss({
   onFinish: () => void;
 }) {
   const { t } = useLang();
-  const [endsAt] = useState(() => Date.now() + timerMinutes * 60_000);
-  const [left, setLeft] = useState(timerMinutes * 60);
+  const onScreen = useGameOnScreen();
+  // pausedAt is when the clock stopped for the game going off screen; the time away moves endsAt.
+  const [clock, setClock] = useState<{ endsAt: number; pausedAt: number | null }>(() => ({
+    endsAt: Date.now() + timerMinutes * 60_000,
+    pausedAt: null,
+  }));
+  const [now, setNow] = useState(() => Date.now());
   const buzzed = useRef(false);
 
   useEffect(() => {
     if (timerMinutes === 0) return;
-    const id = setInterval(() => setLeft(remainingSeconds(endsAt, Date.now())), 250);
+    const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
-  }, [endsAt, timerMinutes]);
+  }, [timerMinutes]);
+
+  useEffect(() => {
+    if (timerMinutes === 0) return;
+    const at = Date.now();
+    if (!onScreen) setClock((c) => (c.pausedAt === null ? { ...c, pausedAt: at } : c));
+    else setClock((c) => (c.pausedAt === null ? c : { endsAt: c.endsAt + Math.max(0, at - c.pausedAt), pausedAt: null }));
+  }, [onScreen, timerMinutes]);
+
+  const left = remainingSeconds(clock.endsAt, clock.pausedAt ?? now);
 
   useEffect(() => {
     if (timerMinutes > 0 && left === 0 && !buzzed.current) {

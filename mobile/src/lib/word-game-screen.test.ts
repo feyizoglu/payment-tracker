@@ -189,6 +189,19 @@ describe("WordScreen", () => {
     expect(propsOf(GameScreen)).toMatchObject({ color: teamColor(0), scroll: false });
   });
 
+  it("stops the turn's clock while the game is off screen and moves its end by the time away", async () => {
+    await start();
+    call(WordHandoff, "onBegin");
+    const endsAt = propsOf(WordTurn).endsAt as number;
+    call(WordTurn, "onPause");
+    const pausedAt = propsOf(WordTurn).pausedAt as number;
+    expect(pausedAt).toBeGreaterThan(0);
+    clock += 60_000;
+    call(WordTurn, "onResume");
+    // Date.now() moves the test clock on by itself: `clock` is the resume's time.
+    expect(propsOf(WordTurn)).toMatchObject({ pausedAt: null, endsAt: endsAt + (clock - pausedAt) });
+  });
+
   it("saves the seen list when the turn ends and shows the summary on the dark screen", async () => {
     await start();
     call(WordHandoff, "onBegin");

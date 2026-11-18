@@ -341,6 +341,8 @@ export interface GameState {
   dayStep: "talk" | "vote" | "result";
   /** When the day's discussion timer runs out, in ms. */
   dayEndsAt: number;
+  /** When the day's timer stopped because the game went off screen; null while it runs. */
+  dayPausedAt: number | null;
   winner: Side | null;
   /** When the last accepted move happened, in ms. */
   lastActionAt: number;
@@ -360,6 +362,9 @@ export type GameAction =
   | { type: "talk"; at: number }
   | { type: "voteOut"; target: number | null; at: number }
   | { type: "continue"; at: number }
+  /** The day timer's own actions, not taps: `at` is the clock's timestamp. */
+  | { type: "pause"; at: number }
+  | { type: "resume"; at: number }
   | { type: "playAgain"; at: number }
   | { type: "newGame"; at: number };
 
@@ -377,6 +382,7 @@ export function initialGameState(setup: WolfSetup = DEFAULT_SETUP): GameState {
     removal: null,
     dayStep: "talk",
     dayEndsAt: 0,
+    dayPausedAt: null,
     winner: null,
     lastActionAt: 0,
   };
@@ -431,6 +437,7 @@ function dealStep(state: GameState, action: GameAction): GameState {
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
+  if (action.type === "pause" || action.type === "resume") return dayClock(state, action);
   if (tooSoon(state, action.at)) return state;
   switch (action.type) {
     case "start": {
@@ -454,6 +461,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   if (state.phase === "night") return nightStep(state, action);
   if (state.phase === "morning" || state.phase === "day") return dayStep(state, action);
   return state;
+}
+
+// The day timer stands still while the game is off screen; the time away moves its end.
+function dayClock(state: GameState, action: { type: "pause" | "resume"; at: number }): GameState {
+  if (state.phase !== "day") return state;
+  if (action.type === "pause") return state.dayPausedAt === null ? { ...state, dayPausedAt: action.at } : state;
+  if (state.dayPausedAt === null) return state;
+  return { ...state, dayEndsAt: state.dayEndsAt + Math.max(0, action.at - state.dayPausedAt), dayPausedAt: null };
 }
 
 // "witch" is the witch's pick on her lap; "poison" the narrator's poison pick for her.
@@ -802,7 +817,7 @@ function dayStep(state: GameState, action: GameAction): GameState {
       if (won) return { ...state, phase: "end", winner: won, lastActionAt: action.at };
       if (state.phase === "day") return beginNight(state, action.at);
       const dayEndsAt = action.at + state.setup.timerMinutes * 60_000;
-      return { ...state, phase: "day", dayStep: "talk", dayEndsAt, lastActionAt: action.at };
+      return { ...state, phase: "day", dayStep: "talk", dayEndsAt, dayPausedAt: null, lastActionAt: action.at };
     }
     case "vote":
       if (state.phase !== "day" || state.dayStep !== "talk") return state;

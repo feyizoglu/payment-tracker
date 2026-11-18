@@ -11,6 +11,10 @@ const hooks = vi.hoisted(() => ({
   refIndex: 0,
 }));
 const rn = vi.hoisted(() => ({ vibrate: vi.fn() }));
+const screen = vi.hoisted(() => ({
+  focused: true,
+  appState: undefined as undefined | ((next: string) => void),
+}));
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
@@ -34,7 +38,19 @@ vi.mock("react", async (importOriginal) => {
     },
   };
 });
-vi.mock("react-native", () => ({ Text: () => null, View: () => null, Vibration: { vibrate: rn.vibrate } }));
+vi.mock("react-native", () => ({
+  Text: () => null,
+  View: () => null,
+  Vibration: { vibrate: rn.vibrate },
+  AppState: {
+    currentState: "active",
+    addEventListener: (_: string, fn: (next: string) => void) => {
+      screen.appState = fn;
+      return { remove: () => undefined };
+    },
+  },
+}));
+vi.mock("expo-router", () => ({ useIsFocused: () => screen.focused }));
 vi.mock("@ptracker/shared/i18n", () => ({
   useLang: () => ({ t: new Proxy({}, { get: (_, key) => String(key) }) }),
 }));
@@ -71,6 +87,8 @@ beforeEach(() => {
   hooks.states = [];
   hooks.refs = [];
   hooks.cleanups = [];
+  screen.focused = true;
+  screen.appState = undefined;
 });
 
 afterEach(() => {
@@ -105,5 +123,40 @@ describe("ImposterDiscuss starter", () => {
     expect(chip.props.style).toEqual({ backgroundColor: "#123456" });
     expect(label.props.children).toBe("imposterStarts");
     expect(label.props.style).toEqual({ color: GAME_THEME.ink });
+  });
+});
+
+describe("ImposterDiscuss pause", () => {
+  // The clock's text: the countdown or Time's up.
+  function shown(node: unknown): string | undefined {
+    if (typeof node === "string") return /^(\d+:\d\d|imposterTimeUp)$/.test(node) ? node : undefined;
+    if (Array.isArray(node)) return node.map(shown).find(Boolean);
+    if (!node || typeof node !== "object" || !("props" in node)) return undefined;
+    return shown((node as StyledNode).props.children);
+  }
+
+  it("stands still while the PIN screen covers the game or the app is in the background", () => {
+    renderAndRunEffects(1);
+    vi.advanceTimersByTime(20_000);
+    expect(shown(renderAndRunEffects(1))).toBe("0:40");
+    screen.focused = false;
+    renderAndRunEffects(1);
+    vi.advanceTimersByTime(120_000);
+    expect(shown(renderAndRunEffects(1))).toBe("0:40");
+    expect(rn.vibrate).not.toHaveBeenCalled();
+    screen.focused = true;
+    screen.appState!("background");
+    renderAndRunEffects(1);
+    vi.advanceTimersByTime(60_000);
+    expect(shown(renderAndRunEffects(1))).toBe("0:40");
+    screen.appState!("active");
+    renderAndRunEffects(1);
+    vi.advanceTimersByTime(39_000);
+    expect(shown(renderAndRunEffects(1))).toBe("0:01");
+    expect(rn.vibrate).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1_000);
+    renderAndRunEffects(1);
+    renderAndRunEffects(1);
+    expect(rn.vibrate).toHaveBeenCalledTimes(1);
   });
 });

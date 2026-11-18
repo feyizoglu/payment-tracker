@@ -39,6 +39,8 @@ export default function WordScreen() {
   const [played, setPlayed] = useState(false);
   const pinReady = useEnterGameModeOnce();
   const timeUp = useCallback(() => dispatch({ type: "timeUp", at: Date.now() }), []);
+  const pause = useCallback(() => dispatch({ type: "pause", at: Date.now() }), []);
+  const resume = useCallback(() => dispatch({ type: "resume", at: Date.now() }), []);
 
   useEffect(() => {
     getStoredWordSetup(teamNames).then((saved) => {
@@ -109,10 +111,13 @@ export default function WordScreen() {
         teamName={setup.teams[team].name}
         mode={setup.mode}
         endsAt={state.endsAt}
+        pausedAt={state.pausedAt}
         passLimit={setup.passLimit}
         passesLeft={state.passesLeft}
         onAnswer={(result) => dispatch({ type: "answer", result, rng: Math.random, at: Date.now() })}
         onTimeUp={timeUp}
+        onPause={pause}
+        onResume={resume}
       />
     );
   } else if (phase === "summary") {

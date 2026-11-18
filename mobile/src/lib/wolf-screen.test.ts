@@ -33,6 +33,7 @@ vi.mock("react", async (importOriginal) => {
       };
       return [hooks.states[i], dispatch];
     },
+    useCallback: (fn: unknown) => fn,
     useEffect: (effect: () => void | (() => void)) => {
       hooks.effects.push(effect);
     },
@@ -145,6 +146,25 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("Wolf Night screen: day timer", () => {
+  it("stops the day's clock while the game is off screen and moves its end by the time away", async () => {
+    await start({ ...valid, timerMinutes: 2 });
+    call(WolfThisGame, "onDeal");
+    dealAll(5);
+    passNight();
+    call(WolfRemoval, "onContinue");
+    const day = () => find(WolfDay)!.props.state as GameState;
+    const { dayEndsAt } = day();
+    call(WolfDay, "onPause");
+    const pausedAt = day().dayPausedAt!;
+    expect(pausedAt).toBeGreaterThan(0);
+    call(WolfDay, "onResume");
+    // Date.now() moves the test clock on by itself, a second per call.
+    expect(day().dayPausedAt).toBeNull();
+    expect(day().dayEndsAt).toBe(dayEndsAt + 1000);
+  });
 });
 
 describe("Wolf Night screen: This game", () => {

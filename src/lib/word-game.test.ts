@@ -447,6 +447,42 @@ describe("wordGameReducer turn", () => {
   });
 });
 
+describe("wordGameReducer pause", () => {
+  const pause = (s: WordGameState, at: number) => wordGameReducer(s, { type: "pause", at });
+  const resume = (s: WordGameState, at: number) => wordGameReducer(s, { type: "resume", at });
+
+  it("moves the end of the turn by the time the clock stood still", () => {
+    const s = begin(start());
+    const paused = pause(s, s.endsAt - 10_000);
+    expect(paused.pausedAt).toBe(s.endsAt - 10_000);
+    const back = resume(paused, s.endsAt + 50_000);
+    expect(back.pausedAt).toBeNull();
+    expect(back.endsAt).toBe(s.endsAt + 60_000);
+  });
+
+  it("takes no answer and no time-up while the clock stands still", () => {
+    const s = pause(begin(start()), now + 2000);
+    expect(wordGameReducer(s, { type: "answer", result: "correct", rng: keepOrder, at: now + 3000 })).toBe(s);
+    expect(wordGameReducer(s, { type: "timeUp", at: s.endsAt + 1 })).toBe(s);
+  });
+
+  it("is not a tap: it ignores the tap guard and leaves the last tap's time alone", () => {
+    const s = begin(start());
+    const paused = pause(s, s.lastActionAt + 10);
+    expect(paused.lastActionAt).toBe(s.lastActionAt);
+    expect(resume(paused, s.lastActionAt + 20).lastActionAt).toBe(s.lastActionAt);
+  });
+
+  it("ignores a second pause, a resume without a pause and both outside a turn", () => {
+    const s = begin(start());
+    const paused = pause(s, now + 1000);
+    expect(pause(paused, now + 5000)).toBe(paused);
+    expect(resume(s, now + 5000)).toBe(s);
+    const handoff = start();
+    expect(pause(handoff, now + 1000)).toBe(handoff);
+  });
+});
+
 describe("wordGameReducer turn order and end of the game", () => {
   it("alternates the teams from team 1 and rotates each team's describer in list order", () => {
     let s = start(setupWith({ teams: teams(["Ann", "Bob", "Eve"], ["Cem", "Dan"]), rounds: 3 }), MANY);
