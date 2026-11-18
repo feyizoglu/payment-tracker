@@ -183,6 +183,15 @@ describe("WolfDay", () => {
     expect(text(render(talk))).toContain("1:00");
   });
 
+  it("stands still at the time it stopped while the day's timer is paused", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const s = day({ dayEndsAt: 1_090_000, dayPausedAt: 1_030_000 }, { timerMinutes: 2 });
+    for (const effect of hooks.effects) effect();
+    vi.advanceTimersByTime(120_000);
+    expect(text(render(s))).toContain("1:00");
+  });
+
   it("shows no timer when it is off", () => {
     const tree = render(day());
     expect(text(tree)).not.toMatch(/\d:\d\d/);

@@ -10,8 +10,7 @@
 - Sıradaki oyun adayları: Kim daha olası?, Kim Yazdı?, Aynı Kafa, Kaç Tane?, Doğruluk mu
   cesaret mi, İsim Şehir Hayvan, Kelime Zinciri, Çizip anlat (mobilde çizim için yeni bir APK
   gerekebilir).
-- Bekleyen: oyunlara ses (mobilde yeni bir APK ister); mobilde Anlat Bul, Imposter ve Kurt
-  Gecesi'nin süresi PIN ekranının altında ve uygulama arka plandayken işlemeye devam ediyor.
+- Bekleyen: oyunlara ses (mobilde yeni bir APK ister).
 - Kurt Gecesi'nde sahibin karar vereceği kural soruları: doktorun koruduğu kurbanı cadı
   iyileştirirse iksir harcansın mı; anlatıcı modunda cadı kurbanı zehirleyebilsin mi; anlatıcı
   modunda kurbansız gece olabilsin mi.

@@ -258,18 +258,22 @@ export interface WordGameState {
   passesLeft: number | null;
   /** When the turn's clock runs out, in ms. */
   endsAt: number;
+  /** When the clock stopped because the game went off screen; null while it runs. */
+  pausedAt: number | null;
   /** The deck ran out: the game ends after this turn. */
   outOfWords: boolean;
   /** When the last accepted tap happened, in ms. */
   lastActionAt: number;
 }
 
-/** `at` is the tap's (or, for timeUp, the clock's) timestamp in ms. */
+/** `at` is the tap's (or, for timeUp, pause and resume, the clock's) timestamp in ms. */
 export type WordGameAction =
   | { type: "start"; setup: WordSetup; lang: Lang; words: WordSource; seen: readonly string[]; rng: Rng; at: number }
   | { type: "begin"; at: number }
   | { type: "answer"; result: WordResult; rng: Rng; at: number }
   | { type: "timeUp"; at: number }
+  | { type: "pause"; at: number }
+  | { type: "resume"; at: number }
   | { type: "next"; at: number }
   | { type: "endGame"; at: number }
   | { type: "playAgain"; rng: Rng; at: number }
@@ -290,6 +294,7 @@ export function initialWordState(setup: WordSetup): WordGameState {
     results: [],
     passesLeft: setup.passLimit,
     endsAt: 0,
+    pausedAt: null,
     outOfWords: false,
     lastActionAt: 0,
   };
@@ -397,12 +402,13 @@ export function wordGameReducer(state: WordGameState, action: WordGameAction): W
         results: [],
         passesLeft: state.setup.passLimit,
         endsAt: action.at + state.setup.turnSeconds * 1000,
+        pausedAt: null,
         lastActionAt: action.at,
       };
     }
     case "answer": {
       const { card } = state;
-      if (state.phase !== "play" || !card || tooSoon(state, action.at) || action.at >= state.endsAt) return state;
+      if (state.phase !== "play" || !card || state.pausedAt !== null || tooSoon(state, action.at) || action.at >= state.endsAt) return state;
       const pass = action.result === "pass";
       if (pass && state.passesLeft === 0) return state;
       const scores: [number, number] = [...state.scores];
@@ -427,9 +433,16 @@ export function wordGameReducer(state: WordGameState, action: WordGameAction): W
       if (!nextCard) return { ...answered, phase: "summary", card: null, deck: [], outOfWords: true };
       return { ...answered, card: nextCard, deck: rest, played, seen: markSeen(state.seen, nextCard.id) };
     }
+    // The clock's actions are not taps: no tap guard, and they leave the last tap's time alone.
+    case "pause":
+      if (state.phase !== "play" || state.pausedAt !== null) return state;
+      return { ...state, pausedAt: action.at };
+    case "resume":
+      if (state.phase !== "play" || state.pausedAt === null) return state;
+      return { ...state, endsAt: state.endsAt + Math.max(0, action.at - state.pausedAt), pausedAt: null };
     case "timeUp": {
       // Not tap-guarded: the clock ends the turn even right after a tap.
-      if (state.phase !== "play" || action.at < state.endsAt) return state;
+      if (state.phase !== "play" || state.pausedAt !== null || action.at < state.endsAt) return state;
       const deck = state.card ? [...state.deck, state.card] : state.deck;
       return {
         ...state,

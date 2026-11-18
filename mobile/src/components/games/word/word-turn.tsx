@@ -15,30 +15,38 @@ import {
   type WordMode,
   type WordResult,
 } from "@ptracker/shared/word-game";
+import { useGameOnScreen } from "@/lib/use-game-on-screen";
 
 // The describer's screen. Render it in a GameScreen with `scroll={false}` on the team's
-// colour, mount it with `key` per turn so the clock starts fresh, and pass a stable
-// `onTimeUp`, or the pause before it would restart on every render.
+// colour, mount it with `key` per turn so the clock starts fresh, and pass stable
+// `onTimeUp`, `onPause` and `onResume`, or their effects would run again on every render.
 export function WordTurn({
   card,
   teamName,
   mode,
   endsAt,
+  pausedAt,
   passLimit,
   passesLeft,
   onAnswer,
   onTimeUp,
+  onPause,
+  onResume,
 }: {
   card: WordCard;
   teamName: string;
   mode: WordMode;
   endsAt: number;
+  pausedAt: number | null;
   passLimit: number | null;
   passesLeft: number | null;
   onAnswer: (result: WordResult) => void;
   onTimeUp: () => void;
+  onPause: () => void;
+  onResume: () => void;
 }) {
   const { t } = useLang();
+  const onScreen = useGameOnScreen();
   const [now, setNow] = useState(() => Date.now());
   // Each stage is read out once, however often the effect runs.
   const announced = useRef<"warn" | "over" | null>(null);
@@ -48,7 +56,15 @@ export function WordTurn({
     return () => clearInterval(id);
   }, []);
 
-  const left = remainingSeconds(endsAt, now);
+  useEffect(() => {
+    if (onScreen) onResume();
+    else onPause();
+  }, [onScreen, onPause, onResume]);
+
+  // Back from the background the last tick is old: read the clock again as it starts.
+  useEffect(() => setNow(Date.now()), [pausedAt]);
+
+  const left = remainingSeconds(endsAt, pausedAt ?? now);
   const over = left === 0;
   const warn = left <= WORD_WARN_SECONDS;
 
@@ -61,11 +77,12 @@ export function WordTurn({
     );
   }, [over, warn, t]);
 
+  // Off screen the turn cannot end: the reducer refuses it, so this runs again once it is back.
   useEffect(() => {
-    if (!over) return;
+    if (!over || !onScreen) return;
     const id = setTimeout(onTimeUp, WORD_TIME_UP_MS);
     return () => clearTimeout(id);
-  }, [over, onTimeUp]);
+  }, [over, onScreen, onTimeUp]);
 
   const clock = (
     <Text

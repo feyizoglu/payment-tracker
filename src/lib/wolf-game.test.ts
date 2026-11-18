@@ -870,6 +870,41 @@ describe("night: narrator", () => {
 const toDay = (s: GameState) => step(s, { type: "continue" });
 const voteOut = (s: GameState, target: number | null) => step(step(s, { type: "vote" }), { type: "voteOut", target });
 
+describe("day timer pause", () => {
+  const day = () => toDay(passNight(night1(basic, { timerMinutes: 3 }), { picks: { 1: 4 } }));
+  const at = (s: GameState, type: "pause" | "resume", ms: number) => W.gameReducer(s, { type, at: ms });
+
+  it("moves the end of the day by the time the clock stood still", () => {
+    const s = day();
+    const paused = at(s, "pause", s.lastActionAt + 20_000);
+    expect(paused.dayPausedAt).toBe(s.lastActionAt + 20_000);
+    const back = at(paused, "resume", s.lastActionAt + 80_000);
+    expect(back.dayPausedAt).toBeNull();
+    expect(back.dayEndsAt).toBe(s.dayEndsAt + 60_000);
+  });
+
+  it("is not a tap: it ignores the tap guard and leaves the last tap's time alone", () => {
+    const s = day();
+    const paused = at(s, "pause", s.lastActionAt + 10);
+    expect(paused.dayPausedAt).toBe(s.lastActionAt + 10);
+    expect(paused.lastActionAt).toBe(s.lastActionAt);
+    expect(at(paused, "resume", s.lastActionAt + 20).lastActionAt).toBe(s.lastActionAt);
+  });
+
+  it("ignores a second pause, a resume without a pause and both outside the day", () => {
+    const s = day();
+    const paused = at(s, "pause", s.lastActionAt + 2000);
+    expect(at(paused, "pause", s.lastActionAt + 5000)).toBe(paused);
+    expect(at(s, "resume", s.lastActionAt + 5000)).toBe(s);
+    const night = night1(basic, { timerMinutes: 3 });
+    expect(at(night, "pause", night.lastActionAt + 2000)).toBe(night);
+  });
+
+  it("starts every day with the clock running", () => {
+    expect(day().dayPausedAt).toBeNull();
+  });
+});
+
 describe("morning, day and vote", () => {
   it("goes to the day after the morning, with the timer running from then", () => {
     const s = toDay(passNight(night1(basic, { timerMinutes: 3 }), { picks: { 1: 4 } }));

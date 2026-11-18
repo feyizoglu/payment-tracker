@@ -17,7 +17,8 @@ import { PrimaryButton } from "@/components/ui/primary-button";
 
 // The day: the table talks (with the optional timer), then the phone holder enters the vote.
 // The timer counts to the day's end time in the game state, so leaving for the rules does not
-// restart it. It does not buzz: the game has no sound or vibration.
+// restart it; it stands still while the day is paused (the screen pauses it off screen). It does
+// not buzz: the game has no sound or vibration.
 export function WolfDay({
   state,
   onVote,
@@ -40,6 +41,9 @@ export function WolfDay({
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
   }, [ticking]);
+
+  // Back from the background the last tick is old: read the clock again as it starts.
+  useEffect(() => setNow(Date.now()), [state.dayPausedAt]);
 
   // The clock stands still on the vote screen: read it again, so the talk never shows the old time.
   const backToTalk = () => {
@@ -74,7 +78,7 @@ export function WolfDay({
     );
   }
 
-  const left = remainingSeconds(state.dayEndsAt, now);
+  const left = remainingSeconds(state.dayEndsAt, state.dayPausedAt ?? now);
   const out = names.flatMap((_, seat) => (state.alive[seat] ? [] : [seat]));
 
   return (
