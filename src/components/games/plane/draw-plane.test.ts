@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { newPlaneGame, planeTap, planeX, PLANE_COLORS, PLANE_PENCILS } from "@/lib/paper-plane";
+import { newPlaneGame, planeTap, planeX, PLANE_COLORS, PLANE_PENCILS, PLANE_RULER } from "@/lib/paper-plane";
 import { drawPlaneScene, planeViewport } from "./draw-plane";
 
 function recorder() {
@@ -30,5 +30,16 @@ describe("drawPlaneScene", () => {
     const at = calls.filter((c) => c.name === "translate")[1];
     expect(calls.filter((c) => c.name === "fillRect").slice(1).every((c) => (PLANE_PENCILS as readonly unknown[]).includes(c.fill))).toBe(true);
     expect(at?.args[0]).toBeCloseTo(planeViewport(56, 400, 500).left + planeX(56) * 5);
+  });
+
+  it("draws a ruler obstacle as two ruler bodies without a pencil tip", () => {
+    const s = planeTap(newPlaneGame(56), () => 0.5);
+    const near = { ...s, obstacles: [{ ...s.obstacles[0], x: 30, kind: 1 }] };
+    const { ctx, calls } = recorder();
+    drawPlaneScene(ctx, near, 400, 500, false);
+    const bodies = calls.filter((c) => c.name === "fillRect").slice(1);
+    expect(bodies).toHaveLength(2);
+    expect(bodies.every((c) => c.fill === PLANE_RULER)).toBe(true);
+    expect(calls.some((c) => c.fill === "#f3d9b1")).toBe(false);
   });
 });

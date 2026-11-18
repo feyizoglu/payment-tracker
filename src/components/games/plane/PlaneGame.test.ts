@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRequire } from "node:module";
 import { act, createElement } from "react";
-import type { PlaneState } from "@/lib/paper-plane";
+import { PLANE_COLORS, type PlaneState } from "@/lib/paper-plane";
 
 const host = vi.hoisted(() => {
   const nodes: Array<{ type: string; props: Record<string, unknown> }> = [];
+  const attach = { canvas: null as unknown };
   const keep = (c: unknown): unknown =>
     Array.isArray(c) ? c.map(keep) : typeof c === "string" || typeof c === "number" ? null : c;
-  const Host = ({ __type, ...props }: { __type: string; children?: unknown }) => {
+  const Host = ({ __type, ...props }: { __type: string; children?: unknown; ref?: unknown }) => {
+    if (__type === "canvas" && attach.canvas && props.ref && typeof props.ref === "object") (props.ref as { current: unknown }).current = attach.canvas;
     nodes.push({ type: __type, props });
     return keep(props.children) ?? null;
   };
@@ -15,7 +17,7 @@ const host = vi.hoisted(() => {
     (fn: (...args: unknown[]) => unknown) =>
     (type: unknown, props: Record<string, unknown>, ...rest: unknown[]) =>
       typeof type === "string" ? fn(Host, { ...props, __type: type }, ...rest) : fn(type, props, ...rest);
-  return { nodes, wrap };
+  return { nodes, wrap, attach };
 });
 // Lets a test end the flight with a chosen score instead of flying through real gaps.
 const engine = vi.hoisted(() => ({ endWith: null as null | ((s: PlaneState) => PlaneState) }));
@@ -67,6 +69,7 @@ beforeEach(() => {
   store.clear();
   listeners.clear();
   host.nodes.length = 0;
+  host.attach.canvas = null;
   engine.endWith = null;
   const on = (type: string, fn: (e?: unknown) => void) => listeners.set(type, fn);
   vi.stubGlobal("window", { HTMLIFrameElement: class {}, addEventListener: on, removeEventListener: () => undefined });
@@ -113,6 +116,18 @@ const text = () =>
     .map((n) => String(n.props.children))
     .join(" | ");
 const again = () => lastRender().find((n) => n.type === "button")!;
+function fakeCanvas() {
+  const calls: { name: string; args: unknown[] }[] = [];
+  const state: Record<string | symbol, unknown> = {};
+  const ctx = new Proxy(state, {
+    get: (t, k) => (k in t ? t[k] : (...args: unknown[]) => calls.push({ name: String(k), args })),
+    set: (t, k, v) => {
+      t[k] = v;
+      return true;
+    },
+  });
+  return { canvas: { clientWidth: 300, clientHeight: 600, width: 0, height: 0, getContext: () => ctx }, calls };
+}
 
 describe("PlaneGame", () => {
   it("shows the best score and starts on a tap", async () => {
@@ -169,5 +184,95 @@ describe("PlaneGame", () => {
     store.set("paper-plane-best", "x");
     await mount();
     expect(text()).toContain("Best: 0");
+  });
+  it("starts with a best of 0 when the browser refuses to read storage", async () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("SecurityError");
+      },
+      setItem: () => undefined,
+    });
+    await mount();
+    expect(text()).toContain("Best: 0");
+    await tap();
+    await frame();
+    expect(text()).toBe("0");
+  });
+
+  it("still shows the new best and frees Again when the browser refuses to save", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubGlobal("localStorage", {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("QuotaExceededError");
+      },
+    });
+    await mount();
+    await tap();
+    engine.endWith = (s) => ({ ...s, phase: "over", score: 3 });
+    await frame();
+    expect(text()).toContain("New best!");
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(again().props.disabled).toBe(false);
+  });
+
+  it("sizes the canvas for the screen's pixel ratio", async () => {
+    const { canvas, calls } = fakeCanvas();
+    host.attach.canvas = canvas;
+    (window as unknown as { devicePixelRatio: number }).devicePixelRatio = 2;
+    await mount();
+    expect(canvas.width).toBe(600);
+    expect(canvas.height).toBe(1200);
+    expect(calls.find((c) => c.name === "setTransform")?.args).toEqual([2, 0, 0, 2, 0, 0]);
+  });
+
+  it("fits a fresh game's world to the canvas", async () => {
+    const { canvas, calls } = fakeCanvas();
+    host.attach.canvas = canvas;
+    await mount();
+    expect(calls.filter((c) => c.name === "translate")[1]?.args[0]).toBeCloseTo(90);
+  });
+
+  it("ignores a held Space on the ready page", async () => {
+    await mount();
+    await act(async () => listeners.get("keydown")!({ code: "Space", repeat: true, preventDefault() {} }));
+    expect(text()).toContain("Tap to start");
+  });
+
+  it("ignores keys other than Space on the ready page", async () => {
+    await mount();
+    await act(async () => listeners.get("keydown")!({ code: "Enter", repeat: false, preventDefault() {} }));
+    expect(text()).toContain("Tap to start");
+  });
+
+  it("pauses when the window loses focus", async () => {
+    await mount();
+    await tap();
+    await act(async () => listeners.get("blur")!());
+    expect(text()).toContain("Tap to continue");
+  });
+
+  it("writes its texts in the dark page's ink", async () => {
+    (document as unknown as { documentElement: { classList: { contains: () => boolean } } }).documentElement.classList.contains = () => true;
+    await mount();
+    const ready = lastRender().find((n) => n.type === "div" && String(n.props.className).includes("flex-col"))!;
+    expect((ready.props.style as { color: string }).color).toBe(PLANE_COLORS.dark.score);
+    await tap();
+    const score = lastRender().find((n) => n.type === "p")!;
+    expect((score.props.style as { color: string }).color).toBe(PLANE_COLORS.dark.score);
+  });
+
+  it("guards the Back link for 500 ms after the game ends", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await mount();
+    await tap();
+    engine.endWith = (s) => ({ ...s, phase: "over", score: 0 });
+    await frame();
+    const back = () => lastRender().find((n) => n.type === "a" && n.props.href === "/games")!;
+    expect(back().props["aria-disabled"]).toBe(true);
+    expect(String(back().props.className)).toContain("pointer-events-none");
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(back().props["aria-disabled"]).toBe(false);
+    expect(String(back().props.className)).not.toContain("pointer-events-none");
   });
 });

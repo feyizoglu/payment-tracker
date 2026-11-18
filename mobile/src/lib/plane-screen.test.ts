@@ -9,7 +9,7 @@ const hooks = vi.hoisted(() => ({
   cleanups: new Map<number, () => void>(),
   index: 0,
 }));
-const env = vi.hoisted(() => ({ pinReady: true, onScreen: true, frames: [] as ((t: number) => void)[], now: 0 }));
+const env = vi.hoisted(() => ({ scheme: "light", pinReady: true, onScreen: true, frames: [] as ((t: number) => void)[], now: 0 }));
 const storage = vi.hoisted(() => ({
   getStoredPlaneBest: vi.fn(async () => 5),
   setStoredPlaneBest: vi.fn(async (_n: number) => undefined),
@@ -53,7 +53,7 @@ vi.mock("@ptracker/shared/paper-plane", async (importOriginal) => {
   };
 });
 vi.mock("react-native", () => ({ Pressable: () => null, View: () => null }));
-vi.mock("@/hooks/use-color-scheme", () => ({ useColorScheme: () => "light" }));
+vi.mock("@/hooks/use-color-scheme", () => ({ useColorScheme: () => env.scheme }));
 vi.mock("@ptracker/shared/i18n", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@ptracker/shared/i18n")>()),
   useLang: () => ({ t: new Proxy({}, { get: (_, key) => String(key) }), lang: "en" }),
@@ -82,6 +82,8 @@ import PlaneScreen from "@/app/games/plane";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
 import { GameScreen } from "@/components/games/game-screen";
 import { PlaneOverlay } from "@/components/games/plane/plane-overlay";
+import { PlaneWorld } from "@/components/games/plane/plane-world";
+import { PLANE_COLORS } from "@ptracker/shared/paper-plane";
 
 type Props = Record<string, unknown> & { children?: unknown };
 type Node = ReactElement<Props>;
@@ -152,6 +154,7 @@ async function tap() {
 }
 
 beforeEach(() => {
+  env.scheme = "light";
   env.pinReady = true;
   env.onScreen = true;
   env.frames.length = 0;
@@ -240,5 +243,19 @@ describe("PlaneScreen", () => {
     await frames(2);
     expect(overlay()).toMatchObject({ phase: "over", score: 9, best: 9, newBest: true });
     expect(storage.setStoredPlaneBest).toHaveBeenCalledWith(9);
+  });
+
+  it("draws the page and its texts in the dark palette when the phone is dark", async () => {
+    env.scheme = "dark";
+    await settle();
+    props(Pressable).onLayout({ nativeEvent: { layout: { width: 300, height: 600 } } });
+    await settle();
+    expect(overlay().ink).toBe(PLANE_COLORS.dark.score);
+    expect(props(PlaneWorld).dark).toBe(true);
+  });
+
+  it("draws the texts in the light palette when the phone is light", async () => {
+    await settle();
+    expect(overlay().ink).toBe(PLANE_COLORS.light.score);
   });
 });
