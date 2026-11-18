@@ -81,6 +81,15 @@ describe("useConfirmLeave", () => {
     mount(true);
     expect(s.back).toBeUndefined();
   });
+
+  it("stops catching back when the game ends, focus moves away or the screen goes", () => {
+    s.effects = [];
+    useConfirmLeave(true);
+    const cleanups = s.effects.map((effect) => effect()).filter((c): c is () => void => typeof c === "function");
+    expect(s.remove).not.toHaveBeenCalled();
+    for (const cleanup of cleanups) cleanup();
+    expect(s.remove).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("leaveGameScreen", () => {
