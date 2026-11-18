@@ -45,7 +45,7 @@ export default function PotatoScreen() {
     });
   }, [nameLocale]);
 
-  // Back asks first once the game has started; the round itself is played without back or exit.
+  // Back asks first once the game has started; the round itself has no back or exit in the header.
   const inProgress = state.phase !== "setup" && state.phase !== "end";
   useConfirmLeave(inProgress);
 

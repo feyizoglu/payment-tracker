@@ -4,7 +4,7 @@ import { Alert, BackHandler } from "react-native";
 
 import { useLang, type Translations } from "@ptracker/shared/i18n";
 import { useAppLock } from "@/lib/app-lock-context";
-import { setGameDialogOpen } from "@/lib/game-dialog";
+import { isGameDialogOpen, setGameDialogOpen } from "@/lib/game-dialog";
 
 // Leaves a game screen the way its header back does. In game mode the games list is the root,
 // so with no history it goes there instead of to Payments.
@@ -15,6 +15,9 @@ export function leaveGameScreen(gameMode: boolean) {
 
 // Leaving a game in progress throws it away: ask first. The game clocks stand still while it asks.
 export function askToLeave(t: Translations, onLeave: () => void) {
+  // A second back press before the first question takes focus would stack a second one, and
+  // closing the first would start the clocks under it.
+  if (isGameDialogOpen()) return;
   const close = () => setGameDialogOpen(false);
   setGameDialogOpen(true);
   Alert.alert(
@@ -43,6 +46,9 @@ export function useConfirmLeave(active: boolean) {
   const { lock } = useAppLock();
   const focused = useIsFocused();
   const gameMode = lock.gameMode;
+
+  // A question left open when the game screen goes away would keep every game clock still.
+  useEffect(() => () => setGameDialogOpen(false), []);
 
   useEffect(() => {
     if (!active || !focused) return;

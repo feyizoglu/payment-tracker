@@ -69,7 +69,7 @@ export default function WordScreen() {
     if (state.lang === lang) setSeen(state.seen);
   }, [phase, words, state.lang, state.seen, lang]);
 
-  // Back asks first once the game has started; the turn itself is played without back or exit.
+  // Back asks first once the game has started; the turn itself has no back or exit in the header.
   const inProgress = state.phase !== "setup" && state.phase !== "end";
   useConfirmLeave(inProgress);
 

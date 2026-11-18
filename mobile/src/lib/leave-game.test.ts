@@ -119,3 +119,23 @@ describe("askToLeave", () => {
     expect(isGameDialogOpen()).toBe(false);
   });
 });
+
+describe("leave question guards", () => {
+  const t = { gameLeaveTitle: "TITLE", gameLeaveBody: "BODY", gameLeaveConfirm: "LEAVE", cancel: "CANCEL" } as never;
+
+  it("asks only once when back is pressed again before the first question is answered", () => {
+    askToLeave(t, vi.fn());
+    askToLeave(t, vi.fn());
+    expect(s.alert).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the clocks run again when the game screen goes away with the question still open", () => {
+    s.effects = [];
+    useConfirmLeave(true);
+    const cleanups = s.effects.map((effect) => effect()).filter((c): c is () => void => typeof c === "function");
+    askToLeave(t, vi.fn());
+    expect(isGameDialogOpen()).toBe(true);
+    for (const cleanup of cleanups) cleanup();
+    expect(isGameDialogOpen()).toBe(false);
+  });
+});
