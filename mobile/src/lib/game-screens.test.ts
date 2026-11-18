@@ -63,7 +63,7 @@ function text(node: unknown): string {
   return text((node as Node).props.children);
 }
 
-function pressable(label: string, props: { confirmBack?: boolean } = {}) {
+function pressable(label: string, props: { confirmBack?: boolean; onBack?: () => void } = {}) {
   const tree = GameScreen({ title: "Game", children: null, ...props }) as Node;
   return nodes(tree).find((n) => n.type === Pressable && text(n).includes(label));
 }
@@ -129,6 +129,18 @@ describe("GameScreen back during a game", () => {
     const buttons = s.alert.mock.calls[0][2] as { onPress?: () => void }[];
     buttons[1].onPress!();
     expect(router.back).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("GameScreen own back", () => {
+  it("hands the header back to the screen when it has its own", () => {
+    s.path = "/games/wolf";
+    s.canGoBack = true;
+    const onBack = vi.fn();
+    (pressable("BACK", { confirmBack: true, onBack })!.props.onPress as () => void)();
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(s.alert).not.toHaveBeenCalled();
+    expect(router.back).not.toHaveBeenCalled();
   });
 });
 

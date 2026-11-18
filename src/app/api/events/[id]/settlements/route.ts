@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SETTLEMENT_ABOVE_DEBT_ERROR } from "@/lib/event-errors";
 import { insertSettlement, listParticipants, SettlementExceedsDebt } from "@/lib/events-repo";
 import { eventClosed, isCurrency, jsonError, parseAmountMinor, readJson, withParticipant } from "@/lib/events-api";
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
       return NextResponse.json(created, { status: 201 });
     } catch (e) {
-      if (e instanceof SettlementExceedsDebt) return jsonError(409, "Amount is more than the current debt");
+      if (e instanceof SettlementExceedsDebt) return jsonError(409, SETTLEMENT_ABOVE_DEBT_ERROR);
       throw e;
     }
   });

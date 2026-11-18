@@ -6,6 +6,7 @@ import { Plus, X } from "lucide-react";
 import type { EventDetail, Team } from "@/types";
 import { canRemoveParticipant, participantLabel } from "@/lib/split";
 import { useLang } from "@/lib/i18n";
+import { eventErrorText } from "@/lib/event-errors";
 
 type AddBody = { user_id: string } | { email: string } | { display_name: string };
 
@@ -65,7 +66,7 @@ export default function Participants({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setError(typeof data?.error === "string" ? data.error : t.updateFailed);
+        setError(eventErrorText(data?.error, t) ?? (typeof data?.error === "string" ? data.error : t.updateFailed));
         return;
       }
       reset();
@@ -83,13 +84,11 @@ export default function Participants({
     setError(null);
     try {
       const res = await fetch(`/api/events/${event.id}/participants/${pid}`, { method: "DELETE" });
-      if (res.status === 409) {
-        setError(t.cannotRemoveParticipant);
-        return;
-      }
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setError(typeof data?.error === "string" ? data.error : t.updateFailed);
+        const known = eventErrorText(data?.error, t);
+        if (res.status === 409) setError(known ?? t.cannotRemoveParticipant);
+        else setError(known ?? (typeof data?.error === "string" ? data.error : t.updateFailed));
         return;
       }
       // Leaving drops this user's access, so the event can no longer be shown.

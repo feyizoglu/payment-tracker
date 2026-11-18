@@ -8,6 +8,7 @@ import { parseISO } from "date-fns";
 import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
 import type { EventDetail, EventExpense } from "@/types";
 import { useLang } from "@/lib/i18n";
+import { responseErrorText } from "@/lib/api-error";
 import { formatMinor, participantLabel } from "@/lib/split";
 import EventsHeader from "@/components/events/EventsHeader";
 import Participants from "@/components/events/Participants";
@@ -25,11 +26,6 @@ async function fetchEvent(id: string): Promise<LoadResult> {
   } catch {
     return { kind: "error" };
   }
-}
-
-async function errorText(res: Response, fallback: string): Promise<string> {
-  const data = await res.json().catch(() => null);
-  return typeof data?.error === "string" ? data.error : fallback;
 }
 
 export default function EventPage() {
@@ -65,7 +61,7 @@ export default function EventPage() {
         body: JSON.stringify({ status: next }),
       });
       if (!res.ok) {
-        setActionError(await errorText(res, t.updateFailed));
+        setActionError(await responseErrorText(res, t, t.updateFailed));
         return;
       }
       setEditing(null);
@@ -81,7 +77,7 @@ export default function EventPage() {
     try {
       const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        setActionError(await errorText(res, t.updateFailed));
+        setActionError(await responseErrorText(res, t, t.updateFailed));
         return;
       }
       router.push("/events");
@@ -96,7 +92,7 @@ export default function EventPage() {
     try {
       const res = await fetch(`/api/events/${id}/expenses/${expense.id}`, { method: "DELETE" });
       if (!res.ok) {
-        setActionError(await errorText(res, t.updateFailed));
+        setActionError(await responseErrorText(res, t, t.updateFailed));
         return;
       }
       load();

@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { createClient } from "@supabase/supabase-js";
+import { normalizeEmail } from "@/lib/email";
 
 const getSupabase = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,7 +22,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Upsert user into our users table
       const { data, error } = await supabase.from("users").upsert(
         {
-          email: user.email.toLowerCase(),
+          email: normalizeEmail(user.email),
           name: user.name,
           avatar_url: user.image,
         },
@@ -40,7 +41,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const { data, error } = await supabase
           .from("users")
           .select("id")
-          .eq("email", session.user.email.toLowerCase())
+          .eq("email", normalizeEmail(session.user.email))
           .single();
         if (error) {
           console.error("session user lookup error:", error);

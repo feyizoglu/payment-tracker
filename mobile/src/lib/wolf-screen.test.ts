@@ -444,13 +444,32 @@ describe("Wolf Night screen: turns", () => {
 });
 
 describe("Wolf Night screen: leaving the game", () => {
-  it("asks before leaving once the game starts, and hides back and exit from the deal on", async () => {
+  it("asks before leaving once cards are dealt, and hides back and exit from the deal on", async () => {
     await load(valid);
     expect([screen().confirmBack, screen().nav, leave.active]).toEqual([false, true, false]);
     await start();
-    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, true, true]);
+    // This game, before the deal: nothing to lose yet.
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([false, true, false]);
     call(WolfThisGame, "onDeal");
     expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, true]);
+  });
+
+  it("takes the header back on This game to the setup too", async () => {
+    await start();
+    (screen().onBack as () => void)();
+    expect(has(WolfSetupWizard)).toBe(true);
+    call(WolfSetupWizard, "onStart");
+    call(WolfThisGame, "onDeal");
+    expect(screen().onBack).toBeUndefined();
+  });
+
+  it("goes back to the setup when back is pressed on This game before the deal", async () => {
+    await start();
+    render();
+    for (const effect of hooks.effects) effect();
+    expect(onScreen.back.at(-1)!()).toBe(true);
+    expect(has(WolfSetupWizard)).toBe(true);
+    expect(has(WolfThisGame)).toBe(false);
   });
 });
 

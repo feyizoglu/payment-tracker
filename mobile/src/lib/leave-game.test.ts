@@ -117,9 +117,11 @@ describe("askToLeave", () => {
     expect(onLeave).not.toHaveBeenCalled();
 
     s.alert.mockClear();
-    askToLeave(t, onLeave);
+    // The game leaves while the clocks are still stopped, then the question closes.
+    const openWhenLeaving: boolean[] = [];
+    askToLeave(t, () => openWhenLeaving.push(isGameDialogOpen()));
     buttons()[1].onPress!();
-    expect([isGameDialogOpen(), onLeave.mock.calls.length]).toEqual([false, 1]);
+    expect([isGameDialogOpen(), openWhenLeaving]).toEqual([false, [true]]);
 
     s.alert.mockClear();
     askToLeave(t, onLeave);
@@ -145,6 +147,17 @@ describe("leave question guards", () => {
     askToLeave(t, vi.fn());
     expect(isGameDialogOpen()).toBe(true);
     for (const cleanup of cleanups) cleanup();
+    expect(isGameDialogOpen()).toBe(false);
+  });
+});
+
+describe("leaving that fails", () => {
+  it("still lets the clocks run again when leaving throws", () => {
+    const t = { gameLeaveTitle: "TITLE", gameLeaveBody: "BODY", gameLeaveConfirm: "LEAVE", cancel: "CANCEL" } as never;
+    askToLeave(t, () => {
+      throw new Error("navigation failed");
+    });
+    expect(() => buttons()[1].onPress!()).toThrow("navigation failed");
     expect(isGameDialogOpen()).toBe(false);
   });
 });

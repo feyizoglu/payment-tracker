@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { normalizeEmail } from "@/lib/email";
 import type {
   EventDetail,
   EventExpense,
@@ -18,6 +19,8 @@ function fail(context: string, error: { message: string }): never {
 }
 
 const PARTICIPANT_COLUMNS = "id, event_id, user_id, display_name, created_at, user:users(id, name, email, color)";
+// An expense with its shares, the same for the event page and the event list, so both compute the same balance.
+const EXPENSE_COLUMNS = "*, shares:event_expense_shares(participant_id, amount_minor)";
 
 // The caller's own participant row in an event, or null when they are not in it.
 export async function findMyParticipant(db: Db, eventId: string, userId: string): Promise<{ id: string } | null> {
@@ -55,7 +58,7 @@ export async function loadEventDetail(db: Db, eventId: string, preloaded?: Split
     listParticipants(db, eventId),
     db
       .from("event_expenses")
-      .select("*, shares:event_expense_shares(participant_id, amount_minor)")
+      .select(EXPENSE_COLUMNS)
       .eq("event_id", eventId)
       .order("spent_on", { ascending: false })
       .order("created_at", { ascending: false }),
@@ -83,7 +86,7 @@ export async function loadMyEvents(db: Db, userId: string): Promise<MyEventRows[
   if (ids.length === 0) return [];
   const [events, expenses, settlements] = await Promise.all([
     db.from("events").select("*").in("id", ids),
-    db.from("event_expenses").select("*, shares:event_expense_shares(participant_id, amount_minor)").in("event_id", ids),
+    db.from("event_expenses").select(EXPENSE_COLUMNS).in("event_id", ids),
     db.from("event_settlements").select("*").in("event_id", ids),
   ]);
   if (events.error) fail("loadMyEvents events", events.error);
@@ -91,7 +94,11 @@ export async function loadMyEvents(db: Db, userId: string): Promise<MyEventRows[
   if (settlements.error) fail("loadMyEvents settlements", settlements.error);
   const byEvent = <T extends { event_id: string }>(rows: T[] | null) => {
     const out = new Map<string, T[]>();
-    for (const r of rows ?? []) out.set(r.event_id, [...(out.get(r.event_id) ?? []), r]);
+    for (const r of rows ?? []) {
+      const list = out.get(r.event_id);
+      if (list) list.push(r);
+      else out.set(r.event_id, [r]);
+    }
     return out;
   };
   const expensesByEvent = byEvent<EventExpense>(expenses.data);
@@ -135,7 +142,7 @@ export async function deleteEvent(db: Db, eventId: string): Promise<void> {
 }
 
 export async function findUserByEmail(db: Db, email: string): Promise<{ id: string } | null> {
-  const { data, error } = await db.from("users").select("id").eq("email", email.toLowerCase()).maybeSingle();
+  const { data, error } = await db.from("users").select("id").eq("email", normalizeEmail(email)).maybeSingle();
   if (error) fail("findUserByEmail", error);
   return data;
 }

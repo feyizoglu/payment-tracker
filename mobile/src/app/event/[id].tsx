@@ -4,6 +4,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { EventDetail, EventExpense } from "@ptracker/shared/types";
 import { localeFor, useLang } from "@ptracker/shared/i18n";
+import { eventErrorText } from "@ptracker/shared/event-errors";
 import { formatMinor, participantLabel } from "@ptracker/shared/split";
 import { Participants } from "@/components/events/participants";
 import { SettleUp } from "@/components/events/settle-up";
@@ -68,7 +69,7 @@ export default function EventScreen() {
       await api.patch(`/api/events/${id}`, { status: next });
       await load();
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : t.updateFailed);
+      setActionError(e instanceof Error ? (eventErrorText(e.message, t) ?? e.message) : t.updateFailed);
       if (e instanceof ApiError && e.status === 409) await load();
     } finally {
       setBusy(false);
@@ -90,7 +91,7 @@ export default function EventScreen() {
       await api.del(`/api/events/${id}`);
       router.back();
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : t.updateFailed);
+      setActionError(e instanceof Error ? (eventErrorText(e.message, t) ?? e.message) : t.updateFailed);
       if (e instanceof ApiError && e.status === 409) await load();
       setBusy(false);
     }
@@ -111,7 +112,7 @@ export default function EventScreen() {
       await api.del(`/api/events/${id}/expenses/${expense.id}`);
       await load();
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : t.updateFailed);
+      setActionError(e instanceof Error ? (eventErrorText(e.message, t) ?? e.message) : t.updateFailed);
       if (e instanceof ApiError && e.status === 409) await load();
     } finally {
       setBusy(false);

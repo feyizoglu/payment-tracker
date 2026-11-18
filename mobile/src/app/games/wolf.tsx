@@ -54,21 +54,30 @@ export default function WolfScreen() {
     });
   }, []);
 
-  // Back asks first once the game has started; from the deal on there is no back or exit in the header.
-  const inProgress = state.phase !== "setup" && state.phase !== "end";
-  const playing = inProgress && state.phase !== "rules";
+  // Back asks first once cards are dealt, and from then on there is no back or exit in the
+  // header. Before the deal, back on This game goes back to the setup, as its own back does.
+  const inProgress = state.phase !== "setup" && state.phase !== "rules" && state.phase !== "end";
   useConfirmLeave(inProgress && !rulesOpen);
 
-  // Back closes the rules over the game, as their own Close does.
+  // Back closes the rules over the game, as their own Close does; before the deal, both backs
+  // go to the setup, as This game's own back does.
   const focused = useIsFocused();
+  const preDeal = state.phase === "rules";
+  const backToSetup = () => {
+    setDraft(state.setup);
+    dispatch({ type: "newGame", at: Date.now() });
+  };
   useEffect(() => {
-    if (!rulesOpen || !focused) return;
+    if ((!rulesOpen && !preDeal) || !focused) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      setRulesOpen(false);
+      if (rulesOpen) setRulesOpen(false);
+      else backToSetup();
       return true;
     });
     return () => sub.remove();
-  }, [rulesOpen, focused]);
+    // backToSetup reads only state.setup, which is in the list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rulesOpen, preDeal, focused, state.setup]);
 
   if (!pinReady) return <GamesPinSetup title={t.wolfTitle} />;
 
@@ -79,10 +88,7 @@ export default function WolfScreen() {
   const pick = (target: number | null) => dispatch({ type: "choose", target, at: Date.now() });
   const heal = () => dispatch({ type: "heal", at: Date.now() });
   const openRules = () => setRulesOpen(true);
-  const newGame = () => {
-    setDraft(setup);
-    dispatch({ type: "newGame", at: Date.now() });
-  };
+  const newGame = backToSetup;
 
   let body: React.ReactNode = null;
   // A screen that belongs to one player takes that player's colour.
@@ -194,8 +200,9 @@ export default function WolfScreen() {
       tone="game"
       color={color}
       scroll={!held}
-      nav={!playing}
-      confirmBack={inProgress}>
+      nav={!inProgress}
+      confirmBack={inProgress}
+      onBack={preDeal ? backToSetup : undefined}>
       {body}
     </GameScreen>
   );

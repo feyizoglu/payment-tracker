@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { verifyGoogleIdToken, signAppToken } from "@/lib/mobile-auth";
+import { normalizeEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
     .from("users")
     .upsert(
       {
-        email: profile.email.toLowerCase(),
+        email: normalizeEmail(profile.email),
         name: profile.name,
         avatar_url: profile.picture,
       },

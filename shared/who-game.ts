@@ -240,14 +240,14 @@ function nameKey(name: string, locale: string): string {
 // Building a pool runs thousands of locale-aware lowercasings and normalisations, which are
 // slow on the phone, and the screens ask for the same pool several times while it opens.
 // Pools are never changed after they are built, so each choice is built once per sources.
-const POOLS = new WeakMap<WhoSources, Map<string, WhoPlayCard[]>>();
+const POOLS = new WeakMap<WhoSources, Map<string, readonly WhoPlayCard[]>>();
 
-/** Every card the setup's kinds, region and level allow, in `lang`, each name once. Shared: do not change it. */
+/** Every card the setup's kinds, region and level allow, in `lang`, each name once. Shared, so read-only. */
 export function whoPool(
   choice: Pick<WhoSetup, "kinds" | "region" | "level">,
   sources: WhoSources,
   lang: Lang
-): WhoPlayCard[] {
+): readonly WhoPlayCard[] {
   const key = [lang, [...choice.kinds].sort().join(","), choice.region, choice.level].join("|");
   let pools = POOLS.get(sources);
   if (!pools) POOLS.set(sources, (pools = new Map()));
@@ -321,7 +321,7 @@ export interface WhoState {
   /** The cards' language, fixed when the game starts. */
   lang: Lang;
   /** The game's cards, fixed at start; empty before it. */
-  pool: WhoPlayCard[];
+  pool: readonly WhoPlayCard[];
   deck: WhoPlayCard[];
   /** The card on screen during a turn. */
   card: WhoPlayCard | null;
@@ -501,7 +501,7 @@ function trimSetup(setup: WhoSetup): WhoSetup {
 function deal(
   setup: WhoSetup,
   lang: Lang,
-  pool: WhoPlayCard[],
+  pool: readonly WhoPlayCard[],
   seen: readonly string[],
   guessers: [number, number],
   rng: Rng,

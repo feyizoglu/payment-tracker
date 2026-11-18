@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { EventDetail } from "@/types";
 import { balances, formatMinor, parseDecimalToMinor, participantLabel, suggestTransfers, type Transfer } from "@/lib/split";
 import { useLang } from "@/lib/i18n";
+import { eventErrorText } from "@/lib/event-errors";
 
 export default function SettleUp({
   event,
@@ -28,7 +29,7 @@ export default function SettleUp({
 
   async function failed(res: Response) {
     const data = await res.json().catch(() => null);
-    setError(typeof data?.error === "string" ? data.error : t.updateFailed);
+    setError(eventErrorText(data?.error, t) ?? (typeof data?.error === "string" ? data.error : t.updateFailed));
   }
 
   async function record(tr: Transfer) {

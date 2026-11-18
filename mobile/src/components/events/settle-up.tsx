@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import type { EventDetail } from "@ptracker/shared/types";
 import { localeFor, useLang } from "@ptracker/shared/i18n";
+import { eventErrorText } from "@ptracker/shared/event-errors";
 import {
   balances,
   formatMinor,
@@ -64,7 +65,7 @@ export function SettleUp({
       });
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t.updateFailed);
+      setError(e instanceof Error ? (eventErrorText(e.message, t) ?? e.message) : t.updateFailed);
       if (e instanceof ApiError && e.status === 409) onChanged();
     } finally {
       setBusy(null);
@@ -87,7 +88,7 @@ export function SettleUp({
       await api.del(`/api/events/${event.id}/settlements/${id}`);
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t.updateFailed);
+      setError(e instanceof Error ? (eventErrorText(e.message, t) ?? e.message) : t.updateFailed);
       if (e instanceof ApiError && e.status === 409) onChanged();
     } finally {
       setBusy(null);

@@ -7,13 +7,13 @@ Three open review advisories from PR #3: a settlement can exceed the current deb
 **Problem:** `GET /api/events` (`src/app/api/events/route.ts:17`) calls `loadEventDetail` once per event. That is about four queries for each event the user is in.
 
 **Change:**
-- Add `loadEventSummaries(db, userId)` to `src/lib/events-repo.ts`. It makes four queries in total, whatever the number of events:
+- Add `loadMyEvents(db, userId)` to `src/lib/events-repo.ts`; it returns each event's rows and the route computes `my_balance`. It makes four queries in total, whatever the number of events:
   1. `event_participants` with `id, event_id` for the user. This gives the user's participant id per event, so no participant or user join is needed.
   2. `events` with `.in("id", ids)`.
   3. `event_expenses` with shares, using `.in("event_id", ids)`.
   4. `event_settlements` with `.in("event_id", ids)`.
 - Return early with `[]` when `ids` is empty.
-- Group rows by `event_id` and compute `my_balance` with the existing `balances()`.
+- Group rows by `event_id`; the route computes `my_balance` with the existing `balances()`.
 - Keep the response shape and the `created_at` sort. `loadEventDetail` stays for the detail route.
 
 **Tests first:**

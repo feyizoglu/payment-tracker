@@ -113,9 +113,9 @@ describe("SettleUp Paid", () => {
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the server's message and refreshes the stale suggestion when the debt was already paid", async () => {
+  it("says the debt was already paid in the user's language and refreshes the stale suggestion", async () => {
     const { onChanged } = await renderAndPay({ status: 409, body: { error: "Amount is more than the current debt" } });
-    expect(errorText()?.props.children).toBe("Amount is more than the current debt");
+    expect(errorText()?.props.children).toBe("This amount is more than the current debt");
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
