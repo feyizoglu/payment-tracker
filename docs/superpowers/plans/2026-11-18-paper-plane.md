@@ -14,6 +14,12 @@
 - Ruled lines are horizontal, so they cannot show the speed; a red margin line that repeats every 120 units of flight does.
 - Up to 4 obstacles are kept: the ones on screen plus one waiting off screen at the right.
 
+**Changed while executing:** the reachability test runs on the worst layout (gaps alternating
+from one end to the other) and one seeded layout per width, up to 45 points, in about 6 s; with
+random seeds it took 84 s and did not catch a 70-unit gap step, the worst layout does. Mobile
+also registers `games/plane` in `mobile/src/app/_layout.tsx`. The web overlay takes the page's
+`ink` colour, because the app's gray classes flip in the dark theme.
+
 **Commands:**
 - Web tests: `npx --no-install vitest run <file>` from the repo root.
 - Mobile tests: `cd mobile && npx --no-install vitest run <file>` (only `mobile/src/lib/**/*.test.ts` is collected).

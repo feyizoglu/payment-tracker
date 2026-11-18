@@ -5,8 +5,8 @@
 ## Oyunlar bölümü
 
 - Oyunlar bölümü yayında (web `/games`, mobilde Ödemeler başlığındaki ikon) ve oyunlar
-  internetsiz oynanabiliyor: Imposter, Anlat Bul, Kurt Gecesi, Sıcak Patates, Ben Kimim?, Ölçek
-  ve Tek İpucu.
+  internetsiz oynanabiliyor: Imposter, Anlat Bul, Kurt Gecesi, Sıcak Patates, Ben Kimim?, Ölçek,
+  Tek İpucu ve tek kişilik Kağıt Uçak.
 - Sıradaki oyun adayları: Kim daha olası?, Kim Yazdı?, Aynı Kafa, Kaç Tane?, Doğruluk mu
   cesaret mi, İsim Şehir Hayvan, Kelime Zinciri, Çizip anlat (mobilde çizim için yeni bir APK
   gerekebilir).

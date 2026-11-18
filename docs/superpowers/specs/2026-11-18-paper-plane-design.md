@@ -109,8 +109,8 @@ anything that is not a non-negative integer.
   clamping and sub-steps (a 1/30 s frame cannot skip through a 9-unit obstacle), scoring once per
   obstacle, edge and obstacle collisions with the forgiving hitbox, the difficulty curve and its
   cap at 40, gap centres within bounds and the 30-unit step, and a reachability search over flap /
-  no-flap choices every 1/30 s that finds a way to 60 points on 10 seeds at widths 45 and 80
-  (every layout is flyable).
+  no-flap choices every 1/30 s that finds a way past the speed cap (45 points) at widths 45 and
+  80, on the worst layout (every gap as far from the last as allowed) and on a seeded one.
 - Web page: Ready → Flying → Game over with a fake clock, Space flaps, the best score saved and
   shown, the 500 ms tap guard.
 - Mobile: the screen with the existing hook-mock harness: pause on `useGameOnScreen` false and
