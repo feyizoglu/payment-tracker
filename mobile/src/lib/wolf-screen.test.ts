@@ -15,6 +15,7 @@ const entry = vi.hoisted(() => ({ pinReady: true }));
 const onScreen = vi.hoisted(() => ({
   focused: true,
   appState: undefined as undefined | ((next: string) => void),
+  back: [] as (() => boolean)[],
 }));
 
 vi.mock("react", async (importOriginal) => {
@@ -47,6 +48,12 @@ vi.mock("react-native", () => ({
   Pressable: () => null,
   Text: () => null,
   View: () => null,
+  BackHandler: {
+    addEventListener: (_: string, fn: () => boolean) => {
+      onScreen.back.push(fn);
+      return { remove: () => onScreen.back.splice(onScreen.back.indexOf(fn), 1) };
+    },
+  },
   AppState: {
     currentState: "active",
     addEventListener: (_: string, fn: (next: string) => void) => {
@@ -163,6 +170,7 @@ beforeEach(() => {
   entry.pinReady = true;
   onScreen.focused = true;
   onScreen.appState = undefined;
+  onScreen.back = [];
   let clock = 1_800_000_000_000;
   vi.spyOn(Date, "now").mockImplementation(() => (clock += 1000));
   vi.spyOn(Math, "random").mockReturnValue(0);
@@ -204,6 +212,8 @@ describe("Wolf Night screen: day timer", () => {
     await toDay(2);
     call(WolfDay, "onRules");
     expect(find(WolfDay)).toBeUndefined();
+    // The rules over the day hold back for themselves: the leave question waits until they close.
+    expect(leave.active).toBe(false);
     onScreen.appState!("background");
     effects();
     expect((hooks.states.find((s) => (s as GameState)?.phase === "day") as GameState).dayPausedAt).not.toBeNull();
@@ -441,5 +451,22 @@ describe("Wolf Night screen: leaving the game", () => {
     expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, true, true]);
     call(WolfThisGame, "onDeal");
     expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, true]);
+  });
+});
+
+describe("Wolf Night screen: back over the rules", () => {
+  it("closes the rules opened over the game, and the game asks before leaving again", async () => {
+    await start();
+    call(WolfThisGame, "onDeal");
+    dealAll(5);
+    passNight();
+    call(WolfRemoval, "onContinue");
+    call(WolfDay, "onRules");
+    expect(has(WolfDay)).toBe(false);
+    render();
+    for (const effect of hooks.effects) effect();
+    expect(onScreen.back.at(-1)!()).toBe(true);
+    expect(has(WolfDay)).toBe(true);
+    expect(leave.active).toBe(true);
   });
 });

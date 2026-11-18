@@ -233,10 +233,11 @@ describe("PotatoPlay (mobile)", () => {
     expect(settle()).toBe("resume");
     rn.focused = false;
     expect(settle()).toBe("pause");
+    // Still off screen either way: no resume, and no second pause is needed.
     rn.appState!("background");
-    expect(settle()).toBe("pause");
+    expect(settle()).not.toBe("resume");
     rn.appState!("active");
-    expect(settle()).toBe("pause");
+    expect(settle()).not.toBe("resume");
     rn.focused = true;
     expect(settle()).toBe("resume");
   });
@@ -246,7 +247,7 @@ describe("PotatoPlay (mobile)", () => {
     expect(settle()).toBe("pause");
     rn.appState!("background");
     rn.focused = true;
-    expect(settle()).toBe("pause");
+    expect(settle()).not.toBe("resume");
     rn.appState!("active");
     expect(settle()).toBe("resume");
   });

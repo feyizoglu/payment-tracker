@@ -254,9 +254,10 @@ describe("WhoTurn (mobile)", () => {
     expect(settle()).toBe("resume");
     rn.focused = false;
     expect(settle()).toBe("pause");
+    // Back in focus but the app is in the background: still off screen, so no resume.
     rn.appState!("background");
     rn.focused = true;
-    expect(settle()).toBe("pause");
+    expect(settle()).not.toBe("resume");
     rn.appState!("active");
     expect(settle()).toBe("resume");
   });

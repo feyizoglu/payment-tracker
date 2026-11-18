@@ -1,5 +1,6 @@
+import { useIsFocused } from "expo-router";
 import { useEffect, useReducer, useState } from "react";
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator, BackHandler } from "react-native";
 
 import { useLang } from "@ptracker/shared/i18n";
 import {
@@ -56,7 +57,18 @@ export default function WolfScreen() {
   // Back asks first once the game has started; from the deal on there is no back or exit in the header.
   const inProgress = state.phase !== "setup" && state.phase !== "end";
   const playing = inProgress && state.phase !== "rules";
-  useConfirmLeave(inProgress);
+  useConfirmLeave(inProgress && !rulesOpen);
+
+  // Back closes the rules over the game, as their own Close does.
+  const focused = useIsFocused();
+  useEffect(() => {
+    if (!rulesOpen || !focused) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      setRulesOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [rulesOpen, focused]);
 
   if (!pinReady) return <GamesPinSetup title={t.wolfTitle} />;
 

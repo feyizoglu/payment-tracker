@@ -4,6 +4,7 @@ import { Alert, BackHandler } from "react-native";
 
 import { useLang, type Translations } from "@ptracker/shared/i18n";
 import { useAppLock } from "@/lib/app-lock-context";
+import { setGameDialogOpen } from "@/lib/game-dialog";
 
 // Leaves a game screen the way its header back does. In game mode the games list is the root,
 // so with no history it goes there instead of to Payments.
@@ -12,12 +13,26 @@ export function leaveGameScreen(gameMode: boolean) {
   else router.replace(gameMode ? "/games" : "/");
 }
 
-// Leaving a game in progress throws it away: ask first.
+// Leaving a game in progress throws it away: ask first. The game clocks stand still while it asks.
 export function askToLeave(t: Translations, onLeave: () => void) {
-  Alert.alert(t.gameLeaveTitle, t.gameLeaveBody, [
-    { text: t.cancel, style: "cancel" },
-    { text: t.gameLeaveConfirm, style: "destructive", onPress: onLeave },
-  ]);
+  const close = () => setGameDialogOpen(false);
+  setGameDialogOpen(true);
+  Alert.alert(
+    t.gameLeaveTitle,
+    t.gameLeaveBody,
+    [
+      { text: t.cancel, style: "cancel", onPress: close },
+      {
+        text: t.gameLeaveConfirm,
+        style: "destructive",
+        onPress: () => {
+          close();
+          onLeave();
+        },
+      },
+    ],
+    { cancelable: true, onDismiss: close }
+  );
 }
 
 // While `active`, Android's back button and back gesture ask before leaving the game. Only while

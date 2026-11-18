@@ -33,7 +33,8 @@ vi.mock("@ptracker/shared/i18n", () => ({
 vi.mock("@/lib/app-lock-context", () => ({ useAppLock: () => ({ lock: { gameMode: s.gameMode } }) }));
 
 import { router } from "expo-router";
-import { leaveGameScreen, useConfirmLeave } from "@/lib/leave-game";
+import { isGameDialogOpen, setGameDialogOpen } from "@/lib/game-dialog";
+import { askToLeave, leaveGameScreen, useConfirmLeave } from "@/lib/leave-game";
 
 type Button = { text: string; style?: string; onPress?: () => void };
 
@@ -51,13 +52,14 @@ beforeEach(() => {
   s.gameMode = true;
   s.canGoBack = true;
   s.back = undefined;
+  setGameDialogOpen(false);
 });
 
 describe("useConfirmLeave", () => {
   it("asks before Android's back leaves a game in progress, and stays put", () => {
     mount(true);
     expect(s.back!()).toBe(true);
-    expect(s.alert).toHaveBeenCalledWith("TITLE", "BODY", expect.any(Array));
+    expect(s.alert).toHaveBeenCalledWith("TITLE", "BODY", expect.any(Array), expect.anything());
     expect(buttons().map((b) => [b.text, b.style])).toEqual([
       ["CANCEL", "cancel"],
       ["LEAVE", "destructive"],
@@ -90,5 +92,30 @@ describe("leaveGameScreen", () => {
     expect(router.replace).toHaveBeenLastCalledWith("/games");
     leaveGameScreen(false);
     expect(router.replace).toHaveBeenLastCalledWith("/");
+  });
+});
+
+describe("askToLeave", () => {
+  const t = { gameLeaveTitle: "TITLE", gameLeaveBody: "BODY", gameLeaveConfirm: "LEAVE", cancel: "CANCEL" } as never;
+  const options = () => s.alert.mock.calls[0][3] as { cancelable?: boolean; onDismiss?: () => void };
+
+  it("keeps the game clocks still while it asks, until Cancel, Leave or a tap outside", () => {
+    const onLeave = vi.fn();
+    askToLeave(t, onLeave);
+    expect(isGameDialogOpen()).toBe(true);
+    buttons()[0].onPress!();
+    expect(isGameDialogOpen()).toBe(false);
+    expect(onLeave).not.toHaveBeenCalled();
+
+    s.alert.mockClear();
+    askToLeave(t, onLeave);
+    buttons()[1].onPress!();
+    expect([isGameDialogOpen(), onLeave.mock.calls.length]).toEqual([false, 1]);
+
+    s.alert.mockClear();
+    askToLeave(t, onLeave);
+    expect(options().cancelable).toBe(true);
+    options().onDismiss!();
+    expect(isGameDialogOpen()).toBe(false);
   });
 });

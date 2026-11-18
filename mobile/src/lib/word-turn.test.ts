@@ -66,6 +66,7 @@ vi.mock("@ptracker/shared/i18n", () => ({
 import Animated from "react-native-reanimated";
 import { Pressable, Text } from "react-native";
 import { WordTurn } from "@/components/games/word/word-turn";
+import { setGameDialogOpen } from "@/lib/game-dialog";
 
 type Props = Record<string, unknown> & { children?: unknown };
 type Node = ReactElement<Props>;
@@ -124,6 +125,7 @@ beforeEach(() => {
   hooks.states = [];
   screen.focused = true;
   screen.appState = undefined;
+  setGameDialogOpen(false);
 });
 
 afterEach(() => {
@@ -263,5 +265,25 @@ describe("WordTurn (mobile) pause", () => {
     runEffects();
     vi.advanceTimersByTime(WORD_TIME_UP_MS);
     expect(onTimeUp).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("WordTurn (mobile) under the leave question", () => {
+  it("pauses while the leave question is open and resumes when it closes", () => {
+    render();
+    runEffects();
+    setGameDialogOpen(true);
+    render();
+    runEffects();
+    render();
+    runEffects();
+    expect(onPause).toHaveBeenCalled();
+    onResume.mockClear();
+    setGameDialogOpen(false);
+    render();
+    runEffects();
+    render();
+    runEffects();
+    expect(onResume).toHaveBeenCalled();
   });
 });
