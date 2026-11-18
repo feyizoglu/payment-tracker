@@ -439,3 +439,13 @@ describe("ImposterScreen leaving the game", () => {
     expect([find(GameScreen).props.confirmBack, find(GameScreen).props.nav, leave.active]).toEqual([true, false, true]);
   });
 });
+
+describe("ImposterScreen leaving after the result", () => {
+  it("does not ask before leaving and shows back and exit again once the result is on screen", async () => {
+    await start(valid);
+    dealAll(3);
+    (find(ImposterDiscuss).props.onFinish as () => void)();
+    expect(find(ImposterResult)).toBeDefined();
+    expect([find(GameScreen).props.confirmBack, find(GameScreen).props.nav, leave.active]).toEqual([false, true, false]);
+  });
+});

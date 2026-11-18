@@ -456,3 +456,15 @@ describe("Who Am I? screen: leaving the game", () => {
     expect([screen().nav, leave.active]).toEqual([false, false]);
   });
 });
+
+describe("Who Am I? screen: leaving a finished game", () => {
+  it("does not ask before leaving once the game has ended", async () => {
+    await start();
+    turn(["got"]);
+    call(WhoSummary, "onNext");
+    turn(["got", "got"]);
+    call(WhoSummary, "onNext");
+    expect(has(WhoEnd)).toBe(true);
+    expect([screen().confirmBack, leave.active]).toEqual([false, false]);
+  });
+});

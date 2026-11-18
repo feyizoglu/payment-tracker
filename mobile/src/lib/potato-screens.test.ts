@@ -99,6 +99,7 @@ import { PotatoEnd } from "@/components/games/potato/potato-end";
 import { PotatoPlay } from "@/components/games/potato/potato-play";
 import { PotatoReady } from "@/components/games/potato/potato-ready";
 import { PrimaryButton } from "@/components/ui/primary-button";
+import { setGameDialogOpen } from "@/lib/game-dialog";
 
 type Props = Record<string, unknown> & { children?: unknown };
 type Node = ReactElement<Props>;
@@ -154,6 +155,7 @@ beforeEach(() => {
   rn.currentState = "active";
   rn.focused = true;
   rn.loops = [];
+  setGameDialogOpen(false);
 });
 
 afterEach(() => {
@@ -249,6 +251,14 @@ describe("PotatoPlay (mobile)", () => {
     rn.focused = true;
     expect(settle()).not.toBe("resume");
     rn.appState!("active");
+    expect(settle()).toBe("resume");
+  });
+
+  it("pauses the fuse while the leave question is open and resumes it when it closes", () => {
+    expect(settle()).toBe("resume");
+    setGameDialogOpen(true);
+    expect(settle()).toBe("pause");
+    setGameDialogOpen(false);
     expect(settle()).toBe("resume");
   });
 

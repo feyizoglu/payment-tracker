@@ -298,3 +298,12 @@ describe("WordScreen leaving the game", () => {
     expect([propsOf(GameScreen).confirmBack, propsOf(GameScreen).nav, leave.active]).toEqual([true, false, true]);
   });
 });
+
+describe("WordScreen leaving a finished game", () => {
+  it("does not ask before leaving once the game has ended", async () => {
+    await start();
+    call(WordHandoff, "onEnd");
+    expect(find(WordEnd)).toBeDefined();
+    expect([propsOf(GameScreen).confirmBack, leave.active]).toEqual([false, false]);
+  });
+});

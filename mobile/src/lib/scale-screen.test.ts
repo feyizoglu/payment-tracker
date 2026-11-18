@@ -467,3 +467,12 @@ describe("Scale screen: leaving the game", () => {
     expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, false]);
   });
 });
+
+describe("Scale screen: leaving a finished game", () => {
+  it("does not ask before leaving once the game has ended", async () => {
+    await start();
+    playAll();
+    expect(has(ScaleEnd)).toBe(true);
+    expect([screen().confirmBack, leave.active]).toEqual([false, false]);
+  });
+});

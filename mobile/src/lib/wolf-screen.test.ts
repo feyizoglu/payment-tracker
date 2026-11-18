@@ -470,3 +470,18 @@ describe("Wolf Night screen: back over the rules", () => {
     expect(leave.active).toBe(true);
   });
 });
+
+describe("Wolf Night screen: leaving a finished game", () => {
+  it("does not ask before leaving and shows back and exit again once the village has won", async () => {
+    await start();
+    call(WolfThisGame, "onDeal");
+    dealAll(5);
+    passNight();
+    call(WolfRemoval, "onContinue");
+    call(WolfDay, "onVote");
+    call(WolfDay, "onVoteOut", 4);
+    call(WolfRemoval, "onContinue");
+    expect((find(WolfEnd)!.props.state as GameState).winner).toBe("village");
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([false, true, false]);
+  });
+});

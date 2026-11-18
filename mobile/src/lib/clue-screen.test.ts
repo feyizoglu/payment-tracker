@@ -457,3 +457,16 @@ describe("One Clue screen: leaving the game", () => {
     expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, false]);
   });
 });
+
+describe("One Clue screen: leaving a finished game", () => {
+  it("does not ask before leaving once the deck has ended", async () => {
+    await start();
+    for (let i = 0; i < 8; i++) {
+      await round(["Night", "Sky"]);
+      call(ClueResult, "onNext");
+      await settle();
+    }
+    expect(has(ClueEnd)).toBe(true);
+    expect([screen().confirmBack, leave.active]).toEqual([false, false]);
+  });
+});

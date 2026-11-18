@@ -245,3 +245,24 @@ describe("Hot Potato screen: leaving the game", () => {
     expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, true]);
   });
 });
+
+describe("Hot Potato screen: leaving after the bang and the end", () => {
+  it("keeps back and exit hidden over the bang, and shows them again on the next ready", async () => {
+    await start();
+    call(PotatoReady, "onStart");
+    call(PotatoPlay, "onTick", 10_000);
+    expect(has(PotatoBang)).toBe(true);
+    expect(screen().nav).toBe(false);
+    call(PotatoBang, "onNext", 2000);
+    expect(has(PotatoReady)).toBe(true);
+    expect(screen().nav).toBe(true);
+  });
+
+  it("does not ask before leaving a finished game", async () => {
+    await start();
+    round();
+    round();
+    expect(has(PotatoEnd)).toBe(true);
+    expect([screen().confirmBack, leave.active]).toEqual([false, false]);
+  });
+});
