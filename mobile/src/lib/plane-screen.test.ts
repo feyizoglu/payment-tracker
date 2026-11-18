@@ -262,6 +262,31 @@ describe("PlaneScreen", () => {
     expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
   });
 
+  it("saves a new best even when the player leaves before the stored best is read", async () => {
+    let resolve: (b: number) => void = () => undefined;
+    await settle();
+    storage.getStoredPlaneBest.mockReturnValueOnce(new Promise<number>((r) => (resolve = r)));
+    await tap();
+    engine.endScore = 9;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", best: 9, newBest: true });
+    unmount();
+    resolve(5);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(storage.setStoredPlaneBest).toHaveBeenCalledWith(9);
+  });
+
+  it("keeps the best already read when a read at the end of the game fails", async () => {
+    storage.getStoredPlaneBest.mockResolvedValueOnce(12).mockResolvedValueOnce(0);
+    await settle();
+    await tap();
+    engine.endScore = 9;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", best: 12, newBest: false });
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
+  });
+
   it("draws the page and its texts in the dark palette when the phone is dark", async () => {
     env.scheme = "dark";
     await settle();

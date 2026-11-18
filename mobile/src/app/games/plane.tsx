@@ -34,6 +34,8 @@ export default function PlaneScreen() {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [shown, setShown] = useState({ phase: live.current.phase, score: 0, width: live.current.width });
   const [best, setBest] = useState(0);
+  // The highest best known on this screen, from storage or a game just played.
+  const bestRef = useRef(0);
   const [newBest, setNewBest] = useState(false);
   const [guard, setGuard] = useState(false);
 
@@ -58,7 +60,8 @@ export default function PlaneScreen() {
   useEffect(() => {
     let alive = true;
     void getStoredPlaneBest().then((b) => {
-      if (alive) setBest(b);
+      bestRef.current = Math.max(bestRef.current, b);
+      if (alive) setBest((v) => Math.max(v, b));
     });
     return () => {
       alive = false;
@@ -87,14 +90,18 @@ export default function PlaneScreen() {
     if (shown.phase !== "over") return;
     const score = live.current.score;
     let alive = true;
-    // Compare with what is stored now, not the first read, which may not have landed yet.
+    const known = bestRef.current;
+    setNewBest(score > known);
+    setBest(Math.max(known, score));
+    // Read the stored best again: the first read may not have landed yet. The save runs even if
+    // the player has left the screen by then; only the card waits for the screen.
     void getStoredPlaneBest().then((stored) => {
+      const top = Math.max(stored, bestRef.current);
+      if (score > top) void setStoredPlaneBest(score);
+      bestRef.current = Math.max(top, score);
       if (!alive) return;
-      if (score > stored) {
-        setNewBest(true);
-        void setStoredPlaneBest(score);
-      }
-      setBest(Math.max(stored, score));
+      setNewBest(score > top);
+      setBest(Math.max(top, score));
     });
     setGuard(true);
     const id = setTimeout(() => setGuard(false), PLANE_OVER_GUARD_MS);
