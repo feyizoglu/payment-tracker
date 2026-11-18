@@ -57,6 +57,7 @@ const frames: ((now: number) => void)[] = [];
 let now = 0;
 const store = new Map<string, string>();
 const listeners = new Map<string, (e?: unknown) => void>();
+const observed: { fn: (() => void) | null; options: unknown; disconnected: boolean } = { fn: null, options: null, disconnected: false };
 
 function container() {
   const noop = { addEventListener: () => undefined, removeEventListener: () => undefined };
@@ -81,6 +82,22 @@ beforeEach(() => {
   });
   vi.stubGlobal("requestAnimationFrame", (fn: (t: number) => void) => frames.push(fn));
   vi.stubGlobal("cancelAnimationFrame", () => undefined);
+  observed.fn = null;
+  observed.disconnected = false;
+  vi.stubGlobal(
+    "MutationObserver",
+    class {
+      constructor(fn: () => void) {
+        observed.fn = fn;
+      }
+      observe(_target: unknown, options: unknown) {
+        observed.options = options;
+      }
+      disconnect() {
+        observed.disconnected = true;
+      }
+    }
+  );
   vi.stubGlobal("localStorage", {
     getItem: (k: string) => store.get(k) ?? null,
     setItem: (k: string, v: string) => store.set(k, v),
@@ -285,6 +302,25 @@ describe("PlaneGame", () => {
     await tap();
     const score = lastRender().find((n) => n.type === "p")!;
     expect((score.props.style as { color: string }).color).toBe(PLANE_COLORS.dark.score);
+  });
+
+  it("follows a theme switch made while the page is open", async () => {
+    const { canvas, calls } = fakeCanvas();
+    host.attach.canvas = canvas;
+    let dark = false;
+    (document as unknown as { documentElement: { classList: { contains: () => boolean } } }).documentElement.classList.contains = () => dark;
+    await mount();
+    expect(observed.options).toEqual({ attributes: true, attributeFilter: ["class"] });
+    const ink = () => (lastRender().find((n) => n.type === "div" && String(n.props.className).includes("flex-col"))!.props.style as { color: string }).color;
+    expect(ink()).toBe(PLANE_COLORS.light.score);
+    dark = true;
+    calls.length = 0;
+    await act(async () => observed.fn!());
+    expect(ink()).toBe(PLANE_COLORS.dark.score);
+    expect(calls.find((c) => c.name === "fillRect")).toBeDefined();
+    await act(async () => root?.unmount());
+    root = null;
+    expect(observed.disconnected).toBe(true);
   });
 
   it("guards the Back link for 500 ms after the game ends", async () => {

@@ -75,6 +75,17 @@ export default function PlaneGame() {
     fresh();
   }, [fresh]);
 
+  // The theme can change while the page is open (the header's theme picker, or the system theme).
+  useEffect(() => {
+    const html = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setDark(html.classList.contains("dark"));
+      draw();
+    });
+    observer.observe(html, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, [draw]);
+
   const tap = useCallback(() => {
     const next = planeTap(live.current, Math.random);
     if (next !== live.current) publish(next);
