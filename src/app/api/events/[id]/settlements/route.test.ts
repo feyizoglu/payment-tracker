@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/session", () => ({ getSessionUser: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ supabaseAdmin: vi.fn(() => ({})) }));
-vi.mock("@/lib/events-repo", () => ({
+vi.mock("@/lib/events-repo", async (importOriginal) => ({
+  SettlementExceedsDebt: (await importOriginal<typeof import("@/lib/events-repo")>()).SettlementExceedsDebt,
   findMyParticipant: vi.fn(),
   getEvent: vi.fn(),
   listParticipants: vi.fn(),
@@ -38,6 +39,19 @@ describe("POST settlements", () => {
   it("records a payment between two participants", async () => {
     expect((await POST(post(ok) as never, ctx)).status).toBe(201);
     expect(repo.insertSettlement).toHaveBeenCalledWith({}, EVENT_ID, "u1", ok);
+  });
+
+  it("409s an amount above the current debt", async () => {
+    vi.mocked(repo.insertSettlement).mockRejectedValue(new repo.SettlementExceedsDebt());
+    const res = await POST(post(ok) as never, ctx);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "Amount is more than the current debt" });
+  });
+
+  it("500s when recording the payment fails for another reason", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(repo.insertSettlement).mockRejectedValue(new Error("db down"));
+    expect((await POST(post(ok) as never, ctx)).status).toBe(500);
   });
 
   it("409s on a closed event", async () => {
