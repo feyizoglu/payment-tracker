@@ -77,6 +77,12 @@ vi.mock("@/components/games/word/word-summary", () => ({ WordSummary: () => null
 vi.mock("@/components/games/word/word-end", () => ({ WordEnd: () => null }));
 vi.mock("@/lib/word-game-storage", () => storage);
 
+const leave = vi.hoisted(() => ({ active: undefined as boolean | undefined }));
+vi.mock("@/lib/leave-game", () => ({
+  useConfirmLeave: (active: boolean) => {
+    leave.active = active;
+  },
+}));
 import { ActivityIndicator } from "react-native";
 import WordScreen from "@/app/games/word";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
@@ -279,5 +285,16 @@ describe("WordScreen", () => {
     storage.getStoredWordSetup.mockResolvedValue(fresh);
     await open();
     expect(propsOf(WordSetupWizard)).toMatchObject({ value: fresh, quickStart: false });
+  });
+});
+
+describe("WordScreen leaving the game", () => {
+  it("asks before leaving once the game starts, and hides back and exit during the turn", async () => {
+    await open();
+    expect([propsOf(GameScreen).confirmBack, propsOf(GameScreen).nav, leave.active]).toEqual([false, true, false]);
+    await start();
+    expect([propsOf(GameScreen).confirmBack, propsOf(GameScreen).nav, leave.active]).toEqual([true, true, true]);
+    call(WordHandoff, "onBegin");
+    expect([propsOf(GameScreen).confirmBack, propsOf(GameScreen).nav, leave.active]).toEqual([true, false, true]);
   });
 });

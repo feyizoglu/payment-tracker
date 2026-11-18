@@ -7,6 +7,7 @@ const s = vi.hoisted(() => ({
   path: "/games",
   canGoBack: false,
   update: vi.fn(async (_next: unknown) => undefined),
+  alert: vi.fn(),
 }));
 
 vi.mock("expo-router", () => ({
@@ -14,6 +15,7 @@ vi.mock("expo-router", () => ({
   router: { canGoBack: () => s.canGoBack, back: vi.fn(), replace: vi.fn(), push: vi.fn() },
 }));
 vi.mock("react-native", () => ({
+  Alert: { alert: s.alert },
   KeyboardAvoidingView: () => null,
   Platform: { OS: "android" },
   Pressable: () => null,
@@ -61,8 +63,8 @@ function text(node: unknown): string {
   return text((node as Node).props.children);
 }
 
-function pressable(label: string) {
-  const tree = GameScreen({ title: "Game", children: null }) as Node;
+function pressable(label: string, props: { confirmBack?: boolean } = {}) {
+  const tree = GameScreen({ title: "Game", children: null, ...props }) as Node;
   return nodes(tree).find((n) => n.type === Pressable && text(n).includes(label));
 }
 
@@ -115,6 +117,18 @@ describe("GameScreen back fallback", () => {
   it("goes to Payments outside game mode when there is no history", () => {
     (pressable("BACK")!.props.onPress as () => void)();
     expect(router.replace).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("GameScreen back during a game", () => {
+  it("asks before leaving a game in progress and leaves only on Leave", () => {
+    s.path = "/games/imposter";
+    s.canGoBack = true;
+    (pressable("BACK", { confirmBack: true })!.props.onPress as () => void)();
+    expect(router.back).not.toHaveBeenCalled();
+    const buttons = s.alert.mock.calls[0][2] as { onPress?: () => void }[];
+    buttons[1].onPress!();
+    expect(router.back).toHaveBeenCalledTimes(1);
   });
 });
 

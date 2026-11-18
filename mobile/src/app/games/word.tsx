@@ -22,6 +22,7 @@ import { WordSetupWizard } from "@/components/games/word/word-setup";
 import { WordSummary } from "@/components/games/word/word-summary";
 import { WordTurn } from "@/components/games/word/word-turn";
 import { getStoredSeen, getStoredWordSetup, setStoredSeen, setStoredWordSetup } from "@/lib/word-game-storage";
+import { useConfirmLeave } from "@/lib/leave-game";
 
 export default function WordScreen() {
   const { t, lang } = useLang();
@@ -67,6 +68,10 @@ export default function WordScreen() {
     void setStoredSeen(state.lang, state.seen);
     if (state.lang === lang) setSeen(state.seen);
   }, [phase, words, state.lang, state.seen, lang]);
+
+  // Back asks first once the game has started; the turn itself is played without back or exit.
+  const inProgress = state.phase !== "setup" && state.phase !== "end";
+  useConfirmLeave(inProgress);
 
   if (!pinReady) return <GamesPinSetup title={t.wordTitle} />;
 
@@ -154,7 +159,9 @@ export default function WordScreen() {
       title={t.wordTitle}
       tone="game"
       color={teamTurn ? teamColor(team) : undefined}
-      scroll={phase !== "play"}>
+      scroll={phase !== "play"}
+      nav={state.phase !== "play"}
+      confirmBack={inProgress}>
       {body}
     </GameScreen>
   );

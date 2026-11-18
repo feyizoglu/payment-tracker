@@ -105,6 +105,12 @@ vi.mock("@/components/games/clue/clue-result", () => ({ ClueResult: () => null }
 vi.mock("@/components/games/clue/clue-end", () => ({ ClueEnd: () => null }));
 vi.mock("@/lib/clue-game-storage", () => storage);
 
+const leave = vi.hoisted(() => ({ active: undefined as boolean | undefined }));
+vi.mock("@/lib/leave-game", () => ({
+  useConfirmLeave: (active: boolean) => {
+    leave.active = active;
+  },
+}));
 import { ActivityIndicator } from "react-native";
 import ClueScreen from "@/app/games/clue";
 import { ClueCheck } from "@/components/games/clue/clue-check";
@@ -437,5 +443,17 @@ describe("One Clue screen: Android back", () => {
     expect(listening()).toHaveLength(1);
     unmount();
     expect(listening()).toHaveLength(0);
+  });
+});
+
+describe("One Clue screen: leaving the game", () => {
+  it("asks before leaving once the game starts, and hides back and exit while the round is on screen", async () => {
+    await load(valid);
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([false, true, false]);
+    await start();
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, true, true]);
+    call(ClueHandoff, "onBegin");
+    // The round blocks back outright, so it does not ask.
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, false]);
   });
 });

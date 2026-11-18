@@ -22,6 +22,7 @@ import { PotatoPlay } from "@/components/games/potato/potato-play";
 import { PotatoReady } from "@/components/games/potato/potato-ready";
 import { PotatoSetupWizard } from "@/components/games/potato/potato-setup";
 import { getStoredPotatoSetup, setStoredPotatoSetup } from "@/lib/hot-potato-storage";
+import { useConfirmLeave } from "@/lib/leave-game";
 
 export default function PotatoScreen() {
   const { t, lang } = useLang();
@@ -43,6 +44,10 @@ export default function PotatoScreen() {
       setPlayed(validateSetup(saved, nameLocale).length === 0);
     });
   }, [nameLocale]);
+
+  // Back asks first once the game has started; the round itself is played without back or exit.
+  const inProgress = state.phase !== "setup" && state.phase !== "end";
+  useConfirmLeave(inProgress);
 
   if (!pinReady) return <GamesPinSetup title={t.potatoTitle} />;
 
@@ -117,7 +122,13 @@ export default function PotatoScreen() {
   }
 
   return (
-    <GameScreen title={t.potatoTitle} tone="game" color={color} scroll={phase === "setup" || phase === "end"}>
+    <GameScreen
+      title={t.potatoTitle}
+      tone="game"
+      color={color}
+      scroll={phase === "setup" || phase === "end"}
+      nav={state.phase !== "playing" && state.phase !== "bang"}
+      confirmBack={inProgress}>
       {body}
     </GameScreen>
   );

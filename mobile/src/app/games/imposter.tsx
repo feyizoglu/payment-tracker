@@ -19,6 +19,7 @@ import { ImposterResult } from "@/components/games/imposter-result";
 import { ImposterSetupWizard } from "@/components/games/imposter-setup";
 import { PassPhone } from "@/components/games/pass-phone";
 import { getStoredSetup, setStoredSetup } from "@/lib/imposter-storage";
+import { useConfirmLeave } from "@/lib/leave-game";
 
 export default function ImposterScreen() {
   const { t, lang } = useLang();
@@ -35,6 +36,10 @@ export default function ImposterScreen() {
       setPlayed(validateSetup(saved).length === 0);
     });
   }, []);
+
+  // A round is played from the deal to the vote: no back or exit in the header, and back asks first.
+  const inProgress = state.phase !== "setup" && state.phase !== "result";
+  useConfirmLeave(inProgress);
 
   if (!pinReady) return <GamesPinSetup title={t.imposterTitle} />;
 
@@ -157,7 +162,9 @@ export default function ImposterScreen() {
       title={t.imposterTitle}
       tone="game"
       color={ownTurn ? playerColor(turn) : undefined}
-      scroll={phase !== "deal"}>
+      scroll={phase !== "deal"}
+      nav={!inProgress}
+      confirmBack={inProgress}>
       {body}
     </GameScreen>
   );

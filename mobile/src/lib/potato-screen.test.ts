@@ -63,6 +63,12 @@ vi.mock("@/components/games/potato/potato-bang", () => ({ PotatoBang: () => null
 vi.mock("@/components/games/potato/potato-end", () => ({ PotatoEnd: () => null }));
 vi.mock("@/lib/hot-potato-storage", () => storage);
 
+const leave = vi.hoisted(() => ({ active: undefined as boolean | undefined }));
+vi.mock("@/lib/leave-game", () => ({
+  useConfirmLeave: (active: boolean) => {
+    leave.active = active;
+  },
+}));
 import { ActivityIndicator } from "react-native";
 import PotatoScreen from "@/app/games/potato";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
@@ -226,5 +232,16 @@ describe("Hot Potato screen: the end", () => {
     call(PotatoEnd, "onNewGame");
     expect(props(PotatoSetupWizard).value).toEqual(valid);
     expect(props(PotatoSetupWizard).step).toBe(0);
+  });
+});
+
+describe("Hot Potato screen: leaving the game", () => {
+  it("asks before leaving once the game starts, and hides back and exit while the potato is passed", async () => {
+    await load(valid);
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([false, true, false]);
+    await start();
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, true, true]);
+    call(PotatoReady, "onStart");
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, true]);
   });
 });

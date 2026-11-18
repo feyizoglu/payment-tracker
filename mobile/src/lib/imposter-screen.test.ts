@@ -72,6 +72,12 @@ vi.mock("@/components/games/deal-turn", () => ({ DealTurn: () => null }));
 vi.mock("@/components/games/pass-phone", () => ({ PassPhone: () => null }));
 vi.mock("@/lib/imposter-storage", () => storage);
 
+const leave = vi.hoisted(() => ({ active: undefined as boolean | undefined }));
+vi.mock("@/lib/leave-game", () => ({
+  useConfirmLeave: (active: boolean) => {
+    leave.active = active;
+  },
+}));
 import { Pressable } from "react-native";
 import ImposterScreen from "@/app/games/imposter";
 import { DealTurn } from "@/components/games/deal-turn";
@@ -421,5 +427,15 @@ describe("ImposterScreen vote and result look", () => {
     expect(screen.tone).toBe("game");
     expect(screen.color).toBeUndefined();
     expect(screen.scroll).toBe(true);
+  });
+});
+
+describe("ImposterScreen leaving the game", () => {
+  it("asks before leaving during a round, played without back or exit in the header", async () => {
+    storage.getStoredSetup.mockResolvedValue(valid);
+    render();
+    expect([find(GameScreen).props.confirmBack, find(GameScreen).props.nav, leave.active]).toEqual([false, true, false]);
+    await start(valid);
+    expect([find(GameScreen).props.confirmBack, find(GameScreen).props.nav, leave.active]).toEqual([true, false, true]);
   });
 });

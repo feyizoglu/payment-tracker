@@ -25,6 +25,7 @@ import { ScaleReveal } from "@/components/games/scale/scale-reveal";
 import { ScaleSecret } from "@/components/games/scale/scale-secret";
 import { ScaleSetupWizard } from "@/components/games/scale/scale-setup";
 import { getStoredScaleSeen, getStoredScaleSetup, setStoredScaleSeen, setStoredScaleSetup } from "@/lib/scale-game-storage";
+import { useConfirmLeave } from "@/lib/leave-game";
 
 export default function ScaleScreen() {
   const { t, lang } = useLang();
@@ -88,6 +89,10 @@ export default function ScaleScreen() {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
     return () => sub.remove();
   }, [midTurn, focused]);
+
+  // Outside the blocked turn, back asks first once the game has started.
+  const inProgress = phase !== "setup" && phase !== "end";
+  useConfirmLeave(inProgress && !midTurn);
 
   if (!pinReady) return <GamesPinSetup title={t.scaleTitle} />;
 
@@ -171,7 +176,9 @@ export default function ScaleScreen() {
       title={t.scaleTitle}
       tone="game"
       color={phase === "handoff" ? teamColor(team) : undefined}
-      scroll={phase === "setup" || phase === "reveal" || phase === "end"}>
+      scroll={phase === "setup" || phase === "reveal" || phase === "end"}
+      nav={!midTurn}
+      confirmBack={inProgress}>
       {body}
     </GameScreen>
   );

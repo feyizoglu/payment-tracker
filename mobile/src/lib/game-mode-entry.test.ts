@@ -85,6 +85,12 @@ vi.mock("@/components/lock/pin-screen", () => ({
   },
 }));
 
+const leave = vi.hoisted(() => ({ active: undefined as boolean | undefined }));
+vi.mock("@/lib/leave-game", () => ({
+  useConfirmLeave: (active: boolean) => {
+    leave.active = active;
+  },
+}));
 import { router } from "expo-router";
 import GamesScreen from "@/app/games/index";
 import ImposterScreen from "@/app/games/imposter";

@@ -93,6 +93,12 @@ vi.mock("@/components/games/who/who-summary", () => ({ WhoSummary: () => null })
 vi.mock("@/components/games/who/who-end", () => ({ WhoEnd: () => null }));
 vi.mock("@/lib/who-game-storage", () => storage);
 
+const leave = vi.hoisted(() => ({ active: undefined as boolean | undefined }));
+vi.mock("@/lib/leave-game", () => ({
+  useConfirmLeave: (active: boolean) => {
+    leave.active = active;
+  },
+}));
 import { ActivityIndicator } from "react-native";
 import WhoScreen from "@/app/games/who";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
@@ -437,5 +443,16 @@ describe("Who Am I? screen: the end", () => {
     call(WhoSetupWizard, "onStart");
     call(WhoHandoff, "onStart");
     expect(props(WhoTurn).card.id).not.toBe(first.id);
+  });
+});
+
+describe("Who Am I? screen: leaving the game", () => {
+  it("asks before leaving once the game starts, and not during the shielded turn", async () => {
+    await load(valid);
+    expect([screen().confirmBack, leave.active]).toEqual([false, false]);
+    await start();
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, true, true]);
+    call(WhoHandoff, "onStart");
+    expect([screen().nav, leave.active]).toEqual([false, false]);
   });
 });

@@ -78,6 +78,12 @@ vi.mock("@/components/games/wolf/wolf-setup", () => ({ WolfSetupWizard: () => nu
 vi.mock("@/components/games/wolf/wolf-this-game", () => ({ WolfThisGame: () => null }));
 vi.mock("@/lib/wolf-game-storage", () => storage);
 
+const leave = vi.hoisted(() => ({ active: undefined as boolean | undefined }));
+vi.mock("@/lib/leave-game", () => ({
+  useConfirmLeave: (active: boolean) => {
+    leave.active = active;
+  },
+}));
 import { ActivityIndicator } from "react-native";
 import WolfScreen from "@/app/games/wolf";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
@@ -424,5 +430,16 @@ describe("Wolf Night screen: turns", () => {
     call(WolfRoster, "onStart");
     expect(has(WolfNarrator)).toBe(true);
     expect(screen().color).toBeUndefined();
+  });
+});
+
+describe("Wolf Night screen: leaving the game", () => {
+  it("asks before leaving once the game starts, and hides back and exit from the deal on", async () => {
+    await load(valid);
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([false, true, false]);
+    await start();
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, true, true]);
+    call(WolfThisGame, "onDeal");
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, true]);
   });
 });
