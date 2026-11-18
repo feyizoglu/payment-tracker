@@ -277,6 +277,23 @@ describe("PlaneScreen", () => {
     expect(storage.setStoredPlaneBest).toHaveBeenCalledWith(9);
   });
 
+  it("carries the best of a game just played into the next game when the stored best is stale", async () => {
+    await settle();
+    await tap();
+    engine.endScore = 9;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 9, best: 9, newBest: true });
+    overlay().onAgain();
+    await settle();
+    expect(overlay().phase).toBe("ready");
+    await tap();
+    engine.endScore = 7;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 7, best: 9, newBest: false });
+    expect(storage.setStoredPlaneBest).toHaveBeenCalledTimes(1);
+    expect(storage.setStoredPlaneBest).toHaveBeenCalledWith(9);
+  });
+
   it("keeps the best already read when a read at the end of the game fails", async () => {
     storage.getStoredPlaneBest.mockResolvedValueOnce(12).mockResolvedValueOnce(0);
     await settle();
