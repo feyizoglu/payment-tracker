@@ -7,6 +7,8 @@ import { BOOK_H, TOWER_COLORS, TOWER_WIDTH, towerBookColour, type TowerBook, typ
 const PIECE_SLOTS = 3;
 const DESK = 12;
 const SHOWN = 40;
+/** Narrower books have no room for the spine stripes, as on the web. */
+const MIN_STRIPED = 4;
 
 export interface TowerView {
   slider: SharedValue<number>;
@@ -52,8 +54,12 @@ function Book({ book, level, scale, stripe }: { book: Pick<TowerBook, "x" | "w" 
   const w = book.w * scale;
   return (
     <View style={{ position: "absolute", left: book.x * scale, bottom: level * BOOK_H * scale, width: w, height: BOOK_H * scale, backgroundColor: towerBookColour(book.index) }}>
-      <View style={{ position: "absolute", left: Math.min(3 * scale, w / 4), top: scale, bottom: scale, width: Math.max(1, scale), backgroundColor: stripe }} />
-      <View style={{ position: "absolute", right: Math.min(3 * scale, w / 4), top: scale, bottom: scale, width: Math.max(1, scale), backgroundColor: stripe }} />
+      {book.w >= MIN_STRIPED ? (
+        <>
+          <View style={{ position: "absolute", left: Math.min(3 * scale, w / 4), top: scale, bottom: scale, width: Math.max(1, scale), backgroundColor: stripe }} />
+          <View style={{ position: "absolute", right: Math.min(3 * scale, w / 4), top: scale, bottom: scale, width: Math.max(1, scale), backgroundColor: stripe }} />
+        </>
+      ) : null}
     </View>
   );
 }

@@ -28,7 +28,7 @@ import GamesPage from "./page";
 const html = () => renderToStaticMarkup(createElement(GamesPage));
 
 describe("GamesPage", () => {
-  it("links the word game after the Imposter game, then Wolf Night, Hot Potato, Who Am I?, Scale, One Clue and Paper Plane", () => {
+  it("links the word game after the Imposter game, then Wolf Night, Hot Potato, Who Am I?, Scale, One Clue, Paper Plane and Book Tower", () => {
     const hrefs = [...html().matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]);
 
     expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who", "/games/scale", "/games/clue", "/games/plane", "/games/tower"]);

@@ -1,6 +1,8 @@
 import { BOOK_H, TOWER_COLORS, TOWER_WIDTH, towerBookColour, type TowerState } from "@/lib/book-tower";
 
 const DESK = 12;
+/** Narrower books have no room for the spine stripes. */
+export const MIN_STRIPED = 4;
 
 /** Pixels per unit, the world's left edge, and the desk surface's y in pixels. */
 export function towerViewport(cssWidth: number, cssHeight: number) {
@@ -11,6 +13,7 @@ export function towerViewport(cssWidth: number, cssHeight: number) {
 function book(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, colour: string, stripe: string) {
   ctx.fillStyle = colour;
   ctx.fillRect(x, y - BOOK_H, w, BOOK_H);
+  if (w < MIN_STRIPED) return;
   ctx.fillStyle = stripe;
   for (const at of [Math.min(3, w / 4), Math.max(w - 4, (3 * w) / 4)]) ctx.fillRect(x + at, y - BOOK_H + 1, 1, BOOK_H - 2);
 }
@@ -30,7 +33,8 @@ export function drawTowerScene(ctx: CanvasRenderingContext2D, s: TowerState, css
   ctx.fillRect(0, 0, TOWER_WIDTH, DESK);
   ctx.fillStyle = c.deskEdge;
   ctx.fillRect(0, 0, TOWER_WIDTH, 1.5);
-  const lowest = Math.max(0, Math.floor(s.camera / BOOK_H) - 1);
+  // The view ends DESK units below the camera, so books down there still show.
+  const lowest = Math.max(0, Math.floor((s.camera - DESK) / BOOK_H));
   for (let i = lowest; i < s.stack.length; i++) {
     const b = s.stack[i];
     book(ctx, b.x, -i * BOOK_H, b.w, towerBookColour(b.index), c.stripe);

@@ -113,9 +113,16 @@ describe("TowerWorld", () => {
     const shown = world(books(3), false).find((n) => typeof n.type === "function" && n.props.level === 2)!;
     const book = (shown.type as (p: Props) => Node)(shown.props);
     expect(book.props.style).toMatchObject({ left: 100, bottom: 2 * BOOK_H * 4, width: 200, height: 28, backgroundColor: towerBookColour(2) });
-    const [leftStripe, rightStripe] = book.props.children as Node[];
+    const [leftStripe, rightStripe] = (book.props.children as Node).props.children as Node[];
     expect((leftStripe.props.style as Style).left).toBe(12);
     expect((rightStripe.props.style as Style).right).toBe(12);
+  });
+
+  it("leaves the spine stripes off a book too narrow for them", () => {
+    const narrow = [...books(1), { x: 40, w: 3, index: 1 }];
+    const shown = world(narrow, false).find((n) => typeof n.type === "function" && n.props.level === 1)!;
+    const book = (shown.type as (p: Props) => Node)(shown.props);
+    expect(book.props.children).toBeNull();
   });
 
   it("keeps the shown books at their own levels once the stack passes forty", () => {

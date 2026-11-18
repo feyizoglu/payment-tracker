@@ -11,7 +11,7 @@ describe("games offline helper", () => {
     expect(sw).toContain(`const GAMES_PAGES = ${JSON.stringify(GAMES_PAGES).replace(/,/g, ", ")};`);
   });
 
-  it("keeps the games list and its eight games in the seventh cache version", () => {
+  it("keeps the games list and its nine games in the eighth cache version", () => {
     expect(GAMES_PAGES).toEqual(["/games", "/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who", "/games/scale", "/games/clue", "/games/plane", "/games/tower"]);
     expect(GAMES_CACHE).toBe("games-v8");
   });

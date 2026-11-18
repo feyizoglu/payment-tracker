@@ -92,6 +92,13 @@ describe("dropping", () => {
     expect(s.streak).toBe(0);
   });
 
+  it("keeps a grown book on the page", () => {
+    let s = playing();
+    s = { ...s, stack: [...s.stack.slice(0, -1), { x: 0, w: 20, index: 0 }], streak: 2 };
+    s = towerTap(at(s, 10));
+    expect(top(s)).toEqual({ x: 0, w: 26, index: 1 });
+  });
+
   it("never grows past the starting width", () => {
     let s = playing();
     for (let i = 0; i < 3; i++) s = towerTap(at(s, 50));

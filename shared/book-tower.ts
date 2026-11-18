@@ -96,7 +96,7 @@ function drop(s: TowerState): TowerState {
   if (Math.abs(s.slider.x - centre) < PERFECT_TOLERANCE) {
     const streak = s.streak + 1;
     const w = streak % GROW_EVERY === 0 ? Math.min(START_W, below.w + GROW) : below.w;
-    const book = { x: centre - w / 2, w, index };
+    const book = { x: clamp(centre - w / 2, 0, TOWER_WIDTH - w), w, index };
     return { ...s, stack: [...s.stack, book], score: s.score + 1, streak, slider: sliderFor(index + 1, w), perfect: PERFECT_FLASH };
   }
   const lo = Math.max(left, below.x);
