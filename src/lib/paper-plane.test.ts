@@ -10,6 +10,7 @@ import {
   drawGapY,
   newPlaneGame,
   parseSavedBest,
+  planeBestAfter,
   planeAngle,
   planeGap,
   planePause,
@@ -240,6 +241,22 @@ describe("pause", () => {
     expect(planePause(ready)).toBe(ready);
     const over = { ...flying(), phase: "over" as const };
     expect(planeTap(over, half)).toBe(over);
+  });
+});
+
+describe("planeBestAfter", () => {
+  it("claims a new best only above every best known", () => {
+    expect(planeBestAfter(9, 5)).toEqual({ best: 9, isNew: true });
+    expect(planeBestAfter(9, 5, 12)).toEqual({ best: 12, isNew: false });
+    expect(planeBestAfter(5, 5)).toEqual({ best: 5, isNew: false });
+    expect(planeBestAfter(3, 0)).toEqual({ best: 3, isNew: true });
+  });
+
+  it("ignores failed reads, and claims nothing when no best is known", () => {
+    expect(planeBestAfter(9, null, 5)).toEqual({ best: 9, isNew: true });
+    expect(planeBestAfter(9, null, 12)).toEqual({ best: 12, isNew: false });
+    expect(planeBestAfter(9, null, null)).toEqual({ best: 9, isNew: false });
+    expect(planeBestAfter(9)).toEqual({ best: 9, isNew: false });
   });
 });
 

@@ -240,6 +240,33 @@ describe("PlaneGame", () => {
     expect(text()).toBe("0");
   });
 
+  it("claims no new best and saves nothing when the browser refuses to read storage", async () => {
+    let wrote = false;
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("SecurityError");
+      },
+      setItem: () => (wrote = true),
+    });
+    await mount();
+    await tap();
+    engine.endWith = (s) => ({ ...s, phase: "over", score: 4 });
+    await frame();
+    expect(text()).not.toContain("New best!");
+    expect(text()).toContain("Best: 4");
+    expect(wrote).toBe(false);
+  });
+
+  it("guards the game-over buttons from the card's first frame", async () => {
+    await mount();
+    await tap();
+    const before = host.nodes.length;
+    engine.endWith = (s) => ({ ...s, phase: "over", score: 1 });
+    await frame();
+    const firstCard = host.nodes.slice(before).find((n) => n.type === "button");
+    expect(firstCard?.props.disabled).toBe(true);
+  });
+
   it("still shows the new best and frees Again when the browser refuses to save", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     vi.stubGlobal("localStorage", {

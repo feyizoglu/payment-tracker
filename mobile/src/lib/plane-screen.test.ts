@@ -11,7 +11,7 @@ const hooks = vi.hoisted(() => ({
 }));
 const env = vi.hoisted(() => ({ scheme: "light", pinReady: true, onScreen: true, frames: [] as ((t: number) => void)[], now: 0 }));
 const storage = vi.hoisted(() => ({
-  getStoredPlaneBest: vi.fn(async () => 5),
+  getStoredPlaneBest: vi.fn(async (): Promise<number | null> => 5),
   setStoredPlaneBest: vi.fn(async (_n: number) => undefined),
 }));
 const view = vi.hoisted(() => ({ sync: vi.fn() }));
@@ -295,13 +295,32 @@ describe("PlaneScreen", () => {
   });
 
   it("keeps the best already read when a read at the end of the game fails", async () => {
-    storage.getStoredPlaneBest.mockResolvedValueOnce(12).mockResolvedValueOnce(0);
+    storage.getStoredPlaneBest.mockResolvedValueOnce(12).mockResolvedValueOnce(null);
     await settle();
     await tap();
     engine.endScore = 9;
     await frames(2);
     expect(overlay()).toMatchObject({ phase: "over", best: 12, newBest: false });
     expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
+  });
+
+  it("claims no new best and saves nothing when no read of the best succeeds", async () => {
+    storage.getStoredPlaneBest.mockResolvedValue(null);
+    await settle();
+    await tap();
+    engine.endScore = 4;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 4, best: 4, newBest: false });
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
+  });
+
+  it("guards the game-over buttons from the card's first frame", async () => {
+    await settle();
+    await tap();
+    engine.endScore = 1;
+    env.now += 33;
+    env.frames.splice(0, env.frames.length).forEach((fn) => fn(env.now));
+    expect(overlay()).toMatchObject({ phase: "over", guard: true });
   });
 
   it("draws the page and its texts in the dark palette when the phone is dark", async () => {

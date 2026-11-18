@@ -149,6 +149,17 @@ export function parseSavedBest(raw: string | null): number {
   return Number.isInteger(n) && n >= 0 ? n : 0;
 }
 
+/**
+ * The best score after a game, from the bests known so far (`null` for a storage read that failed).
+ * A new best is claimed and saved only when at least one best is known, so a broken read can never
+ * write a lower score over a higher one it could not see.
+ */
+export function planeBestAfter(score: number, ...known: (number | null)[]): { best: number; isNew: boolean } {
+  const seen = known.filter((n): n is number => n !== null);
+  const top = seen.length ? Math.max(...seen) : 0;
+  return { best: Math.max(top, score), isNew: seen.length > 0 && score > top };
+}
+
 export const PLANE_COLORS = {
   light: { paper: "#fdfbf3", line: "#c9d8ee", margin: "#e8a3a3", ink: "#3b3b3b", plane: "#ffffff", score: "#1f2937" },
   dark: { paper: "#141d33", line: "#26355a", margin: "#7a3b4a", ink: "#d9dfeb", plane: "#eef2f8", score: "#f3f4f6" },

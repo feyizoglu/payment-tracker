@@ -7,6 +7,7 @@ import {
   PLANE_COLORS,
   PLANE_OVER_GUARD_MS,
   newPlaneGame,
+  planeBestAfter,
   planePause,
   planeTap,
   planeWorldWidth,
@@ -34,13 +35,15 @@ export default function PlaneScreen() {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [shown, setShown] = useState({ phase: live.current.phase, score: 0, width: live.current.width });
   const [best, setBest] = useState(0);
-  // The highest best known on this screen, from storage or a game just played.
-  const bestRef = useRef(0);
+  // The highest best known on this screen, from storage or a game just played; null until a read succeeds.
+  const bestRef = useRef<number | null>(null);
   const [newBest, setNewBest] = useState(false);
   const [guard, setGuard] = useState(false);
 
   const publish = useCallback(
     (next: PlaneState) => {
+      // Guard the game-over card from its first frame, so a late tap cannot reach its buttons.
+      if (next.phase === "over" && live.current.phase !== "over") setGuard(true);
       live.current = next;
       view.sync(next);
       setShown((v) =>
@@ -60,7 +63,8 @@ export default function PlaneScreen() {
   useEffect(() => {
     let alive = true;
     void getStoredPlaneBest().then((b) => {
-      bestRef.current = Math.max(bestRef.current, b);
+      if (b === null) return;
+      bestRef.current = Math.max(bestRef.current ?? 0, b);
       if (alive) setBest((v) => Math.max(v, b));
     });
     return () => {
@@ -90,20 +94,19 @@ export default function PlaneScreen() {
     if (shown.phase !== "over") return;
     const score = live.current.score;
     let alive = true;
-    const known = bestRef.current;
-    setNewBest(score > known);
-    setBest(Math.max(known, score));
+    const now = planeBestAfter(score, bestRef.current);
+    setNewBest(now.isNew);
+    setBest(now.best);
     // Read the stored best again: the first read may not have landed yet. The save runs even if
     // the player has left the screen by then; only the card waits for the screen.
     void getStoredPlaneBest().then((stored) => {
-      const top = Math.max(stored, bestRef.current);
-      if (score > top) void setStoredPlaneBest(score);
-      bestRef.current = Math.max(top, score);
+      const after = planeBestAfter(score, stored, bestRef.current);
+      if (after.isNew) void setStoredPlaneBest(score);
+      if (stored !== null || bestRef.current !== null) bestRef.current = after.best;
       if (!alive) return;
-      setNewBest(score > top);
-      setBest(Math.max(top, score));
+      setNewBest(after.isNew);
+      setBest(after.best);
     });
-    setGuard(true);
     const id = setTimeout(() => setGuard(false), PLANE_OVER_GUARD_MS);
     return () => {
       alive = false;
