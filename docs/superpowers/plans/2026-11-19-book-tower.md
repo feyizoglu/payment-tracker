@@ -174,15 +174,15 @@ describe("dropping", () => {
   });
 
   it("ends the game when the book misses, and lets the whole book fall", () => {
-    const s = towerTap(at(playing(), 95));
+    const s = towerTap(at(playing(), 100));
     expect(s.phase).toBe("over");
     expect(s.score).toBe(0);
     expect(s.pieces).toHaveLength(1);
-    expect(s.pieces[0]).toMatchObject({ x: 70, w: 50 });
+    expect(s.pieces[0]).toMatchObject({ x: 75, w: 50 });
   });
 
   it("does nothing on a tap after the end", () => {
-    const over = towerTap(at(playing(), 95));
+    const over = towerTap(at(playing(), 100));
     expect(towerTap(over)).toBe(over);
   });
 });
@@ -202,7 +202,7 @@ describe("camera and falling pieces", () => {
   });
 
   it("lets pieces fall and spin, and drops them below the view; over keeps them falling", () => {
-    let s = towerTap(at(playing(), 95));
+    let s = towerTap(at(playing(), 100));
     const y0 = s.pieces[0].y;
     s = stepTower(s, 1 / 30);
     expect(s.pieces[0].y).toBeLessThan(y0);
