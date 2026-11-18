@@ -21,7 +21,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Upsert user into our users table
       const { data, error } = await supabase.from("users").upsert(
         {
-          email: user.email,
+          email: user.email.toLowerCase(),
           name: user.name,
           avatar_url: user.image,
         },
@@ -40,7 +40,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const { data, error } = await supabase
           .from("users")
           .select("id")
-          .eq("email", session.user.email)
+          .eq("email", session.user.email.toLowerCase())
           .single();
         if (error) {
           console.error("session user lookup error:", error);

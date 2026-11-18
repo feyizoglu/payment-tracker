@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     .from("users")
     .upsert(
       {
-        email: profile.email,
+        email: profile.email.toLowerCase(),
         name: profile.name,
         avatar_url: profile.picture,
       },
