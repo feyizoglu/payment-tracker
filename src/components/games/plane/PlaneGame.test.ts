@@ -278,6 +278,48 @@ describe("PlaneGame", () => {
     expect(text()).toContain("Best: 10");
   });
 
+  it("claims a new best against the best read at the start when the read at the end fails", async () => {
+    let reads = 0;
+    const written: string[] = [];
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        reads += 1;
+        if (reads > 1) throw new Error("SecurityError");
+        return "20";
+      },
+      setItem: (_k: string, v: string) => written.push(v),
+    });
+    await mount();
+    await tap();
+    engine.endWith = (s) => ({ ...s, phase: "over", score: 25 });
+    await frame();
+    expect(text()).toContain("New best!");
+    expect(written).toEqual(["25"]);
+  });
+
+  it("does not claim a lower score after a best the browser could not save", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubGlobal("localStorage", {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("QuotaExceededError");
+      },
+    });
+    await mount();
+    await tap();
+    engine.endWith = (s) => ({ ...s, phase: "over", score: 10 });
+    await frame();
+    expect(text()).toContain("New best!");
+    await act(async () => vi.advanceTimersByTime(500));
+    engine.endWith = null;
+    await act(async () => (again().props.onClick as () => void)());
+    await tap();
+    engine.endWith = (s) => ({ ...s, phase: "over", score: 5 });
+    await frame();
+    expect(text()).not.toContain("New best!");
+    expect(text()).toContain("Best: 10");
+  });
+
   it("guards the game-over buttons from the card's first frame", async () => {
     await mount();
     await tap();

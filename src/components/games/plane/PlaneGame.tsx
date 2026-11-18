@@ -8,7 +8,9 @@ import {
   PLANE_OVER_GUARD_MS,
   newPlaneGame,
   parseSavedBest,
+  newPlaneSessionBest,
   planeBestAfter,
+  planeSessionRead,
   planePause,
   planeTap,
   planeWorldWidth,
@@ -40,6 +42,7 @@ export default function PlaneGame() {
   const live = useRef<PlaneState>(newPlaneGame(56));
   // Space plays again after a crash, but only once the game-over guard is off.
   const canRestart = useRef(false);
+  const session = useRef(newPlaneSessionBest());
   const [view, setView] = useState<{ phase: PlaneState["phase"]; score: number }>({ phase: "ready", score: 0 });
   const [best, setBest] = useState(0);
   const [newBest, setNewBest] = useState(false);
@@ -70,13 +73,14 @@ export default function PlaneGame() {
     const canvas = canvasRef.current;
     publish(newPlaneGame(canvas ? planeWorldWidth(canvas.clientWidth, canvas.clientHeight) : 56));
     setNewBest(false);
+    setGuard(false);
     draw();
   }, [draw, publish]);
 
   useEffect(() => {
     // localStorage only exists in the browser: reading it during render would differ from the server's HTML.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setBest(readBest() ?? 0);
+    session.current = planeSessionRead(session.current, readBest());
+    setBest(session.current.best);
     setDark(document.documentElement.classList.contains("dark"));
     fresh();
   }, [fresh]);
@@ -140,10 +144,11 @@ export default function PlaneGame() {
   useEffect(() => {
     if (view.phase !== "over") return;
     const score = live.current.score;
-    const { best: next, isNew } = planeBestAfter(score, readBest());
-    if (isNew) writeBest(score);
-    setNewBest(isNew);
-    setBest((v) => Math.max(v, next));
+    const after = planeBestAfter(score, session.current, readBest());
+    session.current = after.session;
+    if (after.save !== null) writeBest(after.save);
+    setNewBest(after.isNew);
+    setBest(after.session.best);
     canRestart.current = false;
     const id = setTimeout(() => {
       setGuard(false);

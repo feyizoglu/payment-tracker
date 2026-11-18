@@ -290,8 +290,26 @@ describe("PlaneScreen", () => {
     engine.endScore = 7;
     await frames(2);
     expect(overlay()).toMatchObject({ phase: "over", score: 7, best: 9, newBest: false });
-    expect(storage.setStoredPlaneBest).toHaveBeenCalledTimes(1);
     expect(storage.setStoredPlaneBest).toHaveBeenCalledWith(9);
+    expect(storage.setStoredPlaneBest.mock.calls.every(([b]) => b === 9)).toBe(true);
+  });
+
+  it("saves a best played while storage was unreadable once a read succeeds, without claiming a lower score", async () => {
+    storage.getStoredPlaneBest.mockResolvedValueOnce(null).mockResolvedValueOnce(null).mockResolvedValueOnce(4);
+    await settle();
+    await tap();
+    engine.endScore = 10;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 10, best: 10, newBest: false });
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
+    overlay().onAgain();
+    await settle();
+    await tap();
+    engine.endScore = 6;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 6, best: 10, newBest: false });
+    expect(storage.setStoredPlaneBest).toHaveBeenCalledWith(10);
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalledWith(6);
   });
 
   it("keeps the best already read when a read at the end of the game fails", async () => {

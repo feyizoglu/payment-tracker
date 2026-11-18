@@ -10,7 +10,9 @@ import {
   drawGapY,
   newPlaneGame,
   parseSavedBest,
+  newPlaneSessionBest,
   planeBestAfter,
+  planeSessionRead,
   planeAngle,
   planeGap,
   planePause,
@@ -245,18 +247,33 @@ describe("pause", () => {
 });
 
 describe("planeBestAfter", () => {
-  it("claims a new best only above every best known", () => {
-    expect(planeBestAfter(9, 5)).toEqual({ best: 9, isNew: true, known: true });
-    expect(planeBestAfter(9, 5, 12)).toEqual({ best: 12, isNew: false, known: true });
-    expect(planeBestAfter(5, 5)).toEqual({ best: 5, isNew: false, known: true });
-    expect(planeBestAfter(3, 0)).toEqual({ best: 3, isNew: true, known: true });
+  const read = (stored: number | null) => planeSessionRead(newPlaneSessionBest(), stored);
+
+  it("claims and saves a score above every best known", () => {
+    expect(planeBestAfter(9, read(5), 5)).toEqual({ session: { best: 9, known: true }, isNew: true, save: 9 });
+    expect(planeBestAfter(9, read(5), 12)).toEqual({ session: { best: 12, known: true }, isNew: false, save: null });
+    expect(planeBestAfter(5, read(5), 5)).toEqual({ session: { best: 5, known: true }, isNew: false, save: null });
+    expect(planeBestAfter(3, read(0), 0)).toEqual({ session: { best: 3, known: true }, isNew: true, save: 3 });
   });
 
-  it("ignores failed reads, and claims nothing when no best is known", () => {
-    expect(planeBestAfter(9, null, 5)).toEqual({ best: 9, isNew: true, known: true });
-    expect(planeBestAfter(9, null, 12)).toEqual({ best: 12, isNew: false, known: true });
-    expect(planeBestAfter(9, null, null)).toEqual({ best: 9, isNew: false, known: false });
-    expect(planeBestAfter(9)).toEqual({ best: 9, isNew: false, known: false });
+  it("claims and saves nothing while no read has succeeded, but remembers the score", () => {
+    expect(planeBestAfter(10, read(null), null)).toEqual({ session: { best: 10, known: false }, isNew: false, save: null });
+  });
+
+  it("saves the session's best once a read succeeds, without claiming a lower score", () => {
+    const after = planeBestAfter(10, newPlaneSessionBest(), null).session;
+    expect(planeBestAfter(6, after, 4)).toEqual({ session: { best: 10, known: true }, isNew: false, save: 10 });
+  });
+
+  it("keeps claiming against an earlier read when the read at the end fails", () => {
+    expect(planeBestAfter(25, read(20), null)).toEqual({ session: { best: 25, known: true }, isNew: true, save: 25 });
+    expect(planeBestAfter(15, read(20), null)).toEqual({ session: { best: 20, known: true }, isNew: false, save: null });
+  });
+
+  it("does not claim again a best this session already played", () => {
+    const first = planeBestAfter(10, read(0), 0);
+    expect(first.save).toBe(10);
+    expect(planeBestAfter(5, first.session, 0)).toEqual({ session: { best: 10, known: true }, isNew: false, save: 10 });
   });
 });
 
