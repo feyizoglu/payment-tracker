@@ -237,8 +237,28 @@ function nameKey(name: string, locale: string): string {
     .join("");
 }
 
-/** Every card the setup's kinds, region and level allow, in `lang`, each name once. */
+// Building a pool runs thousands of locale-aware lowercasings and normalisations, which are
+// slow on the phone, and the screens ask for the same pool several times while it opens.
+// Pools are never changed after they are built, so each choice is built once per sources.
+const POOLS = new WeakMap<WhoSources, Map<string, WhoPlayCard[]>>();
+
+/** Every card the setup's kinds, region and level allow, in `lang`, each name once. Shared: do not change it. */
 export function whoPool(
+  choice: Pick<WhoSetup, "kinds" | "region" | "level">,
+  sources: WhoSources,
+  lang: Lang
+): WhoPlayCard[] {
+  const key = [lang, [...choice.kinds].sort().join(","), choice.region, choice.level].join("|");
+  let pools = POOLS.get(sources);
+  if (!pools) POOLS.set(sources, (pools = new Map()));
+  const cached = pools.get(key);
+  if (cached) return cached;
+  const pool = buildPool(choice, sources, lang);
+  pools.set(key, pool);
+  return pool;
+}
+
+function buildPool(
   choice: Pick<WhoSetup, "kinds" | "region" | "level">,
   sources: WhoSources,
   lang: Lang
