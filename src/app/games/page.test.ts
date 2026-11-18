@@ -11,6 +11,7 @@ vi.mock("lucide-react", () => ({
   Lightbulb: () => null,
   MessageSquareText: () => null,
   Moon: () => null,
+  Send: () => null,
   UserRoundSearch: () => null,
   VenetianMask: () => null,
 }));
@@ -26,10 +27,10 @@ import GamesPage from "./page";
 const html = () => renderToStaticMarkup(createElement(GamesPage));
 
 describe("GamesPage", () => {
-  it("links the word game after the Imposter game, then Wolf Night, Hot Potato, Who Am I?, Scale and One Clue", () => {
+  it("links the word game after the Imposter game, then Wolf Night, Hot Potato, Who Am I?, Scale, One Clue and Paper Plane", () => {
     const hrefs = [...html().matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]);
 
-    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who", "/games/scale", "/games/clue"]);
+    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who", "/games/scale", "/games/clue", "/games/plane"]);
   });
 
   it("shows the word game's title and description on its link", () => {
@@ -84,5 +85,17 @@ describe("GamesPage", () => {
     expect(link).toMatch(/>clueTitle<\/p><p[^>]*>clueDesc<\/p>/);
     expect(link).toContain("hover:border-rose-200");
     expect(link).toContain("bg-rose-50");
+  });
+
+  it("shows Paper Plane's title and description on its link, in sky, remapped in the dark theme", () => {
+    const link = html().match(/<a href="\/games\/plane"[^>]*>(.*?)<\/a>/)?.[0] ?? "";
+
+    expect(link).toMatch(/>planeTitle<\/p><p[^>]*>planeDesc<\/p>/);
+    expect(link).toContain("hover:border-sky-200");
+    expect(link).toContain("bg-sky-50");
+    const css = readFileSync(fileURLToPath(new URL("../globals.css", import.meta.url)), "utf8");
+    const dark = css.slice(css.indexOf(".dark {"));
+    expect(dark).toMatch(/--color-sky-50:/);
+    expect(dark).toMatch(/--color-sky-200:/);
   });
 });
