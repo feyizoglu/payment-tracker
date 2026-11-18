@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLang } from "@ptracker/shared/i18n";
 import { GAME_THEME } from "@ptracker/shared/imposter";
 import { useAppLock } from "@/lib/app-lock-context";
+import { askToLeave, leaveGameScreen } from "@/lib/leave-game";
 import { gameDarkVars } from "@/lib/game-theme";
 
 // Header with a back action + body, shared by the games screens.
@@ -17,13 +18,15 @@ import { gameDarkVars } from "@/lib/game-theme";
 // - `scroll={false}`: a plain body. A held card inside a ScrollView loses the press as soon
 //   as the finger drifts.
 // - `nav={false}`: no back, exit or own action in the header, only the title, for a screen
-//   tapped blind.
+//   tapped blind or a game being played.
+// - `confirmBack`: a game is in progress, so the back asks before leaving it.
 export function GameScreen({
   title,
   tone = "app",
   color,
   scroll = true,
   nav = true,
+  confirmBack = false,
   right,
   children,
 }: {
@@ -32,6 +35,7 @@ export function GameScreen({
   color?: string;
   scroll?: boolean;
   nav?: boolean;
+  confirmBack?: boolean;
   right?: ReactNode;
   children: ReactNode;
 }) {
@@ -50,12 +54,17 @@ export function GameScreen({
       </Pressable>
     ) : null;
   const spacer = <View className="w-14" />;
+  const back = () => {
+    const leave = () => leaveGameScreen(lock.gameMode);
+    if (confirmBack) askToLeave(t, leave);
+    else leave();
+  };
 
   const content = (
     <>
       <View className="flex-row items-center border-b border-gray-100 px-4 py-3">
         {showBack ? (
-          <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace(lock.gameMode ? "/games" : "/"))} className="pr-3">
+          <Pressable onPress={back} className="pr-3">
             <Text className="text-sm text-gray-500">‹ {t.back}</Text>
           </Pressable>
         ) : (

@@ -63,6 +63,12 @@ vi.mock("@/components/games/potato/potato-bang", () => ({ PotatoBang: () => null
 vi.mock("@/components/games/potato/potato-end", () => ({ PotatoEnd: () => null }));
 vi.mock("@/lib/hot-potato-storage", () => storage);
 
+const leave = vi.hoisted(() => ({ active: undefined as boolean | undefined }));
+vi.mock("@/lib/leave-game", () => ({
+  useConfirmLeave: (active: boolean) => {
+    leave.active = active;
+  },
+}));
 import { ActivityIndicator } from "react-native";
 import PotatoScreen from "@/app/games/potato";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
@@ -226,5 +232,37 @@ describe("Hot Potato screen: the end", () => {
     call(PotatoEnd, "onNewGame");
     expect(props(PotatoSetupWizard).value).toEqual(valid);
     expect(props(PotatoSetupWizard).step).toBe(0);
+  });
+});
+
+describe("Hot Potato screen: leaving the game", () => {
+  it("asks before leaving once the game starts, and hides back and exit while the potato is passed", async () => {
+    await load(valid);
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([false, true, false]);
+    await start();
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, true, true]);
+    call(PotatoReady, "onStart");
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, true]);
+  });
+});
+
+describe("Hot Potato screen: leaving after the bang and the end", () => {
+  it("keeps back and exit hidden over the bang, and shows them again on the next ready", async () => {
+    await start();
+    call(PotatoReady, "onStart");
+    call(PotatoPlay, "onTick", 10_000);
+    expect(has(PotatoBang)).toBe(true);
+    expect(screen().nav).toBe(false);
+    call(PotatoBang, "onNext", 2000);
+    expect(has(PotatoReady)).toBe(true);
+    expect(screen().nav).toBe(true);
+  });
+
+  it("does not ask before leaving a finished game", async () => {
+    await start();
+    round();
+    round();
+    expect(has(PotatoEnd)).toBe(true);
+    expect([screen().confirmBack, leave.active]).toEqual([false, false]);
   });
 });

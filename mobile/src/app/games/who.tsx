@@ -30,6 +30,7 @@ import { WhoSetupWizard } from "@/components/games/who/who-setup";
 import { WhoSummary } from "@/components/games/who/who-summary";
 import { WhoTurn } from "@/components/games/who/who-turn";
 import { getStoredWhoSeen, getStoredWhoSetup, setStoredWhoSeen, setStoredWhoSetup } from "@/lib/who-game-storage";
+import { useConfirmLeave } from "@/lib/leave-game";
 
 const SOURCES: WhoSources = { people: WHO_PEOPLE, characters: WHO_CHARACTERS, things: WHO_THINGS };
 
@@ -112,6 +113,10 @@ export default function WhoScreen() {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
     return () => sub.remove();
   }, [shield, focused]);
+
+  // Outside the shielded turn, back asks first once the game has started.
+  const inProgress = phase !== "setup" && phase !== "end";
+  useConfirmLeave(inProgress && !shield);
 
   if (!pinReady) return <GamesPinSetup title={t.whoTitle} />;
 
@@ -196,7 +201,8 @@ export default function WhoScreen() {
       tone="game"
       color={phase === "handoff" ? colors[side] : undefined}
       scroll={phase === "setup" || phase === "summary" || phase === "end"}
-      nav={!shield}>
+      nav={!shield}
+      confirmBack={inProgress}>
       {body}
     </GameScreen>
   );

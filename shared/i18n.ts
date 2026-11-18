@@ -418,6 +418,9 @@ const translations = {
     pinNotSet: "No PIN set on this device",
     pinSaved: "PIN saved",
     gameModeExit: "Exit game mode",
+    gameLeaveTitle: "Leave the game?",
+    gameLeaveBody: "The game in progress will be lost.",
+    gameLeaveConfirm: "Leave",
     pinBackToGames: "Back to games",
     // Wolf Night
     wolfTitle: "Wolf Night",
@@ -1120,6 +1123,9 @@ const translations = {
     pinNotSet: "Bu cihazda PIN belirlenmedi",
     pinSaved: "PIN kaydedildi",
     gameModeExit: "Oyun modundan çık",
+    gameLeaveTitle: "Oyundan çıkılsın mı?",
+    gameLeaveBody: "Devam eden oyun kaybolacak.",
+    gameLeaveConfirm: "Çık",
     pinBackToGames: "Oyunlara dön",
     // Kurt Gecesi
     wolfTitle: "Kurt Gecesi",

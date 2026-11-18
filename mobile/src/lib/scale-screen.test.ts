@@ -85,6 +85,12 @@ vi.mock("@/components/games/scale/scale-reveal", () => ({ ScaleReveal: () => nul
 vi.mock("@/components/games/scale/scale-end", () => ({ ScaleEnd: () => null }));
 vi.mock("@/lib/scale-game-storage", () => storage);
 
+const leave = vi.hoisted(() => ({ active: undefined as boolean | undefined }));
+vi.mock("@/lib/leave-game", () => ({
+  useConfirmLeave: (active: boolean) => {
+    leave.active = active;
+  },
+}));
 import { ActivityIndicator } from "react-native";
 import ScaleScreen from "@/app/games/scale";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
@@ -447,5 +453,26 @@ describe("Scale screen: end", () => {
     playAll();
     call(ScaleEnd, "onNewGame");
     expect(props(ScaleSetupWizard)).toMatchObject({ value: valid, step: 0, quickStart: true });
+  });
+});
+
+describe("Scale screen: leaving the game", () => {
+  it("asks before leaving once the game starts, and hides back and exit while the turn is on screen", async () => {
+    await load(valid);
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([false, true, false]);
+    await start();
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, true, true]);
+    call(ScaleHandoff, "onShow");
+    // The turn blocks back outright, so it does not ask.
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, false]);
+  });
+});
+
+describe("Scale screen: leaving a finished game", () => {
+  it("does not ask before leaving once the game has ended", async () => {
+    await start();
+    playAll();
+    expect(has(ScaleEnd)).toBe(true);
+    expect([screen().confirmBack, leave.active]).toEqual([false, false]);
   });
 });

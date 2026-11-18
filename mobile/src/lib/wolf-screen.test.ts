@@ -15,6 +15,7 @@ const entry = vi.hoisted(() => ({ pinReady: true }));
 const onScreen = vi.hoisted(() => ({
   focused: true,
   appState: undefined as undefined | ((next: string) => void),
+  back: [] as (() => boolean)[],
 }));
 
 vi.mock("react", async (importOriginal) => {
@@ -47,6 +48,12 @@ vi.mock("react-native", () => ({
   Pressable: () => null,
   Text: () => null,
   View: () => null,
+  BackHandler: {
+    addEventListener: (_: string, fn: () => boolean) => {
+      onScreen.back.push(fn);
+      return { remove: () => onScreen.back.splice(onScreen.back.indexOf(fn), 1) };
+    },
+  },
   AppState: {
     currentState: "active",
     addEventListener: (_: string, fn: (next: string) => void) => {
@@ -78,6 +85,12 @@ vi.mock("@/components/games/wolf/wolf-setup", () => ({ WolfSetupWizard: () => nu
 vi.mock("@/components/games/wolf/wolf-this-game", () => ({ WolfThisGame: () => null }));
 vi.mock("@/lib/wolf-game-storage", () => storage);
 
+const leave = vi.hoisted(() => ({ active: undefined as boolean | undefined }));
+vi.mock("@/lib/leave-game", () => ({
+  useConfirmLeave: (active: boolean) => {
+    leave.active = active;
+  },
+}));
 import { ActivityIndicator } from "react-native";
 import WolfScreen from "@/app/games/wolf";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
@@ -157,6 +170,7 @@ beforeEach(() => {
   entry.pinReady = true;
   onScreen.focused = true;
   onScreen.appState = undefined;
+  onScreen.back = [];
   let clock = 1_800_000_000_000;
   vi.spyOn(Date, "now").mockImplementation(() => (clock += 1000));
   vi.spyOn(Math, "random").mockReturnValue(0);
@@ -198,6 +212,8 @@ describe("Wolf Night screen: day timer", () => {
     await toDay(2);
     call(WolfDay, "onRules");
     expect(find(WolfDay)).toBeUndefined();
+    // The rules over the day hold back for themselves: the leave question waits until they close.
+    expect(leave.active).toBe(false);
     onScreen.appState!("background");
     effects();
     expect((hooks.states.find((s) => (s as GameState)?.phase === "day") as GameState).dayPausedAt).not.toBeNull();
@@ -424,5 +440,48 @@ describe("Wolf Night screen: turns", () => {
     call(WolfRoster, "onStart");
     expect(has(WolfNarrator)).toBe(true);
     expect(screen().color).toBeUndefined();
+  });
+});
+
+describe("Wolf Night screen: leaving the game", () => {
+  it("asks before leaving once the game starts, and hides back and exit from the deal on", async () => {
+    await load(valid);
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([false, true, false]);
+    await start();
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, true, true]);
+    call(WolfThisGame, "onDeal");
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([true, false, true]);
+  });
+});
+
+describe("Wolf Night screen: back over the rules", () => {
+  it("closes the rules opened over the game, and the game asks before leaving again", async () => {
+    await start();
+    call(WolfThisGame, "onDeal");
+    dealAll(5);
+    passNight();
+    call(WolfRemoval, "onContinue");
+    call(WolfDay, "onRules");
+    expect(has(WolfDay)).toBe(false);
+    render();
+    for (const effect of hooks.effects) effect();
+    expect(onScreen.back.at(-1)!()).toBe(true);
+    expect(has(WolfDay)).toBe(true);
+    expect(leave.active).toBe(true);
+  });
+});
+
+describe("Wolf Night screen: leaving a finished game", () => {
+  it("does not ask before leaving and shows back and exit again once the village has won", async () => {
+    await start();
+    call(WolfThisGame, "onDeal");
+    dealAll(5);
+    passNight();
+    call(WolfRemoval, "onContinue");
+    call(WolfDay, "onVote");
+    call(WolfDay, "onVoteOut", 4);
+    call(WolfRemoval, "onContinue");
+    expect((find(WolfEnd)!.props.state as GameState).winner).toBe("village");
+    expect([screen().confirmBack, screen().nav, leave.active]).toEqual([false, true, false]);
   });
 });

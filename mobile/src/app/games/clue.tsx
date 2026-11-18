@@ -31,6 +31,7 @@ import { ClueWrite } from "@/components/games/clue/clue-write";
 import { GamesPinSetup, useEnterGameModeOnce } from "@/components/games/game-mode-entry";
 import { GameScreen } from "@/components/games/game-screen";
 import { getStoredClueSeen, getStoredClueSetup, setStoredClueSeen, setStoredClueSetup } from "@/lib/clue-game-storage";
+import { useConfirmLeave } from "@/lib/leave-game";
 
 export default function ClueScreen() {
   const { t, lang } = useLang();
@@ -91,6 +92,10 @@ export default function ClueScreen() {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
     return () => sub.remove();
   }, [midRound, focused]);
+
+  // Outside the blocked round, back asks first once the game has started.
+  const inProgress = phase !== "setup" && phase !== "end";
+  useConfirmLeave(inProgress && !midRound);
 
   if (!pinReady) return <GamesPinSetup title={t.clueTitle} />;
 
@@ -200,7 +205,13 @@ export default function ClueScreen() {
   }
 
   return (
-    <GameScreen title={t.clueTitle} tone="game" color={color} scroll={phase !== "handoff"}>
+    <GameScreen
+      title={t.clueTitle}
+      tone="game"
+      color={color}
+      scroll={phase !== "handoff"}
+      nav={!midRound}
+      confirmBack={inProgress}>
       {body}
     </GameScreen>
   );
