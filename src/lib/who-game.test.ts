@@ -308,6 +308,14 @@ describe("whoPool", () => {
   it("is empty with no kinds", () => {
     expect(whoPool(choice({ kinds: [] }), sources, "en")).toEqual([]);
   });
+
+  it("builds a pool once per choice and language, whatever order the kinds come in", () => {
+    const a = whoPool(choice({ kinds: ["people", "characters"], region: "tr", level: "easy" }), sources, "en");
+    expect(whoPool(choice({ kinds: ["characters", "people"], region: "tr", level: "easy" }), sources, "en")).toBe(a);
+    expect(whoPool(choice({ kinds: ["people", "characters"], region: "tr", level: "easy" }), sources, "tr")).not.toBe(a);
+    expect(whoPool(choice({ kinds: ["people"], region: "tr", level: "easy" }), sources, "en")).not.toBe(a);
+    expect(whoPool(choice({ kinds: ["people", "characters"], region: "tr", level: "easy" }), { ...sources }, "en")).not.toBe(a);
+  });
 });
 
 describe("whoPool: one card per name", () => {
