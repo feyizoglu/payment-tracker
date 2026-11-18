@@ -448,4 +448,20 @@ describe("TowerGame", () => {
     expect(back().props["aria-disabled"]).toBe(false);
     expect(String(back().props.className)).not.toContain("pointer-events-none");
   });
+
+  it("keeps drawing after a miss until the missed book has fallen away", async () => {
+    const { canvas, calls } = fakeCanvas();
+    host.attach.canvas = canvas;
+    await mount();
+    await tap();
+    await tap();
+    expect(text()).toContain("Score");
+    await frame(33);
+    expect(frames.length).toBeGreaterThan(0);
+    calls.length = 0;
+    await frame(33);
+    expect(calls.some((c) => c.name === "rotate")).toBe(true);
+    for (let i = 0; i < 60 && frames.length > 0; i++) await frame(33);
+    expect(frames.length).toBe(0);
+  });
 });
