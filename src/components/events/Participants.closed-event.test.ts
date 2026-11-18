@@ -115,3 +115,46 @@ describe("Participants add", () => {
     expect(errorText()?.props.children).toBe("This event is closed");
   });
 });
+
+describe("Participants remove", () => {
+  const withGuest = {
+    ...event,
+    participants: [
+      ...event.participants,
+      { id: "p2", event_id: "e1", user_id: "u2", display_name: "Bob", created_at: "" },
+    ],
+  } as unknown as EventDetail;
+
+  async function removeBob(error: string) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ error }), { status: 409 }))
+    );
+    root = createRoot(container());
+    await act(async () =>
+      root?.render(
+        createElement(
+          LanguageProvider,
+          { initialLang: "en" },
+          createElement(Participants, { event: withGuest, myId: "u1", editable: true, onChanged: () => {} })
+        )
+      )
+    );
+    const button = host.nodes.findLast((n) => n.type === "button" && n.props["aria-label"] === "Delete");
+    if (!button) throw new Error("no remove button");
+    await act(async () => {
+      (button.props as { onClick: () => void }).onClick();
+    });
+    return errorText()?.props.children;
+  }
+
+  it("says the event is closed when it was closed after the page loaded", async () => {
+    expect(await removeBob("Event is closed")).toBe("This event is closed");
+  });
+
+  it("keeps the cannot-remove message for any other 409", async () => {
+    expect(await removeBob("Participant has expenses or payments")).toBe(
+      "This person has expenses or payments"
+    );
+  });
+});
