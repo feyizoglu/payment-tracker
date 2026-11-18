@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { EVENT_CLOSED_ERROR } from "@/lib/event-errors";
 import { getSessionUser, type SessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
 import { findMyParticipant, getEvent } from "@/lib/events-repo";
@@ -42,7 +43,7 @@ export async function withParticipant(
 }
 
 export function eventClosed() {
-  return jsonError(409, "Event is closed");
+  return jsonError(409, EVENT_CLOSED_ERROR);
 }
 
 export async function readJson(req: Request): Promise<Record<string, unknown> | null> {
