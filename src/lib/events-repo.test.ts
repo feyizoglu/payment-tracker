@@ -10,6 +10,7 @@ import {
   insertExpense,
   insertSettlement,
   loadEventDetail,
+  loadMyEvents,
   participantIsReferenced,
   replaceExpense,
   SettlementExceedsDebt,
@@ -324,4 +325,60 @@ describe("insertSettlement", () => {
     expect(err).not.toBeInstanceOf(SettlementExceedsDebt);
     expect(err.message).toBe("rpc missing");
   });
+});
+
+describe("loadMyEvents", () => {
+  const ev = (id: string) => ({ id, name: id, event_date: null, created_by: "u1", status: "open", created_at: "" });
+  const exp = (id: string, event_id: string) => ({ id, event_id, currency: "TRY", amount_minor: 100, paid_by: "p1", shares: [] });
+  const set = (id: string, event_id: string) => ({ id, event_id, currency: "TRY", amount_minor: 10, from_participant: "p2", to_participant: "p1" });
+
+  it("makes one query and returns nothing when the user is in no event", async () => {
+    const { db, calls } = fakeDb({ event_participants: [{ data: [] }] });
+    expect(await loadMyEvents(db, "u1")).toEqual([]);
+    expect(calls.map((c) => c.table)).toEqual(["event_participants"]);
+  });
+
+  it("loads every event in four queries and groups the rows by event", async () => {
+    const { db, calls } = fakeDb({
+      event_participants: [{ data: [{ id: "p1", event_id: "e1" }, { id: "p9", event_id: "e2" }, { id: "p5", event_id: "e3" }] }],
+      events: [{ data: [ev("e1"), ev("e2"), ev("e3")] }],
+      event_expenses: [{ data: [exp("x1", "e1"), exp("x2", "e2"), exp("x3", "e1")] }],
+      event_settlements: [{ data: [set("s1", "e2")] }],
+    });
+    const rows = await loadMyEvents(db, "u1");
+    expect(calls.map((c) => c.table).sort()).toEqual(["event_expenses", "event_participants", "event_settlements", "events"]);
+    for (const c of calls.filter((c) => c.table !== "event_participants")) {
+      const key = c.table === "events" ? "id" : "event_id";
+      expect(c.ops).toContainEqual(["in", [key, ["e1", "e2", "e3"]]]);
+    }
+    expect(calls.find((c) => c.table === "event_participants")?.ops).toContainEqual(["eq", ["user_id", "u1"]]);
+    expect(rows).toEqual([
+      { event: ev("e1"), myParticipantId: "p1", expenses: [exp("x1", "e1"), exp("x3", "e1")], settlements: [] },
+      { event: ev("e2"), myParticipantId: "p9", expenses: [exp("x2", "e2")], settlements: [set("s1", "e2")] },
+      { event: ev("e3"), myParticipantId: "p5", expenses: [], settlements: [] },
+    ]);
+  });
+
+  it("leaves out an event that no longer exists", async () => {
+    const { db } = fakeDb({
+      event_participants: [{ data: [{ id: "p1", event_id: "e1" }, { id: "p2", event_id: "gone" }] }],
+      events: [{ data: [ev("e1")] }],
+      event_expenses: [{ data: [] }],
+      event_settlements: [{ data: [] }],
+    });
+    expect((await loadMyEvents(db, "u1")).map((r) => r.event.id)).toEqual(["e1"]);
+  });
+
+  for (const table of ["event_participants", "events", "event_expenses", "event_settlements"]) {
+    it(`rejects when the ${table} query errors`, async () => {
+      const { db } = fakeDb({
+        event_participants: [{ data: [{ id: "p1", event_id: "e1" }] }],
+        events: [{ data: [ev("e1")] }],
+        event_expenses: [{ data: [] }],
+        event_settlements: [{ data: [] }],
+        [table]: [{ error: { message: `${table} failed` } }],
+      });
+      await expect(loadMyEvents(db, "u1")).rejects.toThrow(`${table} failed`);
+    });
+  }
 });
