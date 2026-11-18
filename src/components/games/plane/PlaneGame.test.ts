@@ -120,8 +120,8 @@ async function frame(ms = 16) {
   await act(async () => frames.splice(0, frames.length).forEach((fn) => fn(now)));
 }
 const area = () => host.nodes.findLast((n) => n.type === "div" && typeof n.props.onPointerDown === "function")!;
-async function tap() {
-  await act(async () => (area().props.onPointerDown as (e: unknown) => void)({ preventDefault() {} }));
+async function tap(button = 0) {
+  await act(async () => (area().props.onPointerDown as (e: unknown) => void)({ button, preventDefault() {} }));
 }
 function lastRender() {
   const i = host.nodes.findLastIndex((n) => n.type === "div" && typeof n.props.onPointerDown === "function");
@@ -195,6 +195,30 @@ describe("PlaneGame", () => {
     await act(async () => (again().props.onClick as () => void)());
     expect(text()).toContain("Tap to start");
     expect(text()).toContain("Best: 3");
+  });
+
+  it("ignores a right or middle click", async () => {
+    await mount();
+    await tap(2);
+    await tap(1);
+    expect(text()).toContain("Tap to start");
+    await tap();
+    expect(lastRender().some((n) => n.type === "p" && n.props.children === 0)).toBe(true);
+  });
+
+  it("plays again on Space after a crash, once the guard is off", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await mount();
+    await tap();
+    engine.endWith = (s) => ({ ...s, phase: "over", score: 1 });
+    await frame();
+    engine.endWith = null;
+    const space = () => act(async () => listeners.get("keydown")!({ code: "Space", repeat: false, preventDefault() {} }));
+    await space();
+    expect(again()).toBeDefined();
+    await act(async () => vi.advanceTimersByTime(500));
+    await space();
+    expect(text()).toContain("Tap to start");
   });
 
   it("reads a wrong saved best as 0", async () => {
