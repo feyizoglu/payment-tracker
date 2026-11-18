@@ -26,12 +26,12 @@ describe("paper plane best score", () => {
     expect(await getStoredPlaneBest()).toBe(12);
   });
 
-  it("reads 0 when nothing or something wrong is saved, or storage fails", async () => {
+  it("reads 0 when nothing or something wrong is saved, and null when storage fails", async () => {
     expect(await getStoredPlaneBest()).toBe(0);
     store.map.set("paper-plane-best", "nope");
     expect(await getStoredPlaneBest()).toBe(0);
     store.fail = true;
-    expect(await getStoredPlaneBest()).toBe(0);
+    expect(await getStoredPlaneBest()).toBeNull();
     await expect(setStoredPlaneBest(3)).resolves.toBeUndefined();
   });
 });

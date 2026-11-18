@@ -1,13 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PLANE_BEST_KEY, parseSavedBest } from "@ptracker/shared/paper-plane";
 
-// Fail-soft like scale-game-storage.ts: a storage error means a best of 0, never a game that will not open.
+// Fail-soft like scale-game-storage.ts: a storage error never stops the game.
 
-export async function getStoredPlaneBest(): Promise<number> {
+/** The saved best (0 when none), or null when storage could not be read. */
+export async function getStoredPlaneBest(): Promise<number | null> {
   try {
     return parseSavedBest(await AsyncStorage.getItem(PLANE_BEST_KEY));
   } catch {
-    return 0;
+    return null;
   }
 }
 

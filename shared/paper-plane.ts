@@ -149,6 +149,36 @@ export function parseSavedBest(raw: string | null): number {
   return Number.isInteger(n) && n >= 0 ? n : 0;
 }
 
+/** What one screen knows about the best: the highest score read or played, and whether any read succeeded. */
+export interface PlaneSessionBest {
+  best: number;
+  known: boolean;
+}
+
+export const newPlaneSessionBest = (): PlaneSessionBest => ({ best: 0, known: false });
+
+/** The session after a storage read: `null` is a read that failed. */
+export function planeSessionRead(session: PlaneSessionBest, stored: number | null): PlaneSessionBest {
+  return stored === null ? session : { best: Math.max(session.best, stored), known: true };
+}
+
+/**
+ * A game that scored `score` ends, with the stored best just read (`null` if that read failed).
+ * A new best is claimed only once some read has succeeded, so a broken read never passes for an
+ * empty record; `save` is the session best to write when it beats what is stored.
+ */
+export function planeBestAfter(
+  score: number,
+  session: PlaneSessionBest,
+  stored: number | null
+): { session: PlaneSessionBest; isNew: boolean; save: number | null } {
+  const known = session.known || stored !== null;
+  const top = Math.max(session.best, stored ?? 0);
+  const best = Math.max(top, score);
+  const beats = best > (stored ?? session.best);
+  return { session: { best, known }, isNew: known && score > top, save: known && beats ? best : null };
+}
+
 export const PLANE_COLORS = {
   light: { paper: "#fdfbf3", line: "#c9d8ee", margin: "#e8a3a3", ink: "#3b3b3b", plane: "#ffffff", score: "#1f2937" },
   dark: { paper: "#141d33", line: "#26355a", margin: "#7a3b4a", ink: "#d9dfeb", plane: "#eef2f8", score: "#f3f4f6" },

@@ -11,7 +11,7 @@ const hooks = vi.hoisted(() => ({
 }));
 const env = vi.hoisted(() => ({ scheme: "light", pinReady: true, onScreen: true, frames: [] as ((t: number) => void)[], now: 0 }));
 const storage = vi.hoisted(() => ({
-  getStoredPlaneBest: vi.fn(async () => 5),
+  getStoredPlaneBest: vi.fn(async (): Promise<number | null> => 5),
   setStoredPlaneBest: vi.fn(async (_n: number) => undefined),
 }));
 const view = vi.hoisted(() => ({ sync: vi.fn() }));
@@ -290,18 +290,87 @@ describe("PlaneScreen", () => {
     engine.endScore = 7;
     await frames(2);
     expect(overlay()).toMatchObject({ phase: "over", score: 7, best: 9, newBest: false });
-    expect(storage.setStoredPlaneBest).toHaveBeenCalledTimes(1);
     expect(storage.setStoredPlaneBest).toHaveBeenCalledWith(9);
+    expect(storage.setStoredPlaneBest.mock.calls.every(([b]) => b === 9)).toBe(true);
+  });
+
+  it("saves a best played while storage was unreadable once a read succeeds, without claiming a lower score", async () => {
+    storage.getStoredPlaneBest.mockResolvedValueOnce(null).mockResolvedValueOnce(null).mockResolvedValueOnce(4);
+    await settle();
+    await tap();
+    engine.endScore = 10;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 10, best: 10, newBest: false });
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
+    overlay().onAgain();
+    await settle();
+    await tap();
+    engine.endScore = 6;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 6, best: 10, newBest: false });
+    expect(storage.setStoredPlaneBest).toHaveBeenCalledWith(10);
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalledWith(6);
   });
 
   it("keeps the best already read when a read at the end of the game fails", async () => {
-    storage.getStoredPlaneBest.mockResolvedValueOnce(12).mockResolvedValueOnce(0);
+    storage.getStoredPlaneBest.mockResolvedValueOnce(12).mockResolvedValueOnce(null);
     await settle();
     await tap();
     engine.endScore = 9;
     await frames(2);
     expect(overlay()).toMatchObject({ phase: "over", best: 12, newBest: false });
     expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
+  });
+
+  it("claims no new best and saves nothing when no read of the best succeeds", async () => {
+    storage.getStoredPlaneBest.mockResolvedValue(null);
+    await settle();
+    await tap();
+    engine.endScore = 4;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 4, best: 4, newBest: false });
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
+  });
+
+  it("claims no new best in the next game when every read of the best has failed", async () => {
+    storage.getStoredPlaneBest.mockResolvedValue(null);
+    await settle();
+    await tap();
+    engine.endScore = 4;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 4, newBest: false });
+    overlay().onAgain();
+    await settle();
+    expect(overlay().phase).toBe("ready");
+    await tap();
+    engine.endScore = 6;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 6, newBest: false });
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
+  });
+
+  it("keeps the session's best on the card when every read of the best fails", async () => {
+    storage.getStoredPlaneBest.mockResolvedValue(null);
+    await settle();
+    await tap();
+    engine.endScore = 10;
+    await frames(2);
+    overlay().onAgain();
+    await settle();
+    await tap();
+    engine.endScore = 3;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 3, best: 10, newBest: false });
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
+  });
+
+  it("guards the game-over buttons from the card's first frame", async () => {
+    await settle();
+    await tap();
+    engine.endScore = 1;
+    env.now += 33;
+    env.frames.splice(0, env.frames.length).forEach((fn) => fn(env.now));
+    expect(overlay()).toMatchObject({ phase: "over", guard: true });
   });
 
   it("draws the page and its texts in the dark palette when the phone is dark", async () => {
