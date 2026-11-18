@@ -36,6 +36,8 @@ function writeBest(best: number) {
 export default function PlaneGame() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const live = useRef<PlaneState>(newPlaneGame(56));
+  // Space plays again after a crash, but only once the game-over guard is off.
+  const canRestart = useRef(false);
   const [view, setView] = useState<{ phase: PlaneState["phase"]; score: number }>({ phase: "ready", score: 0 });
   const [best, setBest] = useState(0);
   const [newBest, setNewBest] = useState(false);
@@ -97,6 +99,10 @@ export default function PlaneGame() {
       // A focused button or link takes Space itself, like the Again button on the game-over card.
       if ((e.target as Element | null)?.closest?.("button, a, input, textarea, select")) return;
       e.preventDefault();
+      if (live.current.phase === "over") {
+        if (canRestart.current) fresh();
+        return;
+      }
       tap();
     };
     const onHide = () => {
@@ -137,14 +143,23 @@ export default function PlaneGame() {
     }
     setBest(Math.max(stored, score));
     setGuard(true);
-    const id = setTimeout(() => setGuard(false), PLANE_OVER_GUARD_MS);
-    return () => clearTimeout(id);
+    canRestart.current = false;
+    const id = setTimeout(() => {
+      setGuard(false);
+      canRestart.current = true;
+    }, PLANE_OVER_GUARD_MS);
+    return () => {
+      clearTimeout(id);
+      canRestart.current = false;
+    };
   }, [view.phase]);
 
   return (
     <div
       className="relative h-[70vh] max-h-[760px] min-h-[420px] w-full select-none overflow-hidden rounded-2xl touch-none"
       onPointerDown={(e) => {
+        // Touch and pen report button 0 too; a right or middle click is not a flap.
+        if (e.button !== 0) return;
         e.preventDefault();
         tap();
       }}>
