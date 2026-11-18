@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { startFrameLoop } from "@/lib/frame-loop";
 import {
   PLANE_BEST_KEY,
+  PLANE_COLORS,
   PLANE_OVER_GUARD_MS,
   newPlaneGame,
   parseSavedBest,
@@ -39,6 +40,7 @@ export default function PlaneGame() {
   const [best, setBest] = useState(0);
   const [newBest, setNewBest] = useState(false);
   const [guard, setGuard] = useState(false);
+  const [dark, setDark] = useState(false);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -69,6 +71,7 @@ export default function PlaneGame() {
     // localStorage only exists in the browser: reading it during render would differ from the server's HTML.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBest(readBest());
+    setDark(document.documentElement.classList.contains("dark"));
     fresh();
   }, [fresh]);
 
@@ -131,7 +134,7 @@ export default function PlaneGame() {
         tap();
       }}>
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
-      <PlaneOverlay phase={view.phase} score={view.score} best={best} newBest={newBest} guard={guard} onAgain={fresh} />
+      <PlaneOverlay phase={view.phase} score={view.score} best={best} newBest={newBest} guard={guard} ink={(dark ? PLANE_COLORS.dark : PLANE_COLORS.light).score} onAgain={fresh} />
     </div>
   );
 }
