@@ -26,6 +26,7 @@ module.exports = {
         teal: { ...defaults.teal, ...themed("teal", [50]) },
         rose: { ...defaults.rose, ...themed("rose", [50]) },
         sky: { ...defaults.sky, ...themed("sky", [50, 600]) },
+        indigo: { ...defaults.indigo, ...themed("indigo", [50]) },
       },
     },
   },

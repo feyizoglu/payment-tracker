@@ -270,6 +270,7 @@ describe("RootNavigator Stack.Protected guards", () => {
     expect(guardFor("games/clue")).toBe(true);
     expect(guardFor("games/plane")).toBe(true);
     expect(guardFor("games/tower")).toBe(true);
+    expect(guardFor("games/secret")).toBe(true);
   });
 
   it("opens the app and closes the lock screen outside game mode", async () => {
