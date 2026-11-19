@@ -43,10 +43,10 @@ vi.mock("react", async (importOriginal) => {
 });
 vi.mock("react-native", () => ({ Text: () => null, View: () => null }));
 vi.mock("@/hooks/use-color-scheme", () => ({ useColorScheme: () => env.scheme }));
-vi.mock("@ptracker/shared/i18n", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@ptracker/shared/i18n")>()),
-  useLang: () => ({ t: new Proxy({}, { get: (_, key) => String(key) }), lang: env.lang }),
-}));
+vi.mock("@ptracker/shared/i18n", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@ptracker/shared/i18n")>();
+  return { ...actual, useLang: () => ({ t: actual.translationsFor(env.lang), lang: env.lang }) };
+});
 vi.mock("@/components/games/game-mode-entry", () => ({
   GamesPinSetup: () => null,
   useEnterGameModeOnce: () => env.pinReady,
@@ -71,6 +71,7 @@ vi.mock("@/lib/leave-game", () => ({
 
 import { View } from "react-native";
 import SecretScreen from "@/app/games/secret";
+import { Text } from "react-native";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
 import { GameScreen } from "@/components/games/game-screen";
 import { SecretBoard, SecretKeyboard, SecretResult } from "@/components/games/secret/secret-parts";
@@ -296,4 +297,29 @@ describe("SecretScreen", () => {
     (area.props.onLayout as (e: unknown) => void)({ nativeEvent: { layout: { width: 320, height: 240 } } });
     expect(find(SecretBoard)).toMatchObject({ width: 320, height: 240, palette: SECRET_COLORS.light });
   });
+
+  it("shows the hint, the streak and the short-guess note above the keyboard", async () => {
+    await settle();
+    expect(texts()).toContain("Hint: 🐾 Animals");
+    expect(texts()).toContain("Streak: 0");
+    for (const l of "ABC") find(SecretKeyboard).onKey(l);
+    find(SecretKeyboard).onKey("Enter");
+    await settle();
+    expect(texts()).toContain("Five letters, please.");
+    find(SecretKeyboard).onKey("D");
+    await settle();
+    expect(texts()).not.toContain("Five letters, please.");
+    for (const l of "E") find(SecretKeyboard).onKey(l);
+    find(SecretKeyboard).onKey("Enter");
+    await settle();
+    await typeWord(FIRST);
+    expect(texts()).toContain("Streak: 1");
+  });
 });
+
+function texts(): string[] {
+  return nodes(render())
+    .filter((n) => n.type === Text)
+    .map((n) => n.props.children)
+    .filter((c): c is string => typeof c === "string");
+}

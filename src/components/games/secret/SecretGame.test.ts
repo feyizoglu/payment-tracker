@@ -236,6 +236,8 @@ describe("SecretGame", () => {
     await click("Next word");
     for (let i = 0; i < 6; i++) await typeWord(WRONG);
     expect(text()).toContain(`The word was ${EN[1].word}.`);
+    // The result panel names no streak after a loss; only the header shows it.
+    expect(text().split(" | ").filter((t) => t.startsWith("Streak:"))).toEqual(["Streak: 0"]);
     expect(text()).toContain("Streak: 0");
     expect(text()).toContain("Best: 4");
     expect(store.get("secret-word-best")).toBe("4");
