@@ -2,10 +2,14 @@
 
 import type { Lang } from "./i18n";
 import { WORD_GAME_WORDS, type WordCard, type WordCategory } from "./word-game-words";
+import { SECRET_WORDS_EN } from "./secret-word-dictionary/en";
+import { SECRET_WORDS_TR } from "./secret-word-dictionary/tr";
+import { SECRET_ALPHABET, SECRET_LEN, secretUpper } from "./secret-word-letters";
+
+export { SECRET_ALPHABET, SECRET_LEN, secretUpper };
 
 export type Rng = () => number;
 
-export const SECRET_LEN = 5;
 export const SECRET_TRIES = 6;
 export const SECRET_BEST_KEY = "secret-word-best";
 /** The result panel's buttons ignore presses this long after a round ends. */
@@ -13,22 +17,11 @@ export const SECRET_END_GUARD_MS = 400;
 
 export const secretSeenKey = (lang: Lang) => `secret_word_seen_${lang}`;
 
-export const SECRET_ALPHABET: Record<Lang, readonly string[]> = {
-  tr: [..."ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"],
-  en: [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"],
-};
-
 /** The letter rows of the on-screen keyboard; Enter and delete sit at the ends of the last row. */
 export const SECRET_KEY_ROWS: Record<Lang, readonly (readonly string[])[]> = {
   tr: [[..."ERTYUIOPĞÜ"], [..."ASDFGHJKLŞİ"], [..."ZCVBNMÖÇ"]],
   en: [[..."QWERTYUIOP"], [..."ASDFGHJKL"], [..."ZXCVBNM"]],
 };
-
-/** Upper case without the runtime's locale, which Hermes may not honour: Turkish i is İ, ı is I. */
-export function secretUpper(text: string, lang: Lang): string {
-  const mapped = lang === "tr" ? text.replace(/i/g, "İ").replace(/ı/g, "I") : text;
-  return mapped.toUpperCase();
-}
 
 /** The alphabet letter a typed key stands for, or null. */
 export function secretLetter(key: string, lang: Lang): string | null {
@@ -67,6 +60,15 @@ export function secretCards(lang: Lang, source: Source = WORD_GAME_WORDS[lang]):
 const cardCache: Partial<Record<Lang, SecretCard[]>> = {};
 /** `secretCards(lang)`, built once per language. */
 export const secretCardsFor = (lang: Lang): SecretCard[] => (cardCache[lang] ??= secretCards(lang));
+
+const DICTIONARY: Record<Lang, string> = { tr: SECRET_WORDS_TR, en: SECRET_WORDS_EN };
+const wordCache: Partial<Record<Lang, Set<string>>> = {};
+
+/** Whether a guess is a word: a root of the language's word list, or one of the answers. */
+export function secretIsWord(word: string, lang: Lang): boolean {
+  const words = (wordCache[lang] ??= new Set([...DICTIONARY[lang].split(" "), ...secretCardsFor(lang).map((c) => c.word)]));
+  return words.has(word);
+}
 
 /**
  * The next answer: an unseen one when there is any, else the seen list of these cards starts over
@@ -128,14 +130,16 @@ export function keyMarks(guesses: readonly string[], answer: string): Record<str
 
 export type SecretPhase = "playing" | "won" | "lost";
 
+/** Why the last Enter was refused: fewer than five letters, or not a word. Cleared by the next key. */
+export type SecretNotice = "short" | "unknown" | null;
+
 export interface SecretRound {
   lang: Lang;
   card: SecretCard;
   guesses: string[];
   typed: string;
   phase: SecretPhase;
-  /** Enter was pressed with fewer than five letters; cleared by the next key. */
-  short: boolean;
+  notice: SecretNotice;
 }
 
 export const newSecretRound = (card: SecretCard, lang: Lang): SecretRound => ({
@@ -144,25 +148,27 @@ export const newSecretRound = (card: SecretCard, lang: Lang): SecretRound => ({
   guesses: [],
   typed: "",
   phase: "playing",
-  short: false,
+  notice: null,
 });
 
 export function secretType(r: SecretRound, letter: string): SecretRound {
   if (r.phase !== "playing" || [...r.typed].length >= SECRET_LEN || !SECRET_ALPHABET[r.lang].includes(letter)) return r;
-  return { ...r, typed: r.typed + letter, short: false };
+  return { ...r, typed: r.typed + letter, notice: null };
 }
 
 export function secretDelete(r: SecretRound): SecretRound {
-  if (r.phase !== "playing" || (r.typed === "" && !r.short)) return r;
-  return { ...r, typed: [...r.typed].slice(0, -1).join(""), short: false };
+  if (r.phase !== "playing" || (r.typed === "" && r.notice === null)) return r;
+  return { ...r, typed: [...r.typed].slice(0, -1).join(""), notice: null };
 }
 
 export function secretSubmit(r: SecretRound): SecretRound {
   if (r.phase !== "playing") return r;
-  if ([...r.typed].length < SECRET_LEN) return r.short ? r : { ...r, short: true };
+  const notice: SecretNotice = [...r.typed].length < SECRET_LEN ? "short" : secretIsWord(r.typed, r.lang) ? null : "unknown";
+  // A refused guess costs no try; the letters stay so the player can change them.
+  if (notice) return r.notice === notice ? r : { ...r, notice };
   const guesses = [...r.guesses, r.typed];
   const phase: SecretPhase = r.typed === r.card.word ? "won" : guesses.length >= SECRET_TRIES ? "lost" : "playing";
-  return { ...r, guesses, typed: "", phase, short: false };
+  return { ...r, guesses, typed: "", phase, notice: null };
 }
 
 export type SecretSlot = { letter: string; mark: SecretMark | "typed" | "empty" };

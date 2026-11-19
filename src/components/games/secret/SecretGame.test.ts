@@ -47,7 +47,8 @@ const listeners = new Map<string, (e?: unknown) => void>();
 const EN = secretCards("en");
 // Math.random 0 deals the first unseen word.
 const FIRST = EN[0].word;
-const WRONG = FIRST === "ZZZZZ" ? "YYYYY" : "ZZZZZ";
+// A real word that shares no letter with the first answer and is not the second.
+const WRONG = EN.find((c, i) => i > 1 && ![...c.word].some((l) => FIRST.includes(l)))!.word;
 
 function container() {
   const noop = { addEventListener: () => undefined, removeEventListener: () => undefined };
@@ -169,6 +170,15 @@ describe("SecretGame", () => {
     // Letters still type: only Enter belongs to the focused control.
     await key("e", { target: focused });
     expect(marks().filter((m) => m === "typed")).toHaveLength(5);
+  });
+
+  it("refuses a guess that is not a word, using no try", async () => {
+    await mount();
+    await typeWord("zzzzz");
+    expect(text()).toContain("Not in the word list.");
+    expect(marks().slice(0, 5)).toEqual(["typed", "typed", "typed", "typed", "typed"]);
+    await key("Backspace");
+    expect(text()).not.toContain("Not in the word list.");
   });
 
   it("marks a guess on the page and on the keys", async () => {
