@@ -375,6 +375,37 @@ describe("TowerScreen", () => {
     expect(storage.setStoredTowerBest).not.toHaveBeenCalled();
   });
 
+  it("keeps the card's best while the first read of the best is still on its way", async () => {
+    let mount: (b: number) => void = () => undefined;
+    storage.getStoredTowerBest.mockReturnValueOnce(new Promise<number>((r) => (mount = r))).mockReturnValueOnce(new Promise(() => undefined));
+    await settle();
+    await tap();
+    engine.endScore = 10;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 10, best: 10 });
+    mount(5);
+    await settle();
+    expect(overlay().best).toBe(10);
+  });
+
+  it("does not call a replayed score a new best while the last game's read is on its way", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    storage.getStoredTowerBest.mockResolvedValueOnce(5).mockReturnValueOnce(new Promise(() => undefined)).mockReturnValueOnce(new Promise(() => undefined));
+    await settle();
+    await tap();
+    engine.endScore = 9;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 9, newBest: true });
+    vi.advanceTimersByTime(500);
+    engine.endScore = null;
+    overlay().onAgain();
+    await settle();
+    await tap();
+    engine.endScore = 8;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 8, best: 9, newBest: false });
+  });
+
   it("guards the game-over buttons from the card's first frame", async () => {
     await settle();
     await tap();

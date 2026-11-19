@@ -41,6 +41,8 @@ export default function TowerScreen() {
   });
   const [best, setBest] = useState(0);
   const session = useRef(newSessionBest());
+  // Scores played on this screen whose stored-best read has not come back yet still count on the card.
+  const played = useRef(0);
   const [newBest, setNewBest] = useState(false);
   const [guard, setGuard] = useState(false);
 
@@ -70,7 +72,7 @@ export default function TowerScreen() {
     let alive = true;
     void getStoredTowerBest().then((b) => {
       session.current = sessionRead(session.current, b);
-      if (alive) setBest(session.current.best);
+      if (alive) setBest((v) => Math.max(v, session.current.best));
     });
     return () => {
       alive = false;
@@ -95,9 +97,10 @@ export default function TowerScreen() {
     if (shown.phase !== "over") return;
     const score = live.current.score;
     let alive = true;
-    const now = bestAfter(score, session.current, null);
+    const now = bestAfter(score, { ...session.current, best: Math.max(session.current.best, played.current) }, null);
+    played.current = Math.max(played.current, score);
     setNewBest(now.isNew);
-    setBest(now.session.best);
+    setBest((v) => Math.max(v, now.session.best));
     // Read the stored best again: the first read may not have landed yet. The save runs even if
     // the player has left the screen by then; only the card waits for the screen.
     void getStoredTowerBest().then((stored) => {
@@ -106,7 +109,7 @@ export default function TowerScreen() {
       if (after.save !== null) void setStoredTowerBest(after.save);
       if (!alive) return;
       setNewBest(after.isNew);
-      setBest(after.session.best);
+      setBest((v) => Math.max(v, after.session.best));
     });
     const id = setTimeout(() => setGuard(false), TOWER_OVER_GUARD_MS);
     return () => {
