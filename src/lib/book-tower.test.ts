@@ -9,6 +9,7 @@ import {
   towerCameraTarget,
   towerPause,
   towerSliderRange,
+  towerStripes,
   towerSpeed,
   towerTap,
   TOWER_BOOKS,
@@ -163,6 +164,15 @@ describe("pause", () => {
   it("ignores pause outside play", () => {
     const s = newTowerGame();
     expect(towerPause(s)).toBe(s);
+  });
+});
+
+describe("spine stripes", () => {
+  it("puts two stripes near the ends of a book, none on a narrow one, for web and mobile alike", () => {
+    expect(towerStripes(50)).toEqual([3, 46]);
+    expect(towerStripes(8)).toEqual([2, 6]);
+    expect(towerStripes(3)).toEqual([]);
+    for (const w of [4, 6, 10, 40]) expect(Math.max(...towerStripes(w)) + 1).toBeLessThanOrEqual(w);
   });
 });
 

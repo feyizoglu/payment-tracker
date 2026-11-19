@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { TOWER_COLORS, TOWER_WIDTH, newTowerGame, towerBookColour, towerTap } from "@/lib/book-tower";
-import { MIN_STRIPED, drawTowerScene, towerViewport } from "./draw-tower";
+import { MIN_STRIPED, towerViewport } from "@/lib/book-tower";
+import { drawTowerScene } from "./draw-tower";
 
 function recorder() {
   const calls: { name: string; args: unknown[]; fill?: unknown }[] = [];

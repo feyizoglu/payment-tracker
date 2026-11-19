@@ -155,6 +155,23 @@ export function stepTower(s: TowerState, dt: number): TowerState {
   return { ...s, slider, camera, pieces, perfect: Math.max(0, s.perfect - t) };
 }
 
+/** The desk under the stack, in world units; the view is fitted to the world's width or this height. */
+export const TOWER_DESK = 12;
+export const TOWER_VIEW_H = 110;
+/** Narrower books have no room for the spine stripes. */
+export const MIN_STRIPED = 4;
+
+/** Pixels per unit, the world's left edge, and the desk surface's y in pixels, for a view of this size. */
+export function towerViewport(width: number, height: number) {
+  const scale = Math.min(width / TOWER_WIDTH, height / TOWER_VIEW_H);
+  return { scale, left: (width - TOWER_WIDTH * scale) / 2, desk: height - TOWER_DESK * scale };
+}
+
+/** Where a book's two 1-unit spine stripes start, from its left edge; none on a narrow book. */
+export function towerStripes(w: number): number[] {
+  return w < MIN_STRIPED ? [] : [Math.min(3, w / 4), Math.max(w - 4, (3 * w) / 4)];
+}
+
 export const TOWER_BOOKS = ["#c0392b", "#2e86c1", "#27ae60", "#e67e22", "#8e44ad", "#16a085"] as const;
 export const towerBookColour = (index: number) => TOWER_BOOKS[index % TOWER_BOOKS.length];
 

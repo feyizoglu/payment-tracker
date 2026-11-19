@@ -2,13 +2,20 @@ import { useMemo } from "react";
 import { View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 
-import { BOOK_H, TOWER_COLORS, TOWER_WIDTH, towerBookColour, type TowerBook, type TowerState } from "@ptracker/shared/book-tower";
+import {
+  BOOK_H,
+  TOWER_COLORS,
+  TOWER_DESK as DESK,
+  TOWER_WIDTH,
+  towerBookColour,
+  towerStripes,
+  towerViewport,
+  type TowerBook,
+  type TowerState,
+} from "@ptracker/shared/book-tower";
 
 const PIECE_SLOTS = 3;
-const DESK = 12;
 const SHOWN = 40;
-/** Narrower books have no room for the spine stripes, as on the web. */
-const MIN_STRIPED = 4;
 
 export interface TowerView {
   slider: SharedValue<number>;
@@ -54,12 +61,9 @@ function Book({ book, level, scale, stripe }: { book: Pick<TowerBook, "x" | "w" 
   const w = book.w * scale;
   return (
     <View style={{ position: "absolute", left: book.x * scale, bottom: level * BOOK_H * scale, width: w, height: BOOK_H * scale, backgroundColor: towerBookColour(book.index) }}>
-      {book.w >= MIN_STRIPED ? (
-        <>
-          <View style={{ position: "absolute", left: Math.min(3 * scale, w / 4), top: scale, bottom: scale, width: Math.max(1, scale), backgroundColor: stripe }} />
-          <View style={{ position: "absolute", right: Math.min(3 * scale, w / 4), top: scale, bottom: scale, width: Math.max(1, scale), backgroundColor: stripe }} />
-        </>
-      ) : null}
+      {towerStripes(book.w).map((at) => (
+        <View key={at} style={{ position: "absolute", left: at * scale, top: scale, bottom: scale, width: Math.max(1, scale), backgroundColor: stripe }} />
+      ))}
     </View>
   );
 }
@@ -80,8 +84,7 @@ export function TowerWorld({
   dark: boolean;
 }) {
   const c = dark ? TOWER_COLORS.dark : TOWER_COLORS.light;
-  const scale = Math.min(width / TOWER_WIDTH, height / 110);
-  const left = (width - TOWER_WIDTH * scale) / 2;
+  const { scale, left } = towerViewport(width, height);
   const { camera, slider } = view;
   const top = stack[stack.length - 1];
   const world = useAnimatedStyle(() => ({ transform: [{ translateY: camera.value * scale }] }));
