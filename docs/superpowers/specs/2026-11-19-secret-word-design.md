@@ -32,8 +32,10 @@ EAS update.
 - **A guess must be a word** (added 2026-11-19 at the owner's request; first shipped without this). A guess
   counts when it is a root in the language's word list or one of the answers; otherwise "Not in the
   word list." shows, no try is used and the letters stay. Roots only, no inflected forms. Turkish: the
-  five-letter roots of Zemberek's `master-dictionary.dict` (Apache 2.0), about 4,700. English: the
-  five-letter words of the public-domain ENABLE list without plurals, about 6,200. Both are generated
+  five-letter headwords of Zemberek's `master-dictionary.dict` (Apache 2.0) plus the stems of its verbs,
+  which it lists as infinitives (BEKLE from beklemek; the infinitives themselves stay), about 5,300.
+  English: the five-letter words of the public-domain ENABLE list without the regular inflections of
+  another word (-s, -es, -ies, -ves, -ed, -ing; irregular forms like TEETH stay), about 5,800. Both are generated
   into `shared/secret-word-dictionary/` by `scripts/secret-word/build-dictionary.ts`; attribution in its
   `NOTICE.md`.
 - Place names (PARİS, İZMİR, TEXAS…) stay in. Owner-reversible.

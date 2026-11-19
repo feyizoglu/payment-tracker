@@ -15,8 +15,8 @@
 **Files:** Create `shared/secret-word-dictionary/build.ts`, `scripts/secret-word/build-dictionary.ts`, `shared/secret-word-dictionary/NOTICE.md`, `LICENSE-zemberek.txt`, generated `tr.ts`, `en.ts`; test `src/lib/secret-word-dictionary.test.ts`.
 
 - [ ] Download `master-dictionary.dict` (zemberek-nlp, `morphology/src/main/resources/tr/`) and `enable1.txt` (dolph/dictionary) to `/tmp`.
-- [ ] Test `turkishRoots` (skips function-word tags and capitalised entries, flattens â/î/û, Turkish upper case), `englishRoots` (drops -s/-es plurals of other words, keeps CHAOS-like words), `wordsModule`, and the generated lists (sorted, unique, five letters of the alphabet).
-- [ ] Implement, then run `npx tsx scripts/secret-word/build-dictionary.ts /tmp/master.dict /tmp/enable1.txt` (tr 4667, en 6220).
+- [ ] Test `turkishRoots` (adds verb stems, skips function-word tags and capitalised entries, flattens â/î/û, Turkish upper case), `englishRoots` (drops -s/-es/-ies/-ves/-ed/-ing forms of other words, keeps CHAOS-like words), `wordsModule`, and the generated lists (sorted, unique, five letters of the alphabet).
+- [ ] Implement, then run `npx tsx@4.23.15 scripts/secret-word/build-dictionary.ts /tmp/master.dict /tmp/enable1.txt` (tr 5344, en 5828).
 
 ### Task 2: Engine and screens
 

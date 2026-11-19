@@ -4,10 +4,12 @@ import type { Lang } from "./i18n";
 import { WORD_GAME_WORDS, type WordCard, type WordCategory } from "./word-game-words";
 import { SECRET_WORDS_EN } from "./secret-word-dictionary/en";
 import { SECRET_WORDS_TR } from "./secret-word-dictionary/tr";
+import { SECRET_ALPHABET, SECRET_LEN, secretUpper } from "./secret-word-letters";
+
+export { SECRET_ALPHABET, SECRET_LEN, secretUpper };
 
 export type Rng = () => number;
 
-export const SECRET_LEN = 5;
 export const SECRET_TRIES = 6;
 export const SECRET_BEST_KEY = "secret-word-best";
 /** The result panel's buttons ignore presses this long after a round ends. */
@@ -15,22 +17,11 @@ export const SECRET_END_GUARD_MS = 400;
 
 export const secretSeenKey = (lang: Lang) => `secret_word_seen_${lang}`;
 
-export const SECRET_ALPHABET: Record<Lang, readonly string[]> = {
-  tr: [..."ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"],
-  en: [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"],
-};
-
 /** The letter rows of the on-screen keyboard; Enter and delete sit at the ends of the last row. */
 export const SECRET_KEY_ROWS: Record<Lang, readonly (readonly string[])[]> = {
   tr: [[..."ERTYUIOPĞÜ"], [..."ASDFGHJKLŞİ"], [..."ZCVBNMÖÇ"]],
   en: [[..."QWERTYUIOP"], [..."ASDFGHJKL"], [..."ZXCVBNM"]],
 };
-
-/** Upper case without the runtime's locale, which Hermes may not honour: Turkish i is İ, ı is I. */
-export function secretUpper(text: string, lang: Lang): string {
-  const mapped = lang === "tr" ? text.replace(/i/g, "İ").replace(/ı/g, "I") : text;
-  return mapped.toUpperCase();
-}
 
 /** The alphabet letter a typed key stands for, or null. */
 export function secretLetter(key: string, lang: Lang): string | null {

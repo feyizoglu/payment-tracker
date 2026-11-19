@@ -5,7 +5,8 @@ sources are in `build.ts`.
 
 ## Turkish: Zemberek
 
-`tr.ts` holds the five-letter roots of `morphology/src/main/resources/tr/master-dictionary.dict` from
+`tr.ts` holds the five-letter headwords, and the stems of verbs (listed there as infinitives: BEKLE from
+beklemek), of `morphology/src/main/resources/tr/master-dictionary.dict` from
 [Zemberek NLP](https://github.com/ahmetaa/zemberek-nlp):
 
 > Copyright 2018 Ahmet A. Akın, Mehmet D. Akın
@@ -16,11 +17,12 @@ sources are in `build.ts`.
 
 The full license text is in `LICENSE-zemberek.txt`. Changes made: only five-letter entries are kept;
 punctuation, numbers, pronouns, interjections, reduplications and function words are left out;
-circumflexes are flattened (â, î, û to a, i, u); words are upper-cased.
+circumflexes are flattened (â, î, û to a, i, u); verb stems are added; words are upper-cased.
 
 ## English: ENABLE
 
 `en.ts` holds the five-letter words of the ENABLE word list (Enhanced North American Benchmark
 Lexicon), which is in the public domain, taken from `enable1.txt` in
-[dolph/dictionary](https://github.com/dolph/dictionary). Plurals (another word plus -s or -es) are left
-out.
+[dolph/dictionary](https://github.com/dolph/dictionary). Inflections of another word are left out:
+-s, -es, -ies and -ves forms, and -ed and -ing forms. Irregular forms (teeth) stay, and a short list of
+words that only look inflected (chaos, goods, greed, being) is kept.

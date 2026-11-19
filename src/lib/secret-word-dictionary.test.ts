@@ -5,7 +5,7 @@ import { SECRET_WORDS_TR } from "../../shared/secret-word-dictionary/tr";
 import { SECRET_ALPHABET } from "@/lib/secret-word";
 
 describe("turkishRoots", () => {
-  it("keeps five-letter roots, upper-cased the Turkish way, with circumflexes flattened", () => {
+  it("keeps five-letter headwords and verb stems, upper-cased the Turkish way, with circumflexes flattened", () => {
     const dict = [
       "# comment",
       "kitap",
@@ -14,6 +14,8 @@ describe("turkishRoots", () => {
       "güneş [P:Noun]",
       "çukur [P:Adj]",
       "ermek [A:Aorist_I]",
+      "beklemek",
+      "ekmek [P:Noun]",
       "kitaplık",
       "araba",
       "araba",
@@ -23,7 +25,7 @@ describe("turkishRoots", () => {
       "bunlar [P:Pron]",
       "" ,
     ].join("\n");
-    expect(turkishRoots(dict)).toEqual(["ARABA", "BALIK", "ERMEK", "GÜNEŞ", "KAĞIT", "KİTAP", "ÇUKUR"]);
+    expect(turkishRoots(dict)).toEqual(["ARABA", "BALIK", "BEKLE", "EKMEK", "ERMEK", "GÜNEŞ", "KAĞIT", "KİTAP", "ÇUKUR"]);
   });
 
   it("flattens î to i and û to u", () => {
@@ -45,9 +47,13 @@ describe("turkishRoots", () => {
 });
 
 describe("englishRoots", () => {
-  it("keeps five-letter words, leaving out plurals but not words that only look like one", () => {
-    const enable = ["horse", "horses", "tree", "trees", "box", "boxes", "chao", "chaos", "glass", "lotus", "basis", "cat", "zebra", "abcdef", "x-ray", ""].join("\n");
-    expect(englishRoots(enable)).toEqual(["BASIS", "CHAOS", "GLASS", "HORSE", "LOTUS", "ZEBRA"]);
+  it("keeps five-letter words, leaving out -s, -es, -ies, -ves, -ed and -ing forms of other words but not words that only look like one", () => {
+    const enable = [
+      "horse", "horses", "tree", "trees", "box", "boxes", "chao", "chaos", "glass", "lotus", "basis", "cat", "zebra",
+      "cry", "cries", "elf", "elves", "ache", "ached", "act", "acted", "gree", "greed", "ace", "acing", "be", "being",
+      "good", "goods", "teeth", "abcdef", "x-ray", "",
+    ].join("\n");
+    expect(englishRoots(enable)).toEqual(["BASIS", "BEING", "CHAOS", "GLASS", "GOODS", "GREED", "HORSE", "LOTUS", "TEETH", "ZEBRA"]);
   });
 });
 
