@@ -7,7 +7,6 @@ import {
   PLANE_COLORS,
   PLANE_OVER_GUARD_MS,
   newPlaneGame,
-  parseSavedBest,
   newPlaneSessionBest,
   planeBestAfter,
   planeSessionRead,
@@ -17,25 +16,9 @@ import {
   stepPlane,
   type PlaneState,
 } from "@/lib/paper-plane";
+import { readSavedBest, writeSavedBest } from "@/lib/saved-best";
 import { drawPlaneScene } from "./draw-plane";
 import PlaneOverlay from "./PlaneOverlay";
-
-/** The saved best, or null when the browser refuses to read storage. */
-function readBest(): number | null {
-  try {
-    return parseSavedBest(localStorage.getItem(PLANE_BEST_KEY));
-  } catch {
-    return null;
-  }
-}
-
-function writeBest(best: number) {
-  try {
-    localStorage.setItem(PLANE_BEST_KEY, String(best));
-  } catch {
-    // Private mode or full storage: the game still runs, it just forgets.
-  }
-}
 
 export default function PlaneGame() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -79,7 +62,7 @@ export default function PlaneGame() {
 
   useEffect(() => {
     // localStorage only exists in the browser: reading it during render would differ from the server's HTML.
-    session.current = planeSessionRead(session.current, readBest());
+    session.current = planeSessionRead(session.current, readSavedBest(PLANE_BEST_KEY));
     setBest(session.current.best);
     setDark(document.documentElement.classList.contains("dark"));
     fresh();
@@ -144,9 +127,9 @@ export default function PlaneGame() {
   useEffect(() => {
     if (view.phase !== "over") return;
     const score = live.current.score;
-    const after = planeBestAfter(score, session.current, readBest());
+    const after = planeBestAfter(score, session.current, readSavedBest(PLANE_BEST_KEY));
     session.current = after.session;
-    if (after.save !== null) writeBest(after.save);
+    if (after.save !== null) writeSavedBest(PLANE_BEST_KEY, after.save);
     setNewBest(after.isNew);
     setBest(after.session.best);
     canRestart.current = false;
