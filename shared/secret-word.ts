@@ -194,7 +194,7 @@ export const SECRET_COLORS = {
     hit: "#4f46e5",
     onHit: "#ffffff",
     near: "#d97706",
-    miss: "#9ca3af",
+    miss: "#6b7280",
     key: "#e9ebf3",
   },
   dark: {

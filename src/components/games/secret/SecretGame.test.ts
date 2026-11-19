@@ -186,6 +186,24 @@ describe("SecretGame", () => {
     expect(text()).toContain("Streak: 1");
   });
 
+  it("keeps Back to games from leaving for 400 ms after the round ends", async () => {
+    await mount();
+    await typeWord(FIRST);
+    const back = () => lastRender().find((n) => n.type === "a")!;
+    const follow = () => {
+      const e = { prevented: false, preventDefault() {
+        e.prevented = true;
+      } };
+      (back().props.onClick as (e: unknown) => void)(e);
+      return e.prevented;
+    };
+    expect(back().props.href).toBe("/games");
+    clock += 399;
+    expect(follow()).toBe(true);
+    clock += 1;
+    expect(follow()).toBe(false);
+  });
+
   it("starts the next word on Enter once the guard is off, ignoring a held Enter", async () => {
     await mount();
     await typeWord(FIRST);

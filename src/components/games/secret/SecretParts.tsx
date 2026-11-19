@@ -98,7 +98,7 @@ export function SecretKeyboard({
   // A clicked key must not keep the focus, or the physical Space and Enter would press it again.
   const keep = (e: { preventDefault: () => void }) => e.preventDefault();
   return (
-    <div className="space-y-1.5">
+    <div className="touch-manipulation space-y-1.5">
       {rows.map((row, i) => (
         <div key={i} className="flex gap-1">
           {i === rows.length - 1 && (
@@ -128,12 +128,15 @@ export function SecretResult({
   best,
   newBest,
   onNext,
+  onBack,
 }: {
   round: SecretRound;
   streak: number;
   best: number;
   newBest: boolean;
   onNext: () => void;
+  /** Runs before the link is followed; it may cancel it. */
+  onBack: (e: { preventDefault: () => void }) => void;
 }) {
   const { t } = useLang();
   const won = round.phase === "won";
@@ -149,7 +152,7 @@ export function SecretResult({
         <p className="text-sm text-gray-500">{fillTemplate(t.soloBest, { n: String(best) })}</p>
       )}
       <div className="flex gap-2 pt-2">
-        <a href="/games" className="flex-1 rounded-lg border border-gray-200 py-2 text-sm">
+        <a href="/games" onClick={onBack} className="flex-1 rounded-lg border border-gray-200 py-2 text-sm">
           {t.soloBackToGames}
         </a>
         <button type="button" onClick={onNext} className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white">

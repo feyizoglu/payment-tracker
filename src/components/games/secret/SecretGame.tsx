@@ -91,6 +91,8 @@ export default function SecretGame() {
     [apply]
   );
 
+  const guarded = () => Date.now() - endedAt.current < SECRET_END_GUARD_MS;
+
   const next = useCallback(() => {
     const r = live.current;
     if (!r || r.phase === "playing" || Date.now() - endedAt.current < SECRET_END_GUARD_MS) return;
@@ -155,7 +157,16 @@ export default function SecretGame() {
           <p className="text-center text-xs text-gray-400">{t.secretKeyHint}</p>
         </>
       ) : (
-        <SecretResult round={round} streak={shownStreak} best={best} newBest={newBest} onNext={next} />
+        <SecretResult
+          round={round}
+          streak={shownStreak}
+          best={best}
+          newBest={newBest}
+          onNext={next}
+          onBack={(e) => {
+            if (guarded()) e.preventDefault();
+          }}
+        />
       )}
     </div>
   );
