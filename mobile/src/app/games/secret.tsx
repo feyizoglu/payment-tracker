@@ -136,7 +136,7 @@ export default function SecretScreen() {
           <SecretLegend palette={palette} />
           {round.phase === "playing" ? (
             <>
-              <Text className="h-5 text-center text-sm font-semibold text-gray-700">{round.short ? t.secretShort : ""}</Text>
+              <Text className="h-5 text-center text-sm font-semibold text-gray-700">{round.notice === "short" ? t.secretShort : round.notice === "unknown" ? t.secretUnknown : ""}</Text>
               <SecretKeyboard round={round} marks={keyMarks(round.guesses, round.card.word)} palette={palette} onKey={press} />
             </>
           ) : (

@@ -133,7 +133,8 @@ async function settle() {
 
 const EN = secretCardsFor("en");
 const FIRST = EN[0].word;
-const WRONG = FIRST === "ZZZZZ" ? "YYYYY" : "ZZZZZ";
+// A real word that shares no letter with the first answer and is not the second.
+const WRONG = EN.find((c, i) => i > 1 && ![...c.word].some((l) => FIRST.includes(l)))!.word;
 
 async function typeWord(word: string) {
   for (const l of word) {
@@ -311,6 +312,10 @@ describe("SecretScreen", () => {
     expect(texts()).not.toContain("Five letters, please.");
     for (const l of "E") find(SecretKeyboard).onKey(l);
     find(SecretKeyboard).onKey("Enter");
+    await settle();
+    expect(texts()).toContain("Not in the word list.");
+    expect(find(SecretKeyboard).round.guesses).toEqual([]);
+    for (let i = 0; i < 5; i++) find(SecretKeyboard).onKey("Backspace");
     await settle();
     await typeWord(FIRST);
     expect(texts()).toContain("Streak: 1");

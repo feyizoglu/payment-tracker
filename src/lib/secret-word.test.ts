@@ -9,7 +9,9 @@ import {
   newSecretRound,
   pickSecret,
   secretCards,
+  secretCardsFor,
   secretDelete,
+  secretIsWord,
   secretLetter,
   secretLines,
   secretOpen,
@@ -142,10 +144,19 @@ describe("a round", () => {
   it("refuses a short guess and says so until the next key", () => {
     const r = secretSubmit(typeAll(start(), "KÖP"));
     expect(r.guesses).toEqual([]);
-    expect(r.short).toBe(true);
+    expect(r.notice).toBe("short");
     expect(secretSubmit(r)).toBe(r);
-    expect(secretType(r, "E").short).toBe(false);
-    expect(secretDelete(r).short).toBe(false);
+    expect(secretType(r, "E").notice).toBeNull();
+    expect(secretDelete(r).notice).toBeNull();
+  });
+
+  it("refuses a guess that is not a word without using a try, keeping its letters", () => {
+    const r = secretSubmit(typeAll(start(), "ZZZZZ"));
+    expect(r).toMatchObject({ guesses: [], typed: "ZZZZZ", notice: "unknown", phase: "playing" });
+    expect(secretSubmit(r)).toBe(r);
+    const fixed = secretDelete(r);
+    expect(fixed).toMatchObject({ typed: "ZZZZ", notice: null });
+    expect(secretSubmit(typeAll(start(), "KAVUN")).guesses).toEqual(["KAVUN"]);
   });
 
   it("wins on the answer", () => {
@@ -194,5 +205,25 @@ describe("secretLines", () => {
     const lines = secretLines(guess(newSecretRound(card("KÖPEK"), "tr"), "KÖPEK"));
     expect(lines[0].every((s) => s.mark === "hit")).toBe(true);
     expect(lines.slice(1).flat().every((s) => s.mark === "empty")).toBe(true);
+  });
+});
+
+describe("secretIsWord", () => {
+  it("knows Turkish and English roots, and every answer even when the word list lacks it", () => {
+    expect(secretIsWord("GÜNEŞ", "tr")).toBe(true);
+    expect(secretIsWord("KİTAP", "tr")).toBe(true);
+    expect(secretIsWord("PARİS", "tr")).toBe(true);
+    expect(secretIsWord("ZZZZZ", "tr")).toBe(false);
+    expect(secretIsWord("HORSE", "en")).toBe(true);
+    expect(secretIsWord("GÜNEŞ", "en")).toBe(false);
+    for (const lang of ["tr", "en"] as const) {
+      expect(secretCardsFor(lang).every((c) => secretIsWord(c.word, lang))).toBe(true);
+    }
+  });
+
+  it("leaves English plurals out, but keeps answers that look like them", () => {
+    expect(secretIsWord("TREES", "en")).toBe(false);
+    expect(secretIsWord("CHAOS", "en")).toBe(true);
+    expect(secretIsWord("BEANS", "en")).toBe(true);
   });
 });

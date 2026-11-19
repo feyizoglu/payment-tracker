@@ -152,7 +152,7 @@ export default function SecretGame() {
       <SecretLegend palette={palette} />
       {round.phase === "playing" ? (
         <>
-          <p className="h-5 text-center text-sm font-semibold text-gray-700">{round.short ? t.secretShort : ""}</p>
+          <p className="h-5 text-center text-sm font-semibold text-gray-700">{round.notice === "short" ? t.secretShort : round.notice === "unknown" ? t.secretUnknown : ""}</p>
           <SecretKeyboard round={round} marks={keyMarks(round.guesses, round.card.word)} palette={palette} onKey={press} />
           <p className="text-center text-xs text-gray-400">{t.secretKeyHint}</p>
         </>
