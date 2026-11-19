@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Flame, Gauge, Library, Lightbulb, MessageSquareText, Moon, Send, UserRoundSearch, VenetianMask } from "lucide-react";
+import { ChevronRight, Flame, Gauge, Library, Lightbulb, MessageSquareText, Moon, Send, SpellCheck, UserRoundSearch, VenetianMask } from "lucide-react";
 import GamesShell from "@/components/games/GamesShell";
 import { useLang } from "@/lib/i18n";
 
@@ -123,6 +123,19 @@ export default function GamesPage() {
           <div className="flex-1">
             <p className="font-semibold text-gray-900">{t.towerTitle}</p>
             <p className="text-sm text-gray-500">{t.towerDesc}</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-gray-400" />
+        </a>
+        <a
+          href="/games/secret"
+          className="flex items-center gap-4 rounded-xl border border-gray-100 bg-surface p-4 hover:border-indigo-200 transition"
+        >
+          <div className="rounded-lg bg-indigo-50 p-3">
+            <SpellCheck className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-gray-900">{t.secretTitle}</p>
+            <p className="text-sm text-gray-500">{t.secretDesc}</p>
           </div>
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </a>
