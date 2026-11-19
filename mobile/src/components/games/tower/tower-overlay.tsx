@@ -40,27 +40,27 @@ export function TowerOverlay({
     return (
       <View pointerEvents="none" style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", gap: 8 }}>
         {phase === "ready" ? (
-          <Text style={{ color: ink }}>{fillTemplate(t.planeBest, { n: String(best) })}</Text>
+          <Text style={{ color: ink }}>{fillTemplate(t.soloBest, { n: String(best) })}</Text>
         ) : (
           <Text style={digits}>{score}</Text>
         )}
-        <Text style={{ color: ink, fontSize: 18, fontWeight: "600" }}>{phase === "ready" ? t.planeTapToStart : t.planeTapToContinue}</Text>
+        <Text style={{ color: ink, fontSize: 18, fontWeight: "600" }}>{phase === "ready" ? t.soloTapToStart : t.soloTapToContinue}</Text>
       </View>
     );
   }
   return (
     <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.2)", padding: 24 }}>
       <View className="w-full gap-3 rounded-2xl bg-surface p-5">
-        <Text className="text-center text-sm text-gray-500">{t.planeScore}</Text>
+        <Text className="text-center text-sm text-gray-500">{t.soloScore}</Text>
         <Text className="text-center text-5xl font-bold text-gray-900">{score}</Text>
         {newBest ? (
-          <Text className="text-center font-semibold text-amber-700">{t.planeNewBest}</Text>
+          <Text className="text-center font-semibold text-amber-700">{t.soloNewBest}</Text>
         ) : (
-          <Text className="text-center text-sm text-gray-700">{fillTemplate(t.planeBest, { n: String(best) })}</Text>
+          <Text className="text-center text-sm text-gray-700">{fillTemplate(t.soloBest, { n: String(best) })}</Text>
         )}
-        <PrimaryButton label={t.planeAgain} onPress={onAgain} disabled={guard} />
+        <PrimaryButton label={t.soloAgain} onPress={onAgain} disabled={guard} />
         <Pressable onPress={onBack} disabled={guard} className={`items-center py-2 ${guard ? "opacity-50" : ""}`}>
-          <Text className="text-sm text-gray-500">{t.planeBackToGames}</Text>
+          <Text className="text-sm text-gray-500">{t.soloBackToGames}</Text>
         </Pressable>
       </View>
     </View>
