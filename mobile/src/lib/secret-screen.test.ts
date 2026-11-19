@@ -69,10 +69,11 @@ vi.mock("@/lib/leave-game", () => ({
   },
 }));
 
+import { View } from "react-native";
 import SecretScreen from "@/app/games/secret";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
 import { GameScreen } from "@/components/games/game-screen";
-import { SecretKeyboard, SecretResult } from "@/components/games/secret/secret-parts";
+import { SecretBoard, SecretKeyboard, SecretResult } from "@/components/games/secret/secret-parts";
 import { SECRET_COLORS, secretCardsFor } from "@ptracker/shared/secret-word";
 
 type Props = Record<string, unknown> & { children?: unknown };
@@ -263,5 +264,35 @@ describe("SecretScreen", () => {
     env.lang = "tr";
     await settle();
     expect(find(SecretKeyboard).round.lang).toBe("en");
+  });
+
+  it("deletes the last typed letter on Backspace", async () => {
+    await settle();
+    find(SecretKeyboard).onKey("A");
+    await settle();
+    find(SecretKeyboard).onKey("B");
+    await settle();
+    find(SecretKeyboard).onKey("Backspace");
+    await settle();
+    expect(find(SecretKeyboard).round.typed).toBe("A");
+  });
+
+  it("writes no state when the stored reads land after the screen closed", async () => {
+    let finish: (v: number | null) => void = () => undefined;
+    storage.getStoredSecretBest.mockReturnValue(new Promise((r) => (finish = r)));
+    await settle();
+    unmount();
+    finish(3);
+    for (let i = 0; i < 4; i++) await Promise.resolve();
+    expect(Object.keys(hooks.states)).toEqual([]);
+    expect(storage.setStoredSecretSeen).not.toHaveBeenCalled();
+  });
+
+  it("sizes the board to the space it is laid out in", async () => {
+    await settle();
+    expect(find(SecretBoard)).toBeUndefined();
+    const area = nodes(render()).find((n) => n.type === View && typeof n.props.onLayout === "function")!;
+    (area.props.onLayout as (e: unknown) => void)({ nativeEvent: { layout: { width: 320, height: 240 } } });
+    expect(find(SecretBoard)).toMatchObject({ width: 320, height: 240, palette: SECRET_COLORS.light });
   });
 });

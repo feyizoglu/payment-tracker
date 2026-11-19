@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRequire } from "node:module";
 import { act, createElement } from "react";
-import { secretCards } from "@/lib/secret-word";
+import { SECRET_COLORS, secretCards } from "@/lib/secret-word";
 
 const host = vi.hoisted(() => {
   const nodes: Array<{ type: string; props: Record<string, unknown> }> = [];
@@ -27,7 +27,7 @@ vi.mock("react/jsx-dev-runtime", async (importOriginal) => {
   return { ...actual, jsxDEV: host.wrap(actual.jsxDEV) };
 });
 
-import { LanguageProvider } from "@/lib/i18n";
+import { LanguageProvider, useLang, type Lang } from "@/lib/i18n";
 import SecretGame from "@/components/games/secret/SecretGame";
 
 interface Root {
@@ -242,5 +242,64 @@ describe("SecretGame", () => {
     await typeWord(FIRST);
     expect(text()).toContain("Got it on try 1!");
     expect(text()).not.toContain("New best!");
+  });
+
+  it("leaves Enter on a focused button to the button once the round ended", async () => {
+    await mount();
+    await typeWord(FIRST);
+    clock += 400;
+    const e = await key("Enter", { target: { closest: (s: string) => (s === "button, a" ? {} : null) } });
+    expect(e.prevented).toBe(false);
+    expect(text()).toContain("Got it on try 1!");
+    expect(JSON.parse(store.get("secret_word_seen_en")!)).toEqual([EN[0].id]);
+  });
+
+  it("ignores a held Enter while playing", async () => {
+    await mount();
+    for (const l of FIRST) await key(l.toLowerCase());
+    await key("Enter", { repeat: true });
+    expect(marks().slice(0, 5)).toEqual(["typed", "typed", "typed", "typed", "typed"]);
+  });
+
+  it("keeps the round when the language switches mid-round", async () => {
+    let setLang: (l: Lang) => void = () => undefined;
+    const Probe = () => {
+      setLang = useLang().setLang;
+      return null;
+    };
+    root = createRoot(container());
+    await act(async () =>
+      root?.render(createElement(LanguageProvider, { initialLang: "en" }, createElement(SecretGame), createElement(Probe)))
+    );
+    await key("a");
+    await act(async () => setLang("tr"));
+    expect(marks()[0]).toBe("typed");
+    expect(store.has("secret_word_seen_tr")).toBe(false);
+  });
+
+  it("follows the dark theme and its changes", async () => {
+    let dark = true;
+    let changed: () => void = () => undefined;
+    vi.stubGlobal("document", {
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      documentElement: { classList: { contains: (c: string) => c === "dark" && dark } },
+    });
+    vi.stubGlobal(
+      "MutationObserver",
+      class {
+        constructor(cb: () => void) {
+          changed = cb;
+        }
+        observe() {}
+        disconnect() {}
+      }
+    );
+    const emptyLine = () => lastRender().find((n) => n.type === "span" && n.props["data-mark"] === "empty")!.props.style;
+    await mount();
+    expect(emptyLine()).toMatchObject({ borderBottom: `2px solid ${SECRET_COLORS.dark.line}` });
+    dark = false;
+    await act(async () => changed());
+    expect(emptyLine()).toMatchObject({ borderBottom: `2px solid ${SECRET_COLORS.light.line}` });
   });
 });

@@ -11,7 +11,7 @@ vi.mock("@/components/ui/primary-button", () => ({ PrimaryButton: () => null }))
 import { Pressable, Text } from "react-native";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { SECRET_ALPHABET, SECRET_COLORS, newSecretRound, secretSubmit, secretType, type SecretRound } from "@ptracker/shared/secret-word";
-import { SecretBoard, SecretKeyboard, SecretLetter, SecretResult } from "@/components/games/secret/secret-parts";
+import { SecretBoard, SecretKeyboard, SecretLegend, SecretLetter, SecretResult } from "@/components/games/secret/secret-parts";
 
 type Props = Record<string, unknown> & { children?: unknown };
 type Node = ReactElement<Props>;
@@ -91,5 +91,28 @@ describe("SecretResult", () => {
     for (let i = 0; i < 6; i++) lost = secretSubmit([..."KAYAK"].reduce(secretType, lost));
     const after = expand(SecretResult({ round: lost, streak: 0, best: 2, newBest: false, onNext: next, onBack: () => undefined }));
     expect(after.find((n) => n.type === PrimaryButton)!.props.label).toBe("soloAgain");
+  });
+
+  it("goes back to the games from the back button", () => {
+    const back = vi.fn();
+    const shown = expand(SecretResult({ round: round([], ["KÖPEK"]), streak: 1, best: 1, newBest: false, onNext: () => undefined, onBack: back }));
+    const button = shown.find((n) => n.type === Pressable && (n.props.children as Node).props.children === "soloBackToGames")!;
+    (button.props.onPress as () => void)();
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("SecretLegend", () => {
+  it("shows a hit, a near and a miss sample with their labels", () => {
+    const items = (SecretLegend({ palette: c }) as Node).props.children as Node[];
+    const shown = items.map((item) => {
+      const [sample, label] = item.props.children as [Node, Node];
+      return [sample.type, (sample.props.slot as { mark: string }).mark, label.type, label.props.children];
+    });
+    expect(shown).toEqual([
+      [SecretLetter, "hit", Text, "secretLegendHit"],
+      [SecretLetter, "near", Text, "secretLegendNear"],
+      [SecretLetter, "miss", Text, "secretLegendMiss"],
+    ]);
   });
 });
