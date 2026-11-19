@@ -25,6 +25,23 @@ describe("turkishRoots", () => {
     ].join("\n");
     expect(turkishRoots(dict)).toEqual(["ARABA", "BALIK", "ERMEK", "GÜNEŞ", "KAĞIT", "KİTAP", "ÇUKUR"]);
   });
+
+  it("flattens î to i and û to u", () => {
+    expect(turkishRoots(["îtina", "kûtle [P:Noun]"].join("\n"))).toEqual(["KUTLE", "İTİNA"]);
+  });
+
+  it("leaves out postpositions, conjunctions, question words, determiners, reduplications and punctuation", () => {
+    const dict = [
+      "kitap",
+      "kadar [P:Postp]",
+      "ancak [P:Conj]",
+      "mıdır [P:Ques]",
+      "bütün [P:Det]",
+      "çatır [P:Dup]",
+      "nokta [P:Punc]",
+    ].join("\n");
+    expect(turkishRoots(dict)).toEqual(["KİTAP"]);
+  });
 });
 
 describe("englishRoots", () => {

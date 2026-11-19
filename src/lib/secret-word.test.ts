@@ -22,6 +22,7 @@ import {
   type SecretRound,
 } from "@/lib/secret-word";
 import type { WordCard } from "@/lib/word-game-words";
+import { translationsFor } from "@/lib/i18n";
 
 const card = (word: string, id = "animals-1"): SecretCard => ({ id, word, category: "animals" });
 const typeAll = (r: SecretRound, word: string) => [...word].reduce(secretType, r);
@@ -225,5 +226,9 @@ describe("secretIsWord", () => {
     expect(secretIsWord("TREES", "en")).toBe(false);
     expect(secretIsWord("CHAOS", "en")).toBe(true);
     expect(secretIsWord("BEANS", "en")).toBe(true);
+  });
+
+  it("tells a Turkish player the guess is not in the word list", () => {
+    expect(translationsFor("tr").secretUnknown).toBe("Bu kelime listede yok.");
   });
 });
