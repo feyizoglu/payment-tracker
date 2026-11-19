@@ -42,7 +42,9 @@ describe("SecretKeyboard", () => {
     expect(labels).toEqual(expect.arrayContaining([...SECRET_ALPHABET.tr, "secretEnter", "secretDelete"]));
     expect(keys).toHaveLength(SECRET_ALPHABET.tr.length + 2);
     (keys.find((k) => k.props.accessibilityLabel === "Ş")!.props.onPressIn as () => void)();
-    (keys.find((k) => k.props.accessibilityLabel === "secretEnter")!.props.onPressIn as () => void)();
+    const enter = keys.find((k) => k.props.accessibilityLabel === "secretEnter")!;
+    expect(enter.props.onPressIn).toBeUndefined();
+    (enter.props.onPress as () => void)();
     (keys.find((k) => k.props.accessibilityLabel === "secretDelete")!.props.onPressIn as () => void)();
     expect(onKey.mock.calls).toEqual([["Ş"], ["Enter"], ["Backspace"]]);
   });
@@ -77,6 +79,10 @@ describe("SecretLetter and SecretBoard", () => {
     const lines = (board.props.children as unknown[])[1] as Node[];
     expect(lines).toHaveLength(6);
     expect((lines[0].props.style as { height: number }).height).toBe(50);
+    const tiny = SecretBoard({ round: round([], ["KAYAK"]), palette: c, width: 340, height: 60 }) as Node;
+    const tinyLine = ((tiny.props.children as unknown[])[1] as Node[])[0];
+    const letter = (tinyLine.props.children as Node[])[0];
+    expect(letter.props.size).toBeLessThanOrEqual((tinyLine.props.style as { height: number }).height);
   });
 });
 

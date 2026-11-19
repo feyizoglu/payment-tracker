@@ -158,6 +158,19 @@ describe("SecretGame", () => {
     expect(marks().filter((m) => m === "typed")).toHaveLength(0);
   });
 
+  it("leaves Enter to a focused link or button during a round", async () => {
+    await mount();
+    for (const l of WRONG.slice(0, 4)) await key(l.toLowerCase());
+    const focused = { closest: (sel: string) => (sel.includes("button") ? {} : null) };
+    const e = await key("Enter", { target: focused });
+    expect(e.prevented).toBe(false);
+    expect(text()).not.toContain("Five letters, please.");
+    expect(marks().filter((m) => m === "typed")).toHaveLength(4);
+    // Letters still type: only Enter belongs to the focused control.
+    await key("e", { target: focused });
+    expect(marks().filter((m) => m === "typed")).toHaveLength(5);
+  });
+
   it("marks a guess on the page and on the keys", async () => {
     await mount();
     await typeWord(WRONG);

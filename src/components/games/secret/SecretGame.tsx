@@ -120,10 +120,10 @@ export default function SecretGame() {
       if ((e.target as Element | null)?.closest?.("input, textarea, select")) return;
       const r = live.current;
       if (!r) return;
+      // A focused button or link takes Enter itself.
+      if (e.key === "Enter" && (e.target as Element | null)?.closest?.("button, a")) return;
       if (r.phase !== "playing") {
         if (e.key !== "Enter" || e.repeat) return;
-        // A focused button takes Enter itself.
-        if ((e.target as Element | null)?.closest?.("button, a")) return;
         e.preventDefault();
         next();
         return;

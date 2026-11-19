@@ -181,9 +181,9 @@ export function secretLines(r: SecretRound): SecretSlot[][] {
   return lines;
 }
 
-/** The round is under way enough that leaving would lose something: a guess made or a streak running. */
+/** Leaving would lose something: a guess made in the round under way, or a streak running. */
 export const secretOpen = (r: SecretRound | null, streak: number) =>
-  r !== null && r.phase === "playing" && (r.guesses.length > 0 || streak > 0);
+  r !== null && (streak > 0 || (r.phase === "playing" && r.guesses.length > 0));
 
 export const SECRET_COLORS = {
   light: {

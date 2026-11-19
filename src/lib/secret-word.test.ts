@@ -164,12 +164,13 @@ describe("a round", () => {
     expect(r.guesses).toHaveLength(SECRET_TRIES);
   });
 
-  it("is open once a guess was made or a streak runs", () => {
+  it("is open once a guess was made in the round under way, or while a streak runs, result panel included", () => {
     expect(secretOpen(null, 3)).toBe(false);
     expect(secretOpen(start(), 0)).toBe(false);
     expect(secretOpen(start(), 1)).toBe(true);
     expect(secretOpen(guess(start(), "KAYAK"), 0)).toBe(true);
-    expect(secretOpen(guess(start(), "KÖPEK"), 2)).toBe(false);
+    expect(secretOpen(guess(start(), "KÖPEK"), 2)).toBe(true);
+    expect(secretOpen(guess(start(), "KÖPEK"), 0)).toBe(false);
   });
 });
 

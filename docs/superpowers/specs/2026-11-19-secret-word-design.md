@@ -88,10 +88,12 @@ screen.
 ## Input
 
 - Both platforms use the in-app keyboard. Mobile never opens the system keyboard (Samsung's
-  Turkish keyboard is a known risk).
+  Turkish keyboard is a known risk). Letter and delete keys act on touch; Enter acts on release, so
+  a thumb resting on it submits nothing.
 - Web also takes the physical keyboard: `e.key` goes through the same letter table (so `i` is `İ`
   in Turkish), Enter submits, Backspace deletes. Keys with Ctrl, Meta or Alt held and repeated
-  Enter are ignored, as are keys typed into a focused field.
+  Enter are ignored, as are keys typed into a focused field; Enter on a focused button or link is
+  left to that control.
 
 ## Storage
 

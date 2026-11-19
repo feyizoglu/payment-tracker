@@ -52,7 +52,7 @@ export function SecretBoard({
 }) {
   const lines = secretLines(round);
   const lineH = Math.min(56, height / lines.length);
-  const size = Math.max(16, Math.min(40, lineH - 10, (width - 64) / 5 - 8));
+  const size = Math.min(lineH, Math.max(16, Math.min(40, lineH - 10, (width - 64) / 5 - 8)));
   return (
     <View style={{ backgroundColor: palette.paper, borderRadius: 16, paddingLeft: 36, paddingRight: 12 }}>
       <View style={{ position: "absolute", top: 0, bottom: 0, left: 24, width: 1, backgroundColor: palette.margin }} />
@@ -108,6 +108,7 @@ function Key({
   mark,
   palette,
   grow = 1,
+  onRelease = false,
   onPress,
 }: {
   label: string;
@@ -115,6 +116,8 @@ function Key({
   mark?: SecretMark;
   palette: SecretPalette;
   grow?: number;
+  /** Fire on release, so a thumb resting on the key does nothing. */
+  onRelease?: boolean;
   onPress: () => void;
 }) {
   const look = keyLook(mark, palette);
@@ -122,7 +125,8 @@ function Key({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={spoken ?? label}
-      onPressIn={onPress}
+      onPressIn={onRelease ? undefined : onPress}
+      onPress={onRelease ? onPress : undefined}
       style={[{ flex: grow, height: 46, borderRadius: 6, alignItems: "center", justifyContent: "center" }, look.box]}>
       <Text style={[{ fontSize: 17, fontWeight: "600" }, look.text]}>{label}</Text>
     </Pressable>
@@ -148,7 +152,7 @@ export function SecretKeyboard({
         const last = i === rows.length - 1;
         return (
           <View key={i} style={{ flexDirection: "row", gap: 4 }}>
-            {last ? <Key label="↵" spoken={t.secretEnter} palette={palette} grow={1.6} onPress={() => onKey("Enter")} /> : null}
+            {last ? <Key label="↵" spoken={t.secretEnter} palette={palette} grow={1.6} onRelease onPress={() => onKey("Enter")} /> : null}
             {row.map((letter) => (
               <Key key={letter} label={letter} mark={marks[letter]} palette={palette} onPress={() => onKey(letter)} />
             ))}

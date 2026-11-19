@@ -203,13 +203,14 @@ describe("SecretScreen", () => {
     expect(leave.active).toBe(true);
   });
 
-  it("wins, saves the new best streak, and keeps asking before leaving while the streak runs", async () => {
+  it("wins, saves the new best streak, and asks before leaving while the streak runs, on the result panel too", async () => {
     storage.getStoredSecretBest.mockResolvedValue(0);
     await settle();
     await typeWord(FIRST);
     expect(find(SecretResult)).toMatchObject({ streak: 1, best: 1, newBest: true });
     expect(storage.setStoredSecretBest).toHaveBeenCalledWith(1);
-    expect(find(GameScreen).confirmBack).toBe(false);
+    // The streak would be lost, so back still asks on the result panel.
+    expect(find(GameScreen)).toMatchObject({ nav: false, confirmBack: true });
 
     env.clock += 399;
     find(SecretResult).onNext();
