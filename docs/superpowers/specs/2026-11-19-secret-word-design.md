@@ -29,7 +29,13 @@ EAS update.
 - Upper-casing never relies on the runtime's locale (Hermes may ignore it): Turkish maps `i→İ` and
   `ı→I` explicitly before `toUpperCase()`. Words are stored and compared upper-case, letter by
   code point.
-- **Any five letters of the alphabet count as a guess.** There is no dictionary. Owner-reversible.
+- **A guess must be a word** (added 2026-11-19 at the owner's request; first shipped without this). A guess
+  counts when it is a root in the language's word list or one of the answers; otherwise "Not in the
+  word list." shows, no try is used and the letters stay. Roots only, no inflected forms. Turkish: the
+  five-letter roots of Zemberek's `master-dictionary.dict` (Apache 2.0), about 4,700. English: the
+  five-letter words of the public-domain ENABLE list without plurals, about 6,200. Both are generated
+  into `shared/secret-word-dictionary/` by `scripts/secret-word/build-dictionary.ts`; attribution in its
+  `NOTICE.md`.
 - Place names (PARİS, İZMİR, TEXAS…) stay in. Owner-reversible.
 - The answer's category is shown as a hint from the start ("Hint: 🐾 Animals"). Owner-reversible.
 - A word is not dealt again until every answer of that language has been seen. The seen list is
@@ -42,7 +48,8 @@ EAS update.
   "elsewhere" only while that letter's unmatched count in the answer lasts.
 - The keyboard shows the best mark each letter has had (right place > elsewhere > not in it); a
   key's mark only ever improves.
-- Enter with fewer than five letters does nothing but show "Five letters, please."
+- Enter with fewer than five letters does nothing but show "Five letters, please."; Enter on a
+  non-word does nothing but show "Not in the word list."
 - A round keeps the language it started in. The next round uses the current app language.
 - **Streak.** A win adds one, a loss sets it to 0. The streak lives on the screen: leaving the
   game ends it. The best streak is stored (`secret-word-best`) with the session best rule the other
@@ -124,4 +131,4 @@ re-read, so no read can land out of order.
 
 ## Out of scope
 
-A dictionary of valid guesses, daily words, sharing, hard mode, sound.
+Inflected forms as guesses, daily words, sharing, hard mode, sound.
