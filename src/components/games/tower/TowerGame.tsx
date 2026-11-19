@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { startFrameLoop } from "@/lib/frame-loop";
-import { bestAfter, newSessionBest, parseSavedBest, sessionRead } from "@/lib/best-score";
+import { bestAfter, newSessionBest, sessionRead } from "@/lib/best-score";
 import {
   TOWER_BEST_KEY,
   TOWER_COLORS,
@@ -13,25 +13,9 @@ import {
   towerTap,
   type TowerState,
 } from "@/lib/book-tower";
+import { readSavedBest, writeSavedBest } from "@/lib/saved-best";
 import { drawTowerScene } from "./draw-tower";
 import TowerOverlay from "./TowerOverlay";
-
-/** The saved best, or null when the browser refuses to read storage. */
-function readBest(): number | null {
-  try {
-    return parseSavedBest(localStorage.getItem(TOWER_BEST_KEY));
-  } catch {
-    return null;
-  }
-}
-
-function writeBest(best: number) {
-  try {
-    localStorage.setItem(TOWER_BEST_KEY, String(best));
-  } catch {
-    // Private mode or full storage: the game still runs, it just forgets.
-  }
-}
 
 export default function TowerGame() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -81,7 +65,7 @@ export default function TowerGame() {
 
   useEffect(() => {
     // localStorage only exists in the browser: reading it during render would differ from the server's HTML.
-    session.current = sessionRead(session.current, readBest());
+    session.current = sessionRead(session.current, readSavedBest(TOWER_BEST_KEY));
     setBest(session.current.best);
     setDark(document.documentElement.classList.contains("dark"));
     fresh();
@@ -146,9 +130,9 @@ export default function TowerGame() {
   useEffect(() => {
     if (view.phase !== "over") return;
     const score = live.current.score;
-    const after = bestAfter(score, session.current, readBest());
+    const after = bestAfter(score, session.current, readSavedBest(TOWER_BEST_KEY));
     session.current = after.session;
-    if (after.save !== null) writeBest(after.save);
+    if (after.save !== null) writeSavedBest(TOWER_BEST_KEY, after.save);
     setNewBest(after.isNew);
     setBest(after.session.best);
     canRestart.current = false;

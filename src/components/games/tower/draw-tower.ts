@@ -1,21 +1,19 @@
-import { BOOK_H, TOWER_COLORS, TOWER_WIDTH, towerBookColour, type TowerState } from "@/lib/book-tower";
-
-const DESK = 12;
-/** Narrower books have no room for the spine stripes. */
-export const MIN_STRIPED = 4;
-
-/** Pixels per unit, the world's left edge, and the desk surface's y in pixels. */
-export function towerViewport(cssWidth: number, cssHeight: number) {
-  const scale = Math.min(cssWidth / TOWER_WIDTH, cssHeight / 110);
-  return { scale, left: (cssWidth - TOWER_WIDTH * scale) / 2, desk: cssHeight - DESK * scale };
-}
+import {
+  BOOK_H,
+  TOWER_COLORS,
+  TOWER_DESK as DESK,
+  TOWER_WIDTH,
+  towerBookColour,
+  towerStripes,
+  towerViewport,
+  type TowerState,
+} from "@/lib/book-tower";
 
 function book(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, colour: string, stripe: string) {
   ctx.fillStyle = colour;
   ctx.fillRect(x, y - BOOK_H, w, BOOK_H);
-  if (w < MIN_STRIPED) return;
   ctx.fillStyle = stripe;
-  for (const at of [Math.min(3, w / 4), Math.max(w - 4, (3 * w) / 4)]) ctx.fillRect(x + at, y - BOOK_H + 1, 1, BOOK_H - 2);
+  for (const at of towerStripes(w)) ctx.fillRect(x + at, y - BOOK_H + 1, 1, BOOK_H - 2);
 }
 
 export function drawTowerScene(ctx: CanvasRenderingContext2D, s: TowerState, cssWidth: number, cssHeight: number, dark: boolean) {
