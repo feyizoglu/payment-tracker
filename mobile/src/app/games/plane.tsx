@@ -7,9 +7,6 @@ import {
   PLANE_COLORS,
   PLANE_OVER_GUARD_MS,
   newPlaneGame,
-  newPlaneSessionBest,
-  planeBestAfter,
-  planeSessionRead,
   planePause,
   planeTap,
   planeWorldWidth,
@@ -25,6 +22,7 @@ import { useAppLock } from "@/lib/app-lock-context";
 import { leaveGameScreen, useConfirmLeave } from "@/lib/leave-game";
 import { getStoredPlaneBest, setStoredPlaneBest } from "@/lib/paper-plane-storage";
 import { useGameOnScreen } from "@/lib/use-game-on-screen";
+import { useSoloBest } from "@/lib/use-solo-best";
 
 export default function PlaneScreen() {
   const { t } = useLang();
@@ -36,11 +34,7 @@ export default function PlaneScreen() {
   const live = useRef<PlaneState>(newPlaneGame(56));
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [shown, setShown] = useState({ phase: live.current.phase, score: 0, width: live.current.width });
-  const [best, setBest] = useState(0);
-  const session = useRef(newPlaneSessionBest());
-  // Scores played on this screen whose stored-best read has not come back yet still count on the card.
-  const played = useRef(0);
-  const [newBest, setNewBest] = useState(false);
+  const { best, newBest, record, clearNewBest } = useSoloBest(getStoredPlaneBest, setStoredPlaneBest);
   const [guard, setGuard] = useState(false);
 
   const publish = useCallback(
@@ -60,20 +54,9 @@ export default function PlaneScreen() {
 
   const fresh = useCallback(() => {
     publish(newPlaneGame(size ? planeWorldWidth(size.w, size.h) : 56));
-    setNewBest(false);
+    clearNewBest();
     setGuard(false);
-  }, [publish, size]);
-
-  useEffect(() => {
-    let alive = true;
-    void getStoredPlaneBest().then((b) => {
-      session.current = planeSessionRead(session.current, b);
-      if (alive) setBest((v) => Math.max(v, session.current.best));
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  }, [publish, size, clearNewBest]);
 
   // A new size changes the world's width; only a game not started yet takes it.
   useEffect(() => {
@@ -95,25 +78,10 @@ export default function PlaneScreen() {
 
   useEffect(() => {
     if (shown.phase !== "over") return;
-    const score = live.current.score;
-    let alive = true;
-    const now = planeBestAfter(score, { ...session.current, best: Math.max(session.current.best, played.current) }, null);
-    played.current = Math.max(played.current, score);
-    setNewBest(now.isNew);
-    setBest((v) => Math.max(v, now.session.best));
-    // Read the stored best again: the first read may not have landed yet. The save runs even if
-    // the player has left the screen by then; only the card waits for the screen.
-    void getStoredPlaneBest().then((stored) => {
-      const after = planeBestAfter(score, session.current, stored);
-      session.current = after.session;
-      if (after.save !== null) void setStoredPlaneBest(after.save);
-      if (!alive) return;
-      setNewBest(after.isNew);
-      setBest((v) => Math.max(v, after.session.best));
-    });
+    const stop = record(live.current.score);
     const id = setTimeout(() => setGuard(false), PLANE_OVER_GUARD_MS);
     return () => {
-      alive = false;
+      stop();
       clearTimeout(id);
     };
   }, [shown.phase]);
