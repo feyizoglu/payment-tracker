@@ -31,12 +31,14 @@ export function useSoloBest(read: () => Promise<number | null>, write: (best: nu
   const record = useCallback(
     (score: number) => {
       let alive = true;
-      const now = bestAfter(score, { ...session.current, best: Math.max(session.current.best, played.current) }, null);
+      // Games ended earlier count even when their reads have not landed: reads may land out of order.
+      const before = played.current;
+      const now = bestAfter(score, { ...session.current, best: Math.max(session.current.best, before) }, null);
       played.current = Math.max(played.current, score);
       setNewBest(now.isNew);
       setBest((v) => Math.max(v, now.session.best));
       void read().then((stored) => {
-        const after = bestAfter(score, session.current, stored);
+        const after = bestAfter(score, { ...session.current, best: Math.max(session.current.best, before) }, stored);
         session.current = after.session;
         if (after.save !== null) void write(after.save);
         if (!alive) return;
