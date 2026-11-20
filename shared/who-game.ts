@@ -227,9 +227,6 @@ export const WHO_THING_HINT_KEYS = {
   objects: "imposterCategoryObjects",
 } as const satisfies Record<WhoThingCategory, string>;
 
-// As the card lists' own duplicate check: lowercased with the language's rules, accents and
-// anything but letters and digits dropped. Letters are told by having a case, not by a Unicode
-// property escape, and normalize is optional: the phone's JavaScript engine may lack either.
 // Each letter of the card lists outside ASCII, as the language's lowercasing and NFKD decomposition
 // leave it once marks are dropped. Hermes on Android sends every toLocaleLowerCase, normalize and
 // non-ASCII case change through Java, so the pool's thousands of names never call them.
@@ -246,7 +243,10 @@ const NAME_FOLD: Readonly<Record<string, string>> = {
   ž: "z",
 };
 
-/** A letter the table does not know, by the engine's own rules. */
+/**
+ * A letter the table does not know, by the engine's own rules. Letters are told by having a case,
+ * not by a Unicode property escape, and normalize is optional: the phone's engine may lack either.
+ */
 function foldRare(c: string, lang: Lang): string {
   const lower = c.toLocaleLowerCase(localeFor(lang));
   return [...(typeof lower.normalize === "function" ? lower.normalize("NFKD") : lower)]
@@ -265,8 +265,8 @@ export function whoNameKey(name: string, lang: Lang): string {
   return key;
 }
 
-// Building a pool runs thousands of locale-aware lowercasings and normalisations, which are
-// slow on the phone, and the screens ask for the same pool several times while it opens.
+// Building a pool filters, maps and keys thousands of cards, and the screens ask for the same
+// pool several times while it opens.
 // Pools are never changed after they are built, so each choice is built once per sources.
 const POOLS = new WeakMap<WhoSources, Map<string, readonly WhoPlayCard[]>>();
 
