@@ -230,11 +230,39 @@ export const WHO_THING_HINT_KEYS = {
 // As the card lists' own duplicate check: lowercased with the language's rules, accents and
 // anything but letters and digits dropped. Letters are told by having a case, not by a Unicode
 // property escape, and normalize is optional: the phone's JavaScript engine may lack either.
-function nameKey(name: string, locale: string): string {
-  const lower = name.toLocaleLowerCase(locale);
+// Each letter of the card lists outside ASCII, as the language's lowercasing and NFKD decomposition
+// leave it once marks are dropped. Hermes on Android sends every toLocaleLowerCase, normalize and
+// non-ASCII case change through Java, so the pool's thousands of names never call them.
+const NAME_FOLD: Readonly<Record<string, string>> = {
+  Á: "a", á: "a", à: "a", ã: "a", ä: "a", ă: "a", ą: "a",
+  Ç: "c", ç: "c", ć: "c", Č: "c", č: "c",
+  É: "e", é: "e", è: "e", ë: "e", ě: "e",
+  İ: "i", í: "i", ı: "ı",
+  ñ: "n",
+  Ö: "o", ö: "o", ó: "o", ō: "o", Ø: "ø", ø: "ø", æ: "æ",
+  ğ: "g", ř: "r",
+  Ś: "s", Ş: "s", ş: "s", Š: "s", š: "s",
+  Ü: "u", ü: "u", ú: "u", ū: "u",
+  ž: "z",
+};
+
+/** A letter the table does not know, by the engine's own rules. */
+function foldRare(c: string, lang: Lang): string {
+  const lower = c.toLocaleLowerCase(localeFor(lang));
   return [...(typeof lower.normalize === "function" ? lower.normalize("NFKD") : lower)]
-    .filter((c) => (c >= "0" && c <= "9") || c.toLowerCase() !== c.toUpperCase())
+    .filter((d) => (d >= "0" && d <= "9") || d.toLowerCase() !== d.toUpperCase())
     .join("");
+}
+
+/** A name lowercased with the language's rules, accents, spaces and punctuation dropped. */
+export function whoNameKey(name: string, lang: Lang): string {
+  let key = "";
+  for (const c of name) {
+    if ((c >= "a" && c <= "z") || (c >= "0" && c <= "9")) key += c;
+    else if (c >= "A" && c <= "Z") key += c === "I" && lang === "tr" ? "ı" : String.fromCharCode(c.charCodeAt(0) + 32);
+    else if (c > "\x7f") key += NAME_FOLD[c] ?? foldRare(c, lang);
+  }
+  return key;
 }
 
 // Building a pool runs thousands of locale-aware lowercasings and normalisations, which are
@@ -281,10 +309,9 @@ function buildPool(
     return named(kind === "people" ? sources.people : sources.characters);
   });
   // A painter and a Ninja Turtle can share a name: the first kind's card is dealt, never both.
-  const locale = localeFor(lang);
   const names = new Set<string>();
   return cards.filter((c) => {
-    const key = nameKey(c.name, locale);
+    const key = whoNameKey(c.name, lang);
     if (names.has(key)) return false;
     names.add(key);
     return true;
