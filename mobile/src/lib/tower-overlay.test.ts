@@ -72,9 +72,10 @@ describe("TowerOverlay", () => {
     expect(words(all)).not.toContain("New best!");
   });
 
-  it("shows no best line while the best is not known yet", () => {
-    expect(words(render({ phase: "ready", best: null }))).toEqual(["Tap to start"]);
+  it("keeps the best line blank, in its place, while the best is not known yet", () => {
+    expect(words(render({ phase: "ready", best: null }))).toEqual([" ", "Tap to start"]);
     const over = words(render({ phase: "over", best: null }));
+    expect(over).toContain(" ");
     expect(over.some((w) => w.startsWith("Best"))).toBe(false);
     expect(over).not.toContain("New best!");
   });

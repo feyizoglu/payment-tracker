@@ -17,7 +17,7 @@ export function PlaneOverlay({
 }: {
   phase: PlanePhase;
   score: number;
-  /** Null while the stored best is not known yet: no best line is shown. */
+  /** Null while the stored best is not known yet: the best line stays blank but keeps its space. */
   best: number | null;
   newBest: boolean;
   guard: boolean;
@@ -38,9 +38,7 @@ export function PlaneOverlay({
     return (
       <View pointerEvents="none" style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", gap: 8 }}>
         {phase === "ready" ? (
-          best !== null ? (
-            <Text style={{ color: ink }}>{fillTemplate(t.soloBest, { n: String(best) })}</Text>
-          ) : null
+          <Text style={{ color: ink }}>{best !== null ? fillTemplate(t.soloBest, { n: String(best) }) : " "}</Text>
         ) : (
           <Text style={digits}>{score}</Text>
         )}
@@ -55,9 +53,9 @@ export function PlaneOverlay({
         <Text className="text-center text-5xl font-bold text-gray-900">{score}</Text>
         {newBest ? (
           <Text className="text-center font-semibold text-sky-600">{t.soloNewBest}</Text>
-        ) : best !== null ? (
-          <Text className="text-center text-sm text-gray-700">{fillTemplate(t.soloBest, { n: String(best) })}</Text>
-        ) : null}
+        ) : (
+          <Text className="text-center text-sm text-gray-700">{best !== null ? fillTemplate(t.soloBest, { n: String(best) }) : " "}</Text>
+        )}
         <PrimaryButton label={t.soloAgain} onPress={onAgain} disabled={guard} />
         <Pressable onPress={onBack} disabled={guard} className={`items-center py-2 ${guard ? "opacity-50" : ""}`}>
           <Text className="text-sm text-gray-500">{t.soloBackToGames}</Text>
