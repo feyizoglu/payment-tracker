@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { WhoCard, WhoLevel, WhoRegion } from "./who-cards";
 import type { WordCard } from "./word-game";
+import { WHO_CHARACTERS, WHO_PEOPLE } from "../../shared/who-cards";
+import { WHO_THINGS } from "../../shared/who-things";
 import {
   MAX_PLAYERS,
   WHO_DECK_MIN,
@@ -19,6 +21,7 @@ import {
   totalTurns,
   turnPoints,
   whoGuesser,
+  whoNameKey,
   whoPool,
   whoReducer,
   whoRound,
@@ -364,16 +367,68 @@ describe("whoPool: one card per name", () => {
     expect(whoPool({ ...all, kinds: ["people", "characters"] }, close, "en").map((c) => c.id)).toEqual(["p-1", "p-2", "p-3", "c-8"]);
   });
 
+  // A letter outside the card lists' own letters, so the key falls back to the engine's rules.
+  const rare: WhoSources = { ...dupes, people: [named("p-8", "Erdős")], characters: [named("c-8", "ERDŐS"), named("c-9", "Erdos")] };
+  const both = { ...all, kinds: ["people", "characters"] as WhoSetup["kinds"] };
+
+  it("compares a rare letter by the language's rules, accents dropped", () => {
+    expect(whoPool(both, rare, "en").map((c) => c.id)).toEqual(["p-8"]);
+  });
+
   it("still deals each name once on an engine without String.prototype.normalize", () => {
     const normalize = Object.getOwnPropertyDescriptor(String.prototype, "normalize");
     let ids: string[];
     try {
       delete (String.prototype as { normalize?: unknown }).normalize;
-      ids = whoPool(all, { ...dupes }, "en").map((c) => c.id);
+      ids = whoPool(both, { ...rare }, "en").map((c) => c.id);
     } finally {
       if (normalize) Object.defineProperty(String.prototype, "normalize", normalize);
     }
-    expect(ids).toEqual(["p-1", "p-2", "p-3", "c-2", "c-4", "c-5"]);
+    // Without normalize the accent stays, so only the same spelling in another case is a repeat.
+    expect(ids).toEqual(["p-8", "c-9"]);
+  });
+});
+
+describe("whoNameKey on the real cards", () => {
+  const sources: WhoSources = { people: WHO_PEOPLE, characters: WHO_CHARACTERS, things: WHO_THINGS };
+  const langs = ["tr", "en"] as const;
+  const namesIn = (lang: (typeof langs)[number]) => [
+    ...[...WHO_PEOPLE, ...WHO_CHARACTERS].map((c) => c.name[lang]),
+    ...Object.values(WHO_THINGS[lang]).flatMap((list) => list.map((w) => w.word)),
+  ];
+  // The rule the key must match: the language's lowercasing, NFKD, then letters and digits only.
+  const reference = (name: string, lang: (typeof langs)[number]) =>
+    [...name.toLocaleLowerCase(lang === "tr" ? "tr-TR" : "en-US").normalize("NFKD")]
+      .filter((c) => (c >= "0" && c <= "9") || c.toLowerCase() !== c.toUpperCase())
+      .join("");
+
+  it("keys every name as the language's lowercasing and NFKD decomposition do", () => {
+    for (const lang of langs) {
+      const wrong = namesIn(lang).filter((name) => whoNameKey(name, lang) !== reference(name, lang));
+      expect(wrong, lang).toEqual([]);
+    }
+  });
+
+  // On Android, Hermes runs each of these through Java: thousands of them made the first open slow.
+  it("builds the real pools without the engine's locale-aware string calls", () => {
+    const proto = String.prototype as unknown as Record<string, (...args: unknown[]) => string>;
+    const watched = ["toLocaleLowerCase", "toLocaleUpperCase", "normalize", "toLowerCase", "toUpperCase"];
+    const originals = watched.map((name) => proto[name]);
+    const calls: string[] = [];
+    try {
+      watched.forEach((name, i) => {
+        proto[name] = function (this: string, ...args: unknown[]) {
+          // Hermes changes the case of an ASCII-only string itself; only the rest reaches Java.
+          if (name.startsWith("to") && !name.includes("Locale") && !/[^\x00-\x7f]/.test(this)) return originals[i].apply(this, args);
+          calls.push(name);
+          return originals[i].apply(this, args);
+        };
+      });
+      for (const lang of langs) whoPool({ kinds: ["people", "characters", "things"], region: "mixed", level: "mixed" }, { ...sources }, lang);
+    } finally {
+      watched.forEach((name, i) => (proto[name] = originals[i]));
+    }
+    expect(calls).toEqual([]);
   });
 });
 
