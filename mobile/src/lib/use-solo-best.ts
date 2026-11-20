@@ -7,7 +7,8 @@ import { bestAfter, newSessionBest, sessionRead } from "@ptracker/shared/best-sc
  * screen opens and again when a game ends, since the first read may not have landed by then.
  */
 export function useSoloBest(read: () => Promise<number | null>, write: (best: number) => Promise<void>) {
-  const [best, setBest] = useState(0);
+  // Null until a read of the stored best has come back, so the screen never shows a best it does not know.
+  const [best, setBest] = useState<number | null>(null);
   const [newBest, setNewBest] = useState(false);
   const session = useRef(newSessionBest());
   // Scores played on this screen whose stored-best read has not come back yet still count on the card.
@@ -17,7 +18,7 @@ export function useSoloBest(read: () => Promise<number | null>, write: (best: nu
     let alive = true;
     void read().then((b) => {
       session.current = sessionRead(session.current, b);
-      if (alive) setBest((v) => Math.max(v, session.current.best));
+      if (alive) setBest((v) => Math.max(v ?? 0, session.current.best, played.current));
     });
     return () => {
       alive = false;
@@ -36,14 +37,14 @@ export function useSoloBest(read: () => Promise<number | null>, write: (best: nu
       const now = bestAfter(score, { ...session.current, best: Math.max(session.current.best, before) }, null);
       played.current = Math.max(played.current, score);
       setNewBest(now.isNew);
-      setBest((v) => Math.max(v, now.session.best));
+      setBest((v) => (v === null ? null : Math.max(v, now.session.best)));
       void read().then((stored) => {
         const after = bestAfter(score, { ...session.current, best: Math.max(session.current.best, before) }, stored);
         session.current = after.session;
         if (after.save !== null) void write(after.save);
         if (!alive) return;
         setNewBest(after.isNew);
-        setBest((v) => Math.max(v, after.session.best));
+        setBest((v) => Math.max(v ?? 0, after.session.best));
       });
       return () => {
         alive = false;

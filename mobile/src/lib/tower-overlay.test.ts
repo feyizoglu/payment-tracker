@@ -72,6 +72,13 @@ describe("TowerOverlay", () => {
     expect(words(all)).not.toContain("New best!");
   });
 
+  it("shows no best line while the best is not known yet", () => {
+    expect(words(render({ phase: "ready", best: null }))).toEqual(["Tap to start"]);
+    const over = words(render({ phase: "over", best: null }));
+    expect(over.some((w) => w.startsWith("Best"))).toBe(false);
+    expect(over).not.toContain("New best!");
+  });
+
   it("disables and dims both buttons during the guard", () => {
     const all = render({ phase: "over", guard: true });
     const again = all.find((n) => n.type === PrimaryButton)!;
