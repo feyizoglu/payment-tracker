@@ -402,3 +402,41 @@ create table if not exists web_push_subscriptions (
 );
 
 alter table web_push_subscriptions enable row level security;
+
+-- My Words: each user's English vocabulary. Service role only, like the rest of the API.
+create table if not exists vocab_words (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  word text not null check (length(word) between 1 and 40),
+  word_key text not null,
+  meaning_tr text check (meaning_tr is null or length(meaning_tr) <= 200),
+  ipa text,
+  audio_url text,
+  senses jsonb not null default '[]'::jsonb,
+  lookup text not null default 'failed' check (lookup in ('found', 'not_found', 'failed')),
+  streak int not null default 0 check (streak between 0 and 3),
+  learned_at timestamptz,
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (user_id, word_key)
+);
+
+create index if not exists vocab_words_user_created on vocab_words (user_id, created_at desc);
+
+alter table vocab_words enable row level security;
+
+-- One review answer in one statement, so two quick answers cannot both read the old streak.
+-- A learned word is left as it is (no row returned).
+create or replace function vocab_word_answer(p_id uuid, p_user uuid, p_know boolean)
+returns setof vocab_words
+language sql
+as $$
+  update vocab_words
+  set streak = case when p_know then least(streak + 1, 3) else 0 end,
+      learned_at = case when p_know and streak + 1 >= 3 then now() else null end,
+      reviewed_at = now()
+  where id = p_id and user_id = p_user and learned_at is null
+  returning *;
+$$;
+
+revoke all on function vocab_word_answer(uuid, uuid, boolean) from public, anon, authenticated;
