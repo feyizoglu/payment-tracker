@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import type { ReactElement } from "react";
 
+// One AudioButton instance: its ref lives across renders, as React keeps it.
+const refs = vi.hoisted(() => ({ audio: null as { current: unknown } | null }));
 vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
-  useRef: (initial: unknown) => ({ current: initial }),
+  useRef: (initial: unknown) => (refs.audio ??= { current: initial }),
 }));
 vi.mock("@/lib/i18n", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/i18n")>()),
@@ -23,7 +25,10 @@ function expand(node: unknown): Node[] {
   return [el, ...expand(el.props.children)];
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  refs.audio = null;
+});
 
 describe("StreakDots", () => {
   it("shows filled dots for the streak and a tick once learned", () => {
@@ -72,5 +77,23 @@ describe("AudioButton", () => {
     (button.props.onClick as () => void)();
     (button.props.onClick as () => void)();
     expect(played).toEqual(["https://x/budget-us.mp3@0", "https://x/budget-us.mp3@0"]);
+  });
+
+  it("plays the new word's recording when the same button is given another word", () => {
+    const played: string[] = [];
+    vi.stubGlobal(
+      "Audio",
+      class {
+        currentTime = 0;
+        constructor(public src: string) {}
+        play() {
+          played.push(this.src);
+          return Promise.resolve();
+        }
+      }
+    );
+    (((AudioButton({ url: "https://x/one-us.mp3" }) as Node).props.onClick) as () => void)();
+    (((AudioButton({ url: "https://x/two-us.mp3" }) as Node).props.onClick) as () => void)();
+    expect(played).toEqual(["https://x/one-us.mp3", "https://x/two-us.mp3"]);
   });
 });

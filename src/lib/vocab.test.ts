@@ -96,6 +96,18 @@ describe("progress, filter and search", () => {
     expect(filterWords(words, "all", "İnter").map((w) => w.id)).toEqual(["i"]);
   });
 
+  it("ignores Turkish dotted and dotless I differences in the meaning", () => {
+    const words = [word({ id: "m", word: "fine", word_key: "fine", meaning_tr: "Iyi" })];
+    expect(filterWords(words, "all", "iyi").map((w) => w.id)).toEqual(["m"]);
+    expect(filterWords(words, "all", "İYİ").map((w) => w.id)).toEqual(["m"]);
+  });
+
+  it("searches with curly apostrophes and extra spaces like the saved word", () => {
+    const words = [word({ id: "d", word: "don't", word_key: "don't" }), word({ id: "g", word: "give up", word_key: "give up" })];
+    expect(filterWords(words, "all", "don’t").map((w) => w.id)).toEqual(["d"]);
+    expect(filterWords(words, "all", "give   up").map((w) => w.id)).toEqual(["g"]);
+  });
+
   it("searches the word and the Turkish meaning, ignoring case", () => {
     expect(filterWords(list, "all", "BÜT").map((w) => w.id)).toEqual(["a"]);
     expect(filterWords(list, "all", " give ").map((w) => w.id)).toEqual(["b"]);

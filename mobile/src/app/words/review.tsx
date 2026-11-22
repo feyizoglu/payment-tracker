@@ -20,6 +20,7 @@ export default function WordsReviewScreen() {
 
   const start = useCallback(async () => {
     setLoadFailed(false);
+    setAnswerFailed(false);
     try {
       setState(startReview(await api.get<VocabWord[]>("/api/words")));
     } catch {
@@ -35,10 +36,8 @@ export default function WordsReviewScreen() {
 
   function answer(word: VocabWord, know: boolean) {
     setState((s) => (s ? answerReview(s, know) : s));
-    api.patch(`/api/words/${word.id}`, { answer: know ? "know" : "dontKnow" }).then(
-      () => setAnswerFailed(false),
-      () => setAnswerFailed(true)
-    );
+    // A failure stays on screen for the rest of the round; a later success does not hide it.
+    api.patch(`/api/words/${word.id}`, { answer: know ? "know" : "dontKnow" }).catch(() => setAnswerFailed(true));
   }
 
   const word = state ? currentWord(state) : null;

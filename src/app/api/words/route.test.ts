@@ -44,6 +44,15 @@ describe("GET /api/words", () => {
     expect(q.eq).toHaveBeenCalledWith("user_id", "u-1");
     expect(q.order).toHaveBeenCalledWith("created_at", { ascending: false });
   });
+
+  it("500s with the database error message", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(me);
+    const q = query({ data: null, error: { message: "boom" } });
+    vi.mocked(supabaseAdmin).mockReturnValue({ from: vi.fn(() => q) } as never);
+    const res = await GET(new Request("http://localhost/api/words") as never);
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "boom" });
+  });
 });
 
 describe("POST /api/words", () => {
@@ -102,5 +111,18 @@ describe("POST /api/words", () => {
     const res = await POST(post({ word: "budget" }) as never);
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ code: "duplicate", word: { id: "w3" } });
+  });
+
+  it("500s on any other insert error without looking the word up again", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(me);
+    const none = query({ data: null, error: null });
+    const broken = query({ data: null, error: { code: "42P01", message: "boom" } });
+    const winner = query({ data: { id: "w3" }, error: null });
+    const from = vi.fn().mockReturnValueOnce(none).mockReturnValueOnce(broken).mockReturnValueOnce(winner);
+    vi.mocked(supabaseAdmin).mockReturnValue({ from } as never);
+    const res = await POST(post({ word: "budget" }) as never);
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("boom");
+    expect(from).toHaveBeenCalledTimes(2);
   });
 });

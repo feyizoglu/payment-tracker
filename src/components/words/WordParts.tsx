@@ -36,16 +36,17 @@ export function SenseList({ senses }: { senses: readonly VocabSense[] }) {
 
 export function AudioButton({ url }: { url: string | null }) {
   const { t } = useLang();
-  const audio = useRef<HTMLAudioElement | null>(null);
+  // The review page keeps one button across words, so the element is rebuilt when the word changes.
+  const audio = useRef<{ url: string; el: HTMLAudioElement } | null>(null);
   if (!url) return null;
   return (
     <button
       type="button"
       aria-label={t.wordsListen}
       onClick={() => {
-        audio.current ??= new Audio(url);
-        audio.current.currentTime = 0;
-        void audio.current.play().catch(() => undefined);
+        if (audio.current?.url !== url) audio.current = { url, el: new Audio(url) };
+        audio.current.el.currentTime = 0;
+        void audio.current.el.play().catch(() => undefined);
       }}
       className="rounded-full p-2 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400">
       <Volume2 size={20} />

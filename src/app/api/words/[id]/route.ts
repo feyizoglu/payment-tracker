@@ -18,10 +18,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const body = await req.json().catch(() => null);
   const sent = body && typeof body === "object" ? CHANGES.filter((k) => k in body) : [];
   if (sent.length !== 1) return fail(400, "invalid_request", "Send exactly one change");
+  if ((sent[0] === "unlearn" || sent[0] === "relookup") && body[sent[0]] !== true) {
+    return fail(400, "invalid_request", `${sent[0]} must be true`);
+  }
 
   const { id } = await params;
   const db = supabaseAdmin();
-  const { data: word } = await db.from("vocab_words").select("*").eq("id", id).eq("user_id", user.id).maybeSingle();
+  const { data: word, error: readError } = await db
+    .from("vocab_words")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (readError) return NextResponse.json({ error: readError.message }, { status: 500 });
   if (!word) return fail(404, "not_found", "Word not found");
 
   const update = async (values: Record<string, unknown>) => {

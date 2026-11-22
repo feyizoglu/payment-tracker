@@ -56,6 +56,14 @@ describe("parseEntries", () => {
     expect(parsed?.audioUrl).toBeNull();
   });
 
+  it("falls back to the first https recording when none is a US one", () => {
+    const parsed = parseEntries([{
+      phonetics: [{ audio: "http://example.com/x-us.mp3" }, { audio: "https://example.com/x-uk.mp3" }, { audio: "https://example.com/x-au.mp3" }],
+      meanings: [],
+    }]);
+    expect(parsed?.audioUrl).toBe("https://example.com/x-uk.mp3");
+  });
+
   it("returns null for a body that is not a list of entries", () => {
     expect(parseEntries({ title: "No Definitions Found" })).toBeNull();
     expect(parseEntries([])).toBeNull();

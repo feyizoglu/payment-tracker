@@ -57,16 +57,16 @@ export function vocabProgress(words: readonly VocabWord[]): { total: number; lea
 
 export type VocabFilter = "all" | "learning" | "learned";
 
+// Casing that matches whether the text was typed on an English or a Turkish keyboard: every I is i.
+const searchFold = (text: string): string => text.replace(/[İIı]/g, "i").toLowerCase();
+
 export function filterWords(words: readonly VocabWord[], filter: VocabFilter, query: string): VocabWord[] {
-  const raw = query.trim();
-  // English words match by their key; a Turkish keyboard's İ and ı count as i there.
-  const wordQuery = raw.replace(/[İı]/g, "i").toLowerCase();
-  const meaningQuery = raw.toLocaleLowerCase("tr");
+  const q = searchFold(normalizeWord(query));
   return words.filter((w) => {
     if (filter === "learning" && w.learned_at !== null) return false;
     if (filter === "learned" && w.learned_at === null) return false;
-    if (!raw) return true;
-    return w.word_key.includes(wordQuery) || (w.meaning_tr ?? "").toLocaleLowerCase("tr").includes(meaningQuery);
+    if (!q) return true;
+    return w.word_key.includes(q) || searchFold(w.meaning_tr ?? "").includes(q);
   });
 }
 

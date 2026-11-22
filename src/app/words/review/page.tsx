@@ -30,6 +30,7 @@ export default function WordsReviewPage() {
   }, []);
   const start = () => {
     setLoadFailed(false);
+    setAnswerFailed(false);
     void listWords().then(loaded);
   };
   useEffect(() => {
@@ -38,7 +39,10 @@ export default function WordsReviewPage() {
 
   function answer(word: VocabWord, know: boolean) {
     setState((s) => (s ? answerReview(s, know) : s));
-    void changeWord(word.id, { answer: know ? "know" : "dontKnow" }).then((res) => setAnswerFailed(!res.ok));
+    // A failure stays on screen for the rest of the round; a later success does not hide it.
+    void changeWord(word.id, { answer: know ? "know" : "dontKnow" }).then((res) => {
+      if (!res.ok) setAnswerFailed(true);
+    });
   }
 
   const word = state ? currentWord(state) : null;

@@ -38,7 +38,10 @@ vi.mock("react/jsx-dev-runtime", async (importOriginal) => {
   const actual = await importOriginal<Record<string, (...args: unknown[]) => unknown>>();
   return { ...actual, jsxDEV: host.wrap(actual.jsxDEV) };
 });
-vi.mock("next-auth/react", () => ({ useSession: () => ({ data: { user: { id: "u-1" } }, status: "authenticated" }) }));
+const session = vi.hoisted(() => ({ status: "authenticated" as "authenticated" | "unauthenticated" }));
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({ data: session.status === "authenticated" ? { user: { id: "u-1" } } : null, status: session.status }),
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => nav.router,
   useParams: () => ({ id: nav.id }),
@@ -113,6 +116,7 @@ beforeEach(() => {
   vi.stubGlobal("document", { ...noop, documentElement: { classList: { contains: () => false } } });
   vi.clearAllMocks();
   nav.id = "w1";
+  session.status = "authenticated";
   client.listWords.mockResolvedValue({
     ok: true,
     data: [word({}), word({ id: "w2", word: "thrive", word_key: "thrive", meaning_tr: null, learned_at: "2026-11-22T11:00:00Z", streak: 3 })],
@@ -174,6 +178,22 @@ describe("WordsPage", () => {
     expect(client.listWords).toHaveBeenCalledTimes(2);
     expect(text()).toContain("2 words · 1 learned");
   });
+
+  it("shows the server's invalid meaning error and stays on the list", async () => {
+    client.addWord.mockResolvedValue({ ok: false, status: 400, code: "invalid_meaning", error: "x" });
+    await mount(WordsPage);
+    await type(t.wordsWordLabel, "budget");
+    await submit();
+    expect(text()).toContain(t.wordsInvalidMeaning);
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("says nothing matches a search that finds no word", async () => {
+    await mount(WordsPage);
+    await type(t.wordsSearch, "zzz");
+    expect(text()).toContain(t.wordsNoMatch);
+    expect(lastRender().some((n) => n.type === "a" && String(n.props.href).startsWith("/words/w"))).toBe(false);
+  });
 });
 
 describe("WordCardPage", () => {
@@ -219,9 +239,74 @@ describe("WordCardPage", () => {
     await mount(WordCardPage);
     expect(nav.replace).toHaveBeenCalledWith("/words");
   });
+
+  it("keeps the meaning editor open and says the word is gone when saving 404s", async () => {
+    client.changeWord.mockResolvedValue({ ok: false, status: 404, code: "not_found", error: "" });
+    await mount(WordCardPage);
+    const edit = lastRender().find((n) => n.type === "button" && n.props.className === "text-left")!;
+    await act(async () => (edit.props.onClick as () => void)());
+    await type(t.wordsMeaningLabel, "ödenek");
+    await click(t.wordsSave);
+    expect(text()).toContain(t.wordsNotFound);
+    expect(find("input", t.wordsMeaningLabel)).toBeTruthy();
+  });
+
+  it("shows the server error and stays on the card when deleting fails", async () => {
+    client.deleteWord.mockResolvedValue({ ok: false, status: 500, code: undefined, error: "Server down" });
+    await mount(WordCardPage);
+    await click(t.wordsDelete);
+    expect(text()).toContain("Server down");
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("goes back to the list when the word was already deleted", async () => {
+    client.deleteWord.mockResolvedValue({ ok: false, status: 404, code: "not_found", error: "Word not found" });
+    await mount(WordCardPage);
+    await click(t.wordsDelete);
+    expect(nav.push).toHaveBeenCalledWith("/words");
+  });
+
+  it("offers a retry when the word cannot be loaded", async () => {
+    client.listWords.mockResolvedValueOnce({ ok: false, status: 0, code: undefined, error: "" });
+    await mount(WordCardPage);
+    expect(text()).toContain(t.wordsLoadFailed);
+    expect(text()).not.toContain("bütçe");
+    await click(t.wordsRetry);
+    expect(text()).toContain("bütçe");
+  });
+
+  it("marks a learned word as not learned", async () => {
+    nav.id = "w2";
+    client.changeWord.mockResolvedValue({ ok: true, data: word({ id: "w2", word: "thrive", word_key: "thrive", meaning_tr: null }) });
+    await mount(WordCardPage);
+    await click(t.wordsUnlearn);
+    expect(client.changeWord).toHaveBeenCalledWith("w2", { unlearn: true });
+  });
+
+  it("does not delete when the confirmation is declined", async () => {
+    browser.confirm = () => false;
+    await mount(WordCardPage);
+    await click(t.wordsDelete);
+    expect(client.deleteWord).not.toHaveBeenCalled();
+  });
 });
 
 describe("WordsReviewPage", () => {
+  it("keeps an answer failure on screen for the rest of the round, and clears it for the next", async () => {
+    client.listWords.mockResolvedValue({ ok: true, data: [word({}), word({ id: "w3", word: "thrive", word_key: "thrive" })] });
+    client.changeWord
+      .mockResolvedValueOnce({ ok: false, status: 0, code: undefined, error: "" })
+      .mockResolvedValue({ ok: true, data: word({}) });
+    await mount(WordsReviewPage);
+    await click(t.wordsShow);
+    await click(t.wordsDontKnow);
+    await click(t.wordsShow);
+    await click(t.wordsKnow);
+    expect(text()).toContain(t.wordsAnswerFailed);
+    await click(t.wordsAnotherRound);
+    expect(text()).not.toContain(t.wordsAnswerFailed);
+  });
+
   it("reveals, records the answer and ends with the round summary", async () => {
     client.listWords.mockResolvedValue({ ok: true, data: [word({ streak: 2 })] });
     client.changeWord.mockResolvedValue({ ok: true, data: word({ streak: 3 }) });
@@ -251,4 +336,38 @@ describe("WordsReviewPage", () => {
     await mount(WordsReviewPage);
     expect(text()).toContain(t.wordsNothingToReview);
   });
+
+  it("offers a retry when the words cannot be loaded", async () => {
+    client.listWords.mockResolvedValueOnce({ ok: false, status: 0, code: undefined, error: "" });
+    await mount(WordsReviewPage);
+    expect(text()).toContain(t.wordsLoadFailed);
+    expect(text()).not.toContain("budget");
+    await click(t.wordsRetry);
+    expect(text()).toContain("budget");
+  });
+
+  it("loads the words again for another round", async () => {
+    client.listWords.mockResolvedValue({ ok: true, data: [word({})] });
+    client.changeWord.mockResolvedValue({ ok: true, data: word({ streak: 1 }) });
+    await mount(WordsReviewPage);
+    await click(t.wordsShow);
+    await click(t.wordsKnow);
+    await click(t.wordsAnotherRound);
+    expect(client.listWords).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("signed out", () => {
+  for (const [name, page] of [
+    ["WordsPage", WordsPage],
+    ["WordCardPage", WordCardPage],
+    ["WordsReviewPage", WordsReviewPage],
+  ] as const) {
+    it(`${name} sends a signed-out visitor home without loading words`, async () => {
+      session.status = "unauthenticated";
+      await mount(page);
+      expect(nav.replace).toHaveBeenCalledWith("/");
+      expect(client.listWords).not.toHaveBeenCalled();
+    });
+  }
 });

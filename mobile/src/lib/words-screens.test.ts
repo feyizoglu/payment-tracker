@@ -236,6 +236,16 @@ describe("WordsScreen", () => {
     await press(pressable(t.wordsRetry));
     expect(text()).toContain("1 words · 0 learned");
   });
+
+  it("says nothing matches a search that finds no word", async () => {
+    await render(WordsScreen);
+    const search = field(t.wordsSearch);
+    reset();
+    await act(async () => search.onChangeText("zzz"));
+    expect(text()).toContain(t.wordsNoMatch);
+    const rows = state.pressables.filter((p) => flat(p.children).includes("budget") || flat(p.children).includes("thrive"));
+    expect(rows).toEqual([]);
+  });
 });
 
 describe("WordCardScreen", () => {
@@ -285,9 +295,69 @@ describe("WordCardScreen", () => {
     await render(WordCardScreen);
     expect(state.router.back).toHaveBeenCalled();
   });
+
+  it("shows the server's translated error when saving the meaning fails", async () => {
+    state.api.patch = vi.fn(async () => {
+      throw new ApiError(400, "Invalid meaning", "invalid_meaning");
+    });
+    await render(WordCardScreen);
+    await press(pressable("bütçe"));
+    await type(t.wordsMeaningLabel, "ödenek");
+    await press(button(t.wordsSave));
+    expect(text()).toContain(t.wordsInvalidMeaning);
+  });
+
+  it("shows the error and stays on the card when deleting fails", async () => {
+    state.api.del = vi.fn(async () => {
+      throw new ApiError(500, "boom");
+    });
+    await render(WordCardScreen);
+    await press(pressable(t.wordsDelete));
+    const [, , buttons] = vi.mocked(state.alert).mock.calls[0];
+    reset();
+    await act(async () => buttons.find((b) => b.text === t.wordsDelete)!.onPress!());
+    expect(text()).toContain("boom");
+    expect(state.router.back).not.toHaveBeenCalled();
+  });
+
+  it("goes back when the word was already deleted", async () => {
+    state.api.del = vi.fn(async () => {
+      throw new ApiError(404, "x");
+    });
+    await render(WordCardScreen);
+    await press(pressable(t.wordsDelete));
+    const [, , buttons] = vi.mocked(state.alert).mock.calls[0];
+    await act(async () => buttons.find((b) => b.text === t.wordsDelete)!.onPress!());
+    expect(state.router.back).toHaveBeenCalled();
+  });
+
+  it("offers a retry when the word cannot be loaded", async () => {
+    state.api.get = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue([word({})]);
+    await render(WordCardScreen);
+    expect(text()).toContain(t.wordsLoadFailed);
+    expect(text()).not.toContain("budget");
+    await press(pressable(t.wordsRetry));
+    expect(text()).toContain("budget");
+  });
 });
 
 describe("WordsReviewScreen", () => {
+  it("keeps an answer failure on screen for the rest of the round, and clears it for the next", async () => {
+    state.api.get = vi.fn(async () => [word({}), word({ id: "w3", word: "thrive", word_key: "thrive" })]);
+    state.api.patch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue(word({}));
+    await render(WordsReviewScreen);
+    await press(button(t.wordsShow));
+    await press(pressable(t.wordsDontKnow));
+    await press(button(t.wordsShow));
+    await press(button(t.wordsKnow));
+    expect(text()).toContain(t.wordsAnswerFailed);
+    await press(button(t.wordsAnotherRound));
+    expect(text()).not.toContain(t.wordsAnswerFailed);
+  });
+
   it("reveals, records the answer and ends with the round summary", async () => {
     state.api.get = vi.fn(async () => [word({ streak: 2 })]);
     await render(WordsReviewScreen);
@@ -318,5 +388,14 @@ describe("WordsReviewScreen", () => {
     state.api.get = vi.fn(async () => [learned]);
     await render(WordsReviewScreen);
     expect(text()).toContain(t.wordsNothingToReview);
+  });
+
+  it("offers a retry when the words cannot be loaded", async () => {
+    state.api.get = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue([word({})]);
+    await render(WordsReviewScreen);
+    expect(text()).toContain(t.wordsLoadFailed);
+    expect(text()).not.toContain("budget");
+    await press(pressable(t.wordsRetry));
+    expect(text()).toContain("budget");
   });
 });

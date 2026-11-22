@@ -29,6 +29,22 @@ describe("words client", () => {
     expect((await deleteWord("w1")).ok).toBe(true);
   });
 
+  it("sends the change as a PATCH body", async () => {
+    respond(200, { id: "w1" });
+    await changeWord("w1", { answer: "know" });
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    expect((init as RequestInit).method).toBe("PATCH");
+    expect((init as RequestInit).body).toBe('{"answer":"know"}');
+  });
+
+  it("deletes with the DELETE method on the word's url", async () => {
+    respond(200, { ok: true });
+    await deleteWord("w1");
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("/api/words/w1");
+    expect((init as RequestInit).method).toBe("DELETE");
+  });
+
   it("reports a network failure as status 0", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
     expect(await listWords()).toEqual({ ok: false, status: 0, code: undefined, error: "" });

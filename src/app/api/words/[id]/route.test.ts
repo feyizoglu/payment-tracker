@@ -53,6 +53,22 @@ describe("PATCH /api/words/[id]", () => {
     }
   });
 
+  it("500s instead of 404 when the word cannot be read", async () => {
+    db({ data: null, error: { message: "connection lost" } });
+    const res = await PATCH(patch({ unlearn: true }) as never, params);
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("connection lost");
+  });
+
+  it("400s on a relookup or unlearn that is not true", async () => {
+    for (const body of [{ relookup: false }, { unlearn: "yes" }]) {
+      const res = await PATCH(patch(body) as never, params);
+      expect(res.status).toBe(400);
+      expect((await res.json()).code).toBe("invalid_request");
+    }
+    expect(supabaseAdmin).not.toHaveBeenCalled();
+  });
+
   it("404s with code not_found for another user's word", async () => {
     const { queries } = db({ data: null, error: null });
     const res = await PATCH(patch({ unlearn: true }) as never, params);
@@ -101,6 +117,21 @@ describe("PATCH /api/words/[id]", () => {
     expect(queries[1].update).toHaveBeenCalledWith({ streak: 0, learned_at: null });
   });
 
+  it("500s with the database error when the update fails", async () => {
+    db({ data: own, error: null }, { data: null, error: { message: "boom" } });
+    const res = await PATCH(patch({ unlearn: true }) as never, params);
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("boom");
+  });
+
+  it("500s with the function error when recording an answer fails", async () => {
+    const { rpc } = db({ data: own, error: null });
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "rpc failed" } } as never);
+    const res = await PATCH(patch({ answer: "know" }) as never, params);
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("rpc failed");
+  });
+
   it("looks the word up again and stores the result", async () => {
     vi.mocked(lookupWord).mockResolvedValue({ lookup: "found", ipa: "/b/", audioUrl: "https://a/b-us.mp3", senses: [{ pos: "noun", definition: "d" }] });
     const { queries } = db({ data: own, error: null }, { data: own, error: null });
@@ -124,5 +155,19 @@ describe("DELETE /api/words/[id]", () => {
     db({ data: [], error: null });
     const res = await DELETE(new Request("http://localhost/api/words/w1", { method: "DELETE" }) as never, params);
     expect(res.status).toBe(404);
+  });
+
+  it("401s without a session", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(null);
+    const res = await DELETE(new Request("http://localhost/api/words/w1", { method: "DELETE" }) as never, params);
+    expect(res.status).toBe(401);
+    expect(supabaseAdmin).not.toHaveBeenCalled();
+  });
+
+  it("500s with the database error instead of 404 when the delete fails", async () => {
+    db({ data: null, error: { message: "boom" } });
+    const res = await DELETE(new Request("http://localhost/api/words/w1", { method: "DELETE" }) as never, params);
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("boom");
   });
 });
