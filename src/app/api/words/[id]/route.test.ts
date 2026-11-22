@@ -115,6 +115,7 @@ describe("PATCH /api/words/[id]", () => {
     const { queries } = db({ data: own, error: null }, { data: own, error: null });
     await PATCH(patch({ unlearn: true }) as never, params);
     expect(queries[1].update).toHaveBeenCalledWith({ streak: 0, learned_at: null });
+    expect(queries[1].eq).toHaveBeenCalledWith("user_id", "u-1");
   });
 
   it("500s with the database error when the update fails", async () => {

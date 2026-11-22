@@ -83,6 +83,7 @@ describe("POST /api/words", () => {
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ code: "duplicate", word: { id: "w1" } });
     expect(existing.eq).toHaveBeenCalledWith("word_key", "budget");
+    expect(existing.eq).toHaveBeenCalledWith("user_id", "u-1");
     expect(lookupWord).not.toHaveBeenCalled();
   });
 
@@ -111,6 +112,7 @@ describe("POST /api/words", () => {
     const res = await POST(post({ word: "budget" }) as never);
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ code: "duplicate", word: { id: "w3" } });
+    expect(winner.eq).toHaveBeenCalledWith("user_id", "u-1");
   });
 
   it("500s on any other insert error without looking the word up again", async () => {
