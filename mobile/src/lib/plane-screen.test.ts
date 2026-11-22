@@ -189,6 +189,22 @@ describe("PlaneScreen", () => {
     expect(leave.active).toBe(false);
   });
 
+  it("shows no best on the ready page until the stored best is read", async () => {
+    let mount: (b: number) => void = () => undefined;
+    storage.getStoredPlaneBest.mockReturnValueOnce(new Promise<number>((r) => (mount = r)));
+    await settle();
+    expect(overlay()).toMatchObject({ phase: "ready", best: null });
+    mount(12);
+    await settle();
+    expect(overlay()).toMatchObject({ phase: "ready", best: 12 });
+  });
+
+  it("shows the session's best on the ready page when the stored best cannot be read", async () => {
+    storage.getStoredPlaneBest.mockResolvedValue(null);
+    await settle();
+    expect(overlay()).toMatchObject({ phase: "ready", best: 0 });
+  });
+
   it("starts on a tap, hides the header and asks before leaving", async () => {
     await settle();
     await tap();
@@ -364,14 +380,14 @@ describe("PlaneScreen", () => {
     expect(storage.setStoredPlaneBest).not.toHaveBeenCalled();
   });
 
-  it("keeps the card's best while the first read of the best is still on its way", async () => {
+  it("shows no best on the card until a read of the best lands, then counts the game just played", async () => {
     let mount: (b: number) => void = () => undefined;
     storage.getStoredPlaneBest.mockReturnValueOnce(new Promise<number>((r) => (mount = r))).mockReturnValueOnce(new Promise(() => undefined));
     await settle();
     await tap();
     engine.endScore = 10;
     await frames(2);
-    expect(overlay()).toMatchObject({ phase: "over", score: 10, best: 10 });
+    expect(overlay()).toMatchObject({ phase: "over", score: 10, best: null });
     mount(5);
     await settle();
     expect(overlay().best).toBe(10);
@@ -393,6 +409,34 @@ describe("PlaneScreen", () => {
     engine.endScore = 8;
     await frames(2);
     expect(overlay()).toMatchObject({ phase: "over", score: 8, best: 9, newBest: false });
+  });
+
+  it("does not call a replayed score a new best when its read lands before the last game's", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let late: (b: number) => void = () => undefined;
+    storage.getStoredPlaneBest
+      .mockResolvedValueOnce(5)
+      .mockReturnValueOnce(new Promise<number>((r) => (late = r)))
+      .mockResolvedValueOnce(5);
+    await settle();
+    await tap();
+    engine.endScore = 9;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 9, newBest: true });
+    vi.advanceTimersByTime(500);
+    engine.endScore = null;
+    overlay().onAgain();
+    await settle();
+    await tap();
+    engine.endScore = 8;
+    await frames(2);
+    expect(overlay()).toMatchObject({ phase: "over", score: 8, best: 9, newBest: false });
+    expect(storage.setStoredPlaneBest).toHaveBeenCalledWith(9);
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalledWith(8);
+    late(5);
+    await settle();
+    expect(overlay()).toMatchObject({ phase: "over", score: 8, best: 9, newBest: false });
+    expect(storage.setStoredPlaneBest).not.toHaveBeenCalledWith(8);
   });
 
   it("guards the game-over buttons from the card's first frame", async () => {

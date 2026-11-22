@@ -94,7 +94,7 @@ re-render React; React renders again only when the score or the screen changes.
 The best score is one integer, saved when a game ends. Web: `localStorage` key
 `paper-plane-best`. Mobile: AsyncStorage, fail-soft like `scale-game-storage.ts`: a storage error
 shows a best of 0 and never stops the game. `parseSavedBest` in the shared module rejects
-anything that is not a non-negative integer.
+anything that is not a non-negative integer. Mobile shows the best line blank, keeping its space, until a read of the stored best has come back, and judges a read that lands late against every game already played on the screen, since reads can land out of order.
 
 ## Offline and navigation
 

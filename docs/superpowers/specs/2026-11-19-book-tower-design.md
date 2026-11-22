@@ -89,7 +89,7 @@ Plane's session rule. Each screen keeps the highest score read or played, and wh
 succeeded. A new best is claimed only after a successful read, and the session best is saved
 whenever it beats what was just read. The rule moves from `shared/paper-plane.ts` to a small
 `shared/best-score.ts` so both games use one copy. Paper Plane re-exports it under its current
-names.
+names. Mobile shows the best line blank, keeping its space, until a read of the stored best has come back, and judges a read that lands late against every game already played on the screen, since reads can land out of order.
 
 ## Offline and navigation
 
