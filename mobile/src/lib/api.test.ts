@@ -144,4 +144,10 @@ describe("createApiClient", () => {
     expect(init.method).toBe("DELETE");
     expect(init.body).toBe(JSON.stringify({ expo_push_token: "ExponentPushToken[x]" }));
   });
+
+  it("keeps the error code of a JSON error body", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ error: "Already in your list", code: "duplicate" }), { status: 409 }));
+    const client = createApiClient({ baseUrl: "https://x", getToken: async () => "t", fetchImpl });
+    await expect(client.post("/api/words", {})).rejects.toMatchObject({ status: 409, message: "Already in your list", code: "duplicate" });
+  });
 });
