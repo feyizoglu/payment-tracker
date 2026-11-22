@@ -2,7 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { lookupWord, parseEntries } from "@/lib/word-lookup";
 
 const json = (status: number, body: unknown) =>
-  vi.fn(async () => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }));
+  vi.fn<typeof fetch>(async () =>
+    new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } })
+  );
 
 const budget = [
   {
