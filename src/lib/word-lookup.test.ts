@@ -64,6 +64,14 @@ describe("parseEntries", () => {
     expect(parsed?.audioUrl).toBe("https://api.dictionaryapi.dev/media/pronunciations/en/x-uk.mp3");
   });
 
+  it("drops a dictionary recording whose URL is longer than 500 characters", () => {
+    const prefix = "https://api.dictionaryapi.dev/media/pronunciations/en/";
+    const audio = prefix + "x".repeat(501 - prefix.length - "-us.mp3".length) + "-us.mp3";
+    expect(audio).toHaveLength(501);
+    const parsed = parseEntries([{ phonetics: [{ audio }], meanings: [] }]);
+    expect(parsed?.audioUrl).toBeNull();
+  });
+
   it("keeps every field within the limits the server checks", () => {
     const long = (n: number) => "x".repeat(n);
     const parsed = parseEntries([{
@@ -160,6 +168,29 @@ describe("lookupWord without AbortSignal.timeout", () => {
       expect(cleared).toHaveBeenCalled();
       cleared.mockRestore();
     } finally {
+      Object.defineProperty(AbortSignal, "timeout", { value: original, configurable: true });
+    }
+  });
+
+  it("aborts a request that has not settled after five seconds", async () => {
+    const original = AbortSignal.timeout;
+    Object.defineProperty(AbortSignal, "timeout", { value: undefined, configurable: true });
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn<typeof fetch>((_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        })
+      );
+      let settled: Awaited<ReturnType<typeof lookupWord>> | undefined;
+      const pending = lookupWord("slow", fetchImpl).then((r) => { settled = r; });
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(settled).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      await pending;
+      expect(settled).toEqual({ lookup: "failed", ipa: null, audioUrl: null, senses: [] });
+    } finally {
+      vi.useRealTimers();
       Object.defineProperty(AbortSignal, "timeout", { value: original, configurable: true });
     }
   });

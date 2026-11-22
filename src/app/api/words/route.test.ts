@@ -120,6 +120,18 @@ describe("POST /api/words", () => {
     }));
   });
 
+  it("stores a not_found result the app sent without looking the word up here", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(me);
+    const none = query({ data: null, error: null });
+    const inserted = query({ data: { id: "w2" }, error: null });
+    const from = vi.fn().mockReturnValueOnce(none).mockReturnValueOnce(inserted);
+    vi.mocked(supabaseAdmin).mockReturnValue({ from } as never);
+    const res = await POST(post({ word: "asdfqwer", dictionary: { lookup: "not_found" } }) as never);
+    expect(res.status).toBe(201);
+    expect(lookupWord).not.toHaveBeenCalled();
+    expect(inserted.insert).toHaveBeenCalledWith(expect.objectContaining({ ipa: null, audio_url: null, senses: [], lookup: "not_found" }));
+  });
+
   it("looks the word up here when the app could not reach the dictionary", async () => {
     vi.mocked(getSessionUser).mockResolvedValue(me);
     const none = query({ data: null, error: null });
