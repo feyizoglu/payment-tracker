@@ -111,12 +111,12 @@ describe("POST /api/words", () => {
     const inserted = query({ data: { id: "w2" }, error: null });
     const from = vi.fn().mockReturnValueOnce(none).mockReturnValueOnce(inserted);
     vi.mocked(supabaseAdmin).mockReturnValue({ from } as never);
-    const dictionary = { lookup: "found", ipa: "/b/", audioUrl: "https://a/b-us.mp3", senses: [{ pos: "noun", definition: "a plan", example: "a tight budget" }] };
+    const dictionary = { lookup: "found", ipa: "/b/", audioUrl: "https://api.dictionaryapi.dev/media/pronunciations/en/b-us.mp3", senses: [{ pos: "noun", definition: "a plan", example: "a tight budget" }] };
     const res = await POST(post({ word: "budget", dictionary }) as never);
     expect(res.status).toBe(201);
     expect(lookupWord).not.toHaveBeenCalled();
     expect(inserted.insert).toHaveBeenCalledWith(expect.objectContaining({
-      ipa: "/b/", audio_url: "https://a/b-us.mp3", senses: dictionary.senses, lookup: "found",
+      ipa: "/b/", audio_url: "https://api.dictionaryapi.dev/media/pronunciations/en/b-us.mp3", senses: dictionary.senses, lookup: "found",
     }));
   });
 

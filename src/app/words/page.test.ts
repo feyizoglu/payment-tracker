@@ -163,12 +163,20 @@ describe("WordsPage", () => {
     expect(nav.push).toHaveBeenCalledWith("/words/w9");
   });
 
-  it("opens the existing card for a word already in the list", async () => {
-    client.addWord.mockResolvedValue({ ok: false, status: 409, code: "duplicate", error: "Already", word: word({ id: "w1" }) });
+  it("opens the existing card for a word already in the list without asking the dictionary", async () => {
     await mount(WordsPage);
     await type(t.wordsWordLabel, "Budget");
     await submit();
     expect(nav.push).toHaveBeenCalledWith("/words/w1");
+    expect(client.addWord).not.toHaveBeenCalled();
+  });
+
+  it("opens the card the server names when the word was added elsewhere meanwhile", async () => {
+    client.addWord.mockResolvedValue({ ok: false, status: 409, code: "duplicate", error: "Already", word: word({ id: "w7" }) });
+    await mount(WordsPage);
+    await type(t.wordsWordLabel, "frugal");
+    await submit();
+    expect(nav.push).toHaveBeenCalledWith("/words/w7");
   });
 
   it("offers a retry when the list cannot be loaded", async () => {
@@ -183,7 +191,7 @@ describe("WordsPage", () => {
   it("shows the server's invalid meaning error and stays on the list", async () => {
     client.addWord.mockResolvedValue({ ok: false, status: 400, code: "invalid_meaning", error: "x" });
     await mount(WordsPage);
-    await type(t.wordsWordLabel, "budget");
+    await type(t.wordsWordLabel, "frugal");
     await submit();
     expect(text()).toContain(t.wordsInvalidMeaning);
     expect(nav.push).not.toHaveBeenCalled();

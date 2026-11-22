@@ -53,8 +53,9 @@ returns `{ lookup, ipa, audioUrl, senses }`.
 The apps run it on the user's own device (browser or phone) and send the result with the save or
 **Try again** request. The dictionary limits requests per IP, and the web server shares its IPs with
 other sites, so lookups from the server failed in production (owner report, 2026-11-23). The server
-checks what it is sent (lengths, at most 40 senses, `https:` audio only) and answers 400 for a
-malformed result. When the app sends nothing, or a `failed` result, the server looks the word up
+checks what it is sent with the same limits the lookup applies (lengths, at most 40 senses, audio
+only from `https://api.dictionaryapi.dev/media/`) and answers 400 for a malformed result. A word
+already in the loaded list opens its card before any lookup. When the app sends nothing, or a `failed` result, the server looks the word up
 itself as before.
 
 - `GET https://api.dictionaryapi.dev/api/v2/entries/en/<word>` with a 5 second timeout.

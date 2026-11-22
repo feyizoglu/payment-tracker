@@ -199,14 +199,25 @@ describe("WordsScreen", () => {
     expect(state.router.push).toHaveBeenCalledWith({ pathname: "/words/[id]", params: { id: "w9" } });
   });
 
-  it("opens the existing card for a word already in the list", async () => {
-    state.api.post = vi.fn(async () => {
-      throw new ApiError(409, "Already in your list", "duplicate");
-    });
+  it("opens the existing card for a word already in the list without asking the dictionary", async () => {
     await render(WordsScreen);
     await type(t.wordsWordLabel, "Budget");
     await press(button(t.wordsSave));
     expect(state.router.push).toHaveBeenCalledWith({ pathname: "/words/[id]", params: { id: "w1" } });
+    expect(state.lookup).not.toHaveBeenCalled();
+    expect(state.api.post).not.toHaveBeenCalled();
+  });
+
+  it("opens the card the server names when the word was added elsewhere meanwhile", async () => {
+    state.api.get = vi.fn(async () => [learned]);
+    state.api.post = vi.fn(async () => {
+      throw new ApiError(409, "Already in your list", "duplicate");
+    });
+    await render(WordsScreen);
+    await type(t.wordsWordLabel, "budget");
+    await press(button(t.wordsSave));
+    expect(state.api.post).toHaveBeenCalled();
+    expect(text()).toContain(t.wordsDuplicate);
   });
 
   it("refuses an invalid word without calling the server", async () => {
@@ -223,7 +234,7 @@ describe("WordsScreen", () => {
       throw new ApiError(400, "Invalid meaning", "invalid_meaning");
     });
     await render(WordsScreen);
-    await type(t.wordsWordLabel, "budget");
+    await type(t.wordsWordLabel, "frugal");
     await press(button(t.wordsSave));
     expect(text()).toContain(t.wordsInvalidMeaning);
   });

@@ -56,12 +56,29 @@ describe("parseEntries", () => {
     expect(parsed?.audioUrl).toBeNull();
   });
 
-  it("falls back to the first https recording when none is a US one", () => {
+  it("falls back to the first dictionary recording when none is a US one", () => {
     const parsed = parseEntries([{
-      phonetics: [{ audio: "http://example.com/x-us.mp3" }, { audio: "https://example.com/x-uk.mp3" }, { audio: "https://example.com/x-au.mp3" }],
+      phonetics: [{ audio: "http://api.dictionaryapi.dev/media/pronunciations/en/x-us.mp3" }, { audio: "https://example.com/x-us.mp3" }, { audio: "https://api.dictionaryapi.dev/media/pronunciations/en/x-uk.mp3" }, { audio: "https://api.dictionaryapi.dev/media/pronunciations/en/x-au.mp3" }],
       meanings: [],
     }]);
-    expect(parsed?.audioUrl).toBe("https://example.com/x-uk.mp3");
+    expect(parsed?.audioUrl).toBe("https://api.dictionaryapi.dev/media/pronunciations/en/x-uk.mp3");
+  });
+
+  it("keeps every field within the limits the server checks", () => {
+    const long = (n: number) => "x".repeat(n);
+    const parsed = parseEntries([{
+      phonetic: long(101),
+      phonetics: [{ text: "/ok/" }],
+      meanings: [
+        { partOfSpeech: long(41), definitions: [{ definition: "dropped with its part of speech" }] },
+        { partOfSpeech: "noun", definitions: [{ definition: long(601) }, { definition: "kept", example: long(601) }] },
+        ...Array.from({ length: 20 }, (_, i) => ({ partOfSpeech: `p${i}`, definitions: [{ definition: "a" }, { definition: "b" }, { definition: "c" }] })),
+      ],
+    }]);
+    expect(parsed?.ipa).toBe("/ok/");
+    expect(parsed?.senses[0]).toEqual({ pos: "noun", definition: "kept" });
+    expect(parsed?.senses).toHaveLength(40);
+    expect(readLookupResult(parsed)).toEqual(parsed);
   });
 
   it("returns null for a body that is not a list of entries", () => {
@@ -94,7 +111,7 @@ describe("lookupWord", () => {
 });
 
 describe("readLookupResult", () => {
-  const found = { lookup: "found", ipa: "/b/", audioUrl: "https://a/b-us.mp3", senses: [{ pos: "noun", definition: "a plan", example: "a tight budget" }] };
+  const found = { lookup: "found", ipa: "/b/", audioUrl: "https://api.dictionaryapi.dev/media/pronunciations/en/b-us.mp3", senses: [{ pos: "noun", definition: "a plan", example: "a tight budget" }] };
 
   it("keeps a well-formed found result and trims its text", () => {
     expect(readLookupResult(found)).toEqual(found);
@@ -114,6 +131,7 @@ describe("readLookupResult", () => {
       "found",
       { lookup: "maybe" },
       { ...found, audioUrl: "http://a/b.mp3" },
+      { ...found, audioUrl: "https://example.com/b-us.mp3" },
       { ...found, ipa: 5 },
       { ...found, ipa: "x".repeat(101) },
       { ...found, audioUrl: "https://" + "a".repeat(500) },
@@ -137,7 +155,10 @@ describe("lookupWord without AbortSignal.timeout", () => {
         expect(init?.signal).toBeInstanceOf(AbortSignal);
         return new Response("[]", { status: 404 });
       });
+      const cleared = vi.spyOn(globalThis, "clearTimeout");
       expect((await lookupWord("zzz", fetchImpl)).lookup).toBe("not_found");
+      expect(cleared).toHaveBeenCalled();
+      cleared.mockRestore();
     } finally {
       Object.defineProperty(AbortSignal, "timeout", { value: original, configurable: true });
     }
