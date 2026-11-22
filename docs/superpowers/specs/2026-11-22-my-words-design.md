@@ -112,9 +112,9 @@ Web pages under `src/app/words/`; mobile screens under `mobile/src/app/words/`, 
 ## Errors and offline
 
 The section needs the network; it is not added to the games offline cache. A failed load shows
-"Could not load your words." with **Retry**. Save, edit and delete show the API's `error` message
-(web through `responseErrorText` in `src/lib/api-error.ts`; mobile reads the same field), and the
-API's messages for this section are translated keys, not raw English. A dictionary
+"Could not load your words." with **Retry**. The API's errors for this section carry a short
+`code` (`invalid_word`, `invalid_meaning`, `duplicate`, `not_found`) beside the English `error`;
+both apps show the translated text for the code and fall back to `error` for anything else. A dictionary
 outage never blocks saving.
 
 ## Testing
