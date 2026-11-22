@@ -88,6 +88,14 @@ describe("progress, filter and search", () => {
     expect(filterWords(list, "all", "").map((w) => w.id)).toEqual(["a", "b", "c"]);
   });
 
+  it("finds a word with a capital I by its plain lowercase form", () => {
+    const words = [word({ id: "i", word: "Internet", meaning_tr: "Küresel ağ" })];
+    expect(filterWords(words, "all", "internet").map((w) => w.id)).toEqual(["i"]);
+    expect(filterWords(words, "all", "INTER").map((w) => w.id)).toEqual(["i"]);
+    expect(filterWords(words, "all", "KÜRESEL").map((w) => w.id)).toEqual(["i"]);
+    expect(filterWords(words, "all", "İnter").map((w) => w.id)).toEqual(["i"]);
+  });
+
   it("searches the word and the Turkish meaning, ignoring case", () => {
     expect(filterWords(list, "all", "BÜT").map((w) => w.id)).toEqual(["a"]);
     expect(filterWords(list, "all", " give ").map((w) => w.id)).toEqual(["b"]);

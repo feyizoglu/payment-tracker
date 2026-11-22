@@ -58,12 +58,15 @@ export function vocabProgress(words: readonly VocabWord[]): { total: number; lea
 export type VocabFilter = "all" | "learning" | "learned";
 
 export function filterWords(words: readonly VocabWord[], filter: VocabFilter, query: string): VocabWord[] {
-  const q = query.trim().toLocaleLowerCase("tr");
+  const raw = query.trim();
+  // English words match by their key; a Turkish keyboard's İ and ı count as i there.
+  const wordQuery = raw.replace(/[İı]/g, "i").toLowerCase();
+  const meaningQuery = raw.toLocaleLowerCase("tr");
   return words.filter((w) => {
     if (filter === "learning" && w.learned_at !== null) return false;
     if (filter === "learned" && w.learned_at === null) return false;
-    if (!q) return true;
-    return w.word.toLocaleLowerCase("tr").includes(q) || (w.meaning_tr ?? "").toLocaleLowerCase("tr").includes(q);
+    if (!raw) return true;
+    return w.word_key.includes(wordQuery) || (w.meaning_tr ?? "").toLocaleLowerCase("tr").includes(meaningQuery);
   });
 }
 
