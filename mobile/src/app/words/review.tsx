@@ -79,9 +79,9 @@ export default function WordsReviewScreen() {
                   <Pressable onPress={() => answer(word, false)} className="flex-1 items-center rounded-lg border border-gray-200 py-3">
                     <Text className="text-sm text-gray-900">{t.wordsDontKnow}</Text>
                   </Pressable>
-                  <Pressable onPress={() => answer(word, true)} className="flex-1 items-center rounded-lg bg-emerald-700 py-3">
-                    <Text className="text-sm font-semibold text-white">{t.wordsKnow}</Text>
-                  </Pressable>
+                  <View className="flex-1">
+                    <PrimaryButton label={t.wordsKnow} onPress={() => answer(word, true)} />
+                  </View>
                 </View>
               </View>
             ) : (

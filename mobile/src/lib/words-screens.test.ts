@@ -55,6 +55,7 @@ vi.mock("expo-router", async () => {
   };
 });
 vi.mock("expo-symbols", () => ({ SymbolView: () => null }));
+vi.mock("@/hooks/use-color-scheme", () => ({ useColorScheme: () => "light" }));
 vi.mock("expo-web-browser", () => ({ openBrowserAsync: (url: string) => state.browser(url) }));
 vi.mock("@ptracker/shared/i18n", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@ptracker/shared/i18n")>();
@@ -293,7 +294,7 @@ describe("WordsReviewScreen", () => {
     expect(text()).not.toContain("bütçe");
     await press(button(t.wordsShow));
     expect(text()).toContain("bütçe");
-    await press(pressable(t.wordsKnow));
+    await press(button(t.wordsKnow));
     expect(state.api.patch).toHaveBeenCalledWith("/api/words/w1", { answer: "know" });
     expect(text()).toContain("1 of 1 · 1 words learned");
     await press(button(t.wordsAnotherRound));
