@@ -13,6 +13,7 @@ export function MonthHeader({
   onNext,
   onToggleView,
   onOpenGames,
+  onOpenWords,
 }: {
   year: number;
   month: number; // 0-indexed
@@ -21,6 +22,7 @@ export function MonthHeader({
   onNext: () => void;
   onToggleView: (v: PaymentsView) => void;
   onOpenGames?: () => void;
+  onOpenWords?: () => void;
 }) {
   const { t, lang } = useLang();
   return (
@@ -46,14 +48,23 @@ export function MonthHeader({
             </Pressable>
           ))}
         </View>
-        {onOpenGames ? (
-          <Pressable onPress={onOpenGames} className="absolute right-0 p-1" accessibilityLabel={t.games}>
-            <SymbolView
-              name={{ ios: "gamecontroller", android: "sports_esports", web: "sports_esports" }}
-              size={22}
-              tintColor="#6b7280"
-            />
-          </Pressable>
+        {onOpenGames || onOpenWords ? (
+          <View className="absolute right-0 flex-row">
+            {onOpenWords ? (
+              <Pressable onPress={onOpenWords} className="p-1" accessibilityLabel={t.wordsTitle}>
+                <SymbolView name={{ ios: "book", android: "menu_book", web: "menu_book" }} size={22} tintColor="#6b7280" />
+              </Pressable>
+            ) : null}
+            {onOpenGames ? (
+              <Pressable onPress={onOpenGames} className="p-1" accessibilityLabel={t.games}>
+                <SymbolView
+                  name={{ ios: "gamecontroller", android: "sports_esports", web: "sports_esports" }}
+                  size={22}
+                  tintColor="#6b7280"
+                />
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
       </View>
     </View>
