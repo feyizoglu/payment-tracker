@@ -23,6 +23,7 @@ const state = vi.hoisted(() => ({
   },
   router: { back: () => undefined as void, push: (_to: unknown) => undefined as void },
   browser: (_url: string) => Promise.resolve(undefined as unknown),
+  lookup: (_word: string) => Promise.resolve(undefined as unknown),
 }));
 
 vi.mock("react-native", async () => {
@@ -61,6 +62,7 @@ vi.mock("@ptracker/shared/i18n", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@ptracker/shared/i18n")>();
   return { ...actual, useLang: () => ({ lang: "en", t: actual.translationsFor("en") }) };
 });
+vi.mock("@ptracker/shared/word-lookup", () => ({ lookupWord: (w: string) => state.lookup(w) }));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ api: state.api }) }));
 vi.mock("@/components/tab-screen", async () => {
   const { Fragment, createElement: h } = await import("react");
@@ -114,6 +116,7 @@ function word(over: Partial<VocabWord>): VocabWord {
   };
 }
 const learned = word({ id: "w2", word: "thrive", word_key: "thrive", learned_at: "2026-11-22T11:00:00Z", streak: 3 });
+const found = { lookup: "found", ipa: "/b/", audioUrl: null, senses: [{ pos: "noun", definition: "a plan", example: "a tight budget" }] };
 
 function reset() {
   state.texts = [];
@@ -157,6 +160,7 @@ beforeEach(() => {
   state.alert = vi.fn();
   state.router = { back: vi.fn(), push: vi.fn() };
   state.browser = vi.fn(async () => undefined);
+  state.lookup = vi.fn(async () => found);
   state.api = {
     get: vi.fn(async () => [word({}), learned]),
     post: vi.fn(async () => word({ id: "w9" })),
@@ -190,7 +194,8 @@ describe("WordsScreen", () => {
     await type(t.wordsWordLabel, " give  up ");
     await type(t.wordsMeaningLabel, "vazgeçmek");
     await press(button(t.wordsSave));
-    expect(state.api.post).toHaveBeenCalledWith("/api/words", { word: "give up", meaningTr: "vazgeçmek" });
+    expect(state.lookup).toHaveBeenCalledWith("give up");
+    expect(state.api.post).toHaveBeenCalledWith("/api/words", { word: "give up", meaningTr: "vazgeçmek", dictionary: found });
     expect(state.router.push).toHaveBeenCalledWith({ pathname: "/words/[id]", params: { id: "w9" } });
   });
 
@@ -209,6 +214,7 @@ describe("WordsScreen", () => {
     await type(t.wordsWordLabel, "abc1");
     await press(button(t.wordsSave));
     expect(text()).toContain(t.wordsInvalidWord);
+    expect(state.lookup).not.toHaveBeenCalled();
     expect(state.api.post).not.toHaveBeenCalled();
   });
 
@@ -270,7 +276,8 @@ describe("WordCardScreen", () => {
     await render(WordCardScreen);
     expect(text()).toContain(t.wordsLookupFailed);
     await press(pressable(t.wordsLookupRetry));
-    expect(state.api.patch).toHaveBeenCalledWith("/api/words/w1", { relookup: true });
+    expect(state.lookup).toHaveBeenCalledWith("budget");
+    expect(state.api.patch).toHaveBeenCalledWith("/api/words/w1", { relookup: found });
   });
 
   it("marks a learned word as not learned", async () => {

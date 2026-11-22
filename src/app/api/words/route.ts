@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
 import { isValidWord, normalizeMeaning, normalizeWord, vocabWordKey, type VocabErrorCode } from "@/lib/vocab";
-import { lookupWord } from "@/lib/word-lookup";
+import { lookupWord, readLookupResult } from "@/lib/word-lookup";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
   if (!isValidWord(word)) return fail(400, "invalid_word", "Invalid word");
   const meaning = normalizeMeaning(body?.meaningTr);
   if (!meaning.ok) return fail(400, "invalid_meaning", "Invalid meaning");
+  const sent = body?.dictionary === undefined ? null : readLookupResult(body.dictionary);
+  if (body?.dictionary !== undefined && !sent) return fail(400, "invalid_request", "Invalid dictionary result");
 
   const db = supabaseAdmin();
   const key = vocabWordKey(word);
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
   const { data: existing } = await find();
   if (existing) return fail(409, "duplicate", "Already in your list", { word: existing });
 
-  const found = await lookupWord(word);
+  const found = sent && sent.lookup !== "failed" ? sent : await lookupWord(word);
   const { data, error } = await db
     .from("vocab_words")
     .insert({

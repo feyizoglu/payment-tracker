@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { lookupWord, parseEntries } from "@/lib/word-lookup";
+import { lookupWord, parseEntries, readLookupResult } from "@/lib/word-lookup";
 
 const json = (status: number, body: unknown) =>
   vi.fn<typeof fetch>(async () =>
@@ -90,5 +90,53 @@ describe("lookupWord", () => {
     expect((await lookupWord("x", throwing as unknown as typeof fetch)).lookup).toBe("failed");
     const garbage = vi.fn(async () => new Response("<html>", { status: 200 }));
     expect((await lookupWord("x", garbage as unknown as typeof fetch)).lookup).toBe("failed");
+  });
+});
+
+describe("readLookupResult", () => {
+  const found = { lookup: "found", ipa: "/b/", audioUrl: "https://a/b-us.mp3", senses: [{ pos: "noun", definition: "a plan", example: "a tight budget" }] };
+
+  it("keeps a well-formed found result and trims its text", () => {
+    expect(readLookupResult(found)).toEqual(found);
+    expect(readLookupResult({ ...found, ipa: "  /b/ ", senses: [{ pos: " noun ", definition: " a plan " }] })).toEqual({
+      ...found, senses: [{ pos: "noun", definition: "a plan" }],
+    });
+  });
+
+  it("empties a not_found or failed result whatever else was sent", () => {
+    expect(readLookupResult({ lookup: "failed", ipa: "/x/", senses: [{ pos: "n", definition: "d" }] })).toEqual({ lookup: "failed", ipa: null, audioUrl: null, senses: [] });
+    expect(readLookupResult({ lookup: "not_found" })).toEqual({ lookup: "not_found", ipa: null, audioUrl: null, senses: [] });
+  });
+
+  it("refuses malformed results", () => {
+    const bad = [
+      null,
+      "found",
+      { lookup: "maybe" },
+      { ...found, audioUrl: "http://a/b.mp3" },
+      { ...found, ipa: 5 },
+      { ...found, ipa: "x".repeat(101) },
+      { ...found, senses: "none" },
+      { ...found, senses: [{ pos: "noun" }] },
+      { ...found, senses: [{ pos: "noun", definition: "d", example: "e".repeat(601) }] },
+      { ...found, senses: Array.from({ length: 41 }, () => ({ pos: "n", definition: "d" })) },
+    ];
+    for (const raw of bad) expect(readLookupResult(raw)).toBeNull();
+  });
+});
+
+describe("lookupWord without AbortSignal.timeout", () => {
+  it("still sends a signal that ends the request", async () => {
+    const original = AbortSignal.timeout;
+    Object.defineProperty(AbortSignal, "timeout", { value: undefined, configurable: true });
+    try {
+      const fetchImpl = vi.fn<typeof fetch>(async (_url, init) => {
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        return new Response("[]", { status: 404 });
+      });
+      expect((await lookupWord("zzz", fetchImpl)).lookup).toBe("not_found");
+    } finally {
+      Object.defineProperty(AbortSignal, "timeout", { value: original, configurable: true });
+    }
   });
 });

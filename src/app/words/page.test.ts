@@ -27,6 +27,7 @@ const client = vi.hoisted(() => ({
   listWords: vi.fn(),
   addWord: vi.fn(),
   changeWord: vi.fn(),
+  relookupWord: vi.fn(),
   deleteWord: vi.fn(),
 }));
 
@@ -219,11 +220,12 @@ describe("WordCardPage", () => {
 
   it("looks a missing word up again", async () => {
     client.listWords.mockResolvedValue({ ok: true, data: [word({ lookup: "not_found", senses: [] })] });
-    client.changeWord.mockResolvedValue({ ok: true, data: word({}) });
+    client.relookupWord.mockResolvedValue({ ok: true, data: word({}) });
     await mount(WordCardPage);
     expect(text()).toContain(t.wordsLookupMissing);
     await click(t.wordsLookupRetry);
-    expect(client.changeWord).toHaveBeenCalledWith("w1", { relookup: true });
+    expect(client.relookupWord).toHaveBeenCalledWith("w1", "budget");
+    expect(client.changeWord).not.toHaveBeenCalled();
   });
 
   it("deletes after confirming and goes back to the list", async () => {

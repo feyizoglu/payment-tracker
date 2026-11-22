@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
 import { normalizeMeaning, type VocabErrorCode, type VocabWord } from "@/lib/vocab";
-import { lookupWord } from "@/lib/word-lookup";
+import { lookupWord, readLookupResult } from "@/lib/word-lookup";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +18,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const body = await req.json().catch(() => null);
   const sent = body && typeof body === "object" ? CHANGES.filter((k) => k in body) : [];
   if (sent.length !== 1) return fail(400, "invalid_request", "Send exactly one change");
-  if ((sent[0] === "unlearn" || sent[0] === "relookup") && body[sent[0]] !== true) {
-    return fail(400, "invalid_request", `${sent[0]} must be true`);
+  if (sent[0] === "unlearn" && body.unlearn !== true) return fail(400, "invalid_request", "unlearn must be true");
+  const relookup = sent[0] === "relookup" && body.relookup !== true ? readLookupResult(body.relookup) : null;
+  if (sent[0] === "relookup" && body.relookup !== true && !relookup) {
+    return fail(400, "invalid_request", "relookup must be true or a dictionary result");
   }
 
   const { id } = await params;
@@ -54,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     case "unlearn":
       return update({ streak: 0, learned_at: null });
     case "relookup": {
-      const found = await lookupWord((word as VocabWord).word);
+      const found = relookup && relookup.lookup !== "failed" ? relookup : await lookupWord((word as VocabWord).word);
       return update({ ipa: found.ipa, audio_url: found.audioUrl, senses: found.senses, lookup: found.lookup });
     }
   }

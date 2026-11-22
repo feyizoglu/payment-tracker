@@ -4,6 +4,7 @@ import { router, useFocusEffect } from "expo-router";
 
 import { useLang } from "@ptracker/shared/i18n";
 import { filterWords, isValidWord, normalizeWord, vocabErrorText, vocabProgress, type VocabFilter, type VocabWord } from "@ptracker/shared/vocab";
+import { lookupWord } from "@ptracker/shared/word-lookup";
 import { fillTemplate } from "@ptracker/shared/word-game";
 import { TabScreen } from "@/components/tab-screen";
 import { PrimaryButton } from "@/components/ui/primary-button";
@@ -46,7 +47,8 @@ export default function WordsScreen() {
     setSaving(true);
     setError(null);
     try {
-      const added = await api.post<VocabWord>("/api/words", { word: clean, meaningTr: meaning });
+      const dictionary = await lookupWord(clean);
+      const added = await api.post<VocabWord>("/api/words", { word: clean, meaningTr: meaning, dictionary });
       setWord("");
       setMeaning("");
       router.push({ pathname: "/words/[id]", params: { id: added.id } });
