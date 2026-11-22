@@ -4,6 +4,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 
 import { useLang } from "@ptracker/shared/i18n";
 import { vocabErrorText, type VocabWord } from "@ptracker/shared/vocab";
+import { lookupWord } from "@ptracker/shared/word-lookup";
 import { fillTemplate } from "@ptracker/shared/word-game";
 import { TabScreen } from "@/components/tab-screen";
 import { PrimaryButton } from "@/components/ui/primary-button";
@@ -48,7 +49,8 @@ export default function WordCardScreen() {
     setBusy(true);
     setError(null);
     try {
-      setWord(await api.patch<VocabWord>(`/api/words/${id}`, c));
+      const body = "relookup" in c && word ? { relookup: await lookupWord(word.word) } : c;
+      setWord(await api.patch<VocabWord>(`/api/words/${id}`, body));
       setEditing(false);
     } catch (e) {
       setError(errorText(e));

@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/session", () => ({ getSessionUser: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ supabaseAdmin: vi.fn() }));
-vi.mock("@/lib/word-lookup", () => ({ lookupWord: vi.fn() }));
+vi.mock("@/lib/word-lookup", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/word-lookup")>()),
+  lookupWord: vi.fn(),
+}));
 
 import { getSessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -100,6 +103,52 @@ describe("POST /api/words", () => {
       user_id: "u-1", word: "give up", word_key: "give up", meaning_tr: "vazgeçmek",
       ipa: "/x/", audio_url: null, senses: [], lookup: "found",
     });
+  });
+
+  it("stores the dictionary result the app sent instead of looking the word up here", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(me);
+    const none = query({ data: null, error: null });
+    const inserted = query({ data: { id: "w2" }, error: null });
+    const from = vi.fn().mockReturnValueOnce(none).mockReturnValueOnce(inserted);
+    vi.mocked(supabaseAdmin).mockReturnValue({ from } as never);
+    const dictionary = { lookup: "found", ipa: "/b/", audioUrl: "https://api.dictionaryapi.dev/media/pronunciations/en/b-us.mp3", senses: [{ pos: "noun", definition: "a plan", example: "a tight budget" }] };
+    const res = await POST(post({ word: "budget", dictionary }) as never);
+    expect(res.status).toBe(201);
+    expect(lookupWord).not.toHaveBeenCalled();
+    expect(inserted.insert).toHaveBeenCalledWith(expect.objectContaining({
+      ipa: "/b/", audio_url: "https://api.dictionaryapi.dev/media/pronunciations/en/b-us.mp3", senses: dictionary.senses, lookup: "found",
+    }));
+  });
+
+  it("stores a not_found result the app sent without looking the word up here", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(me);
+    const none = query({ data: null, error: null });
+    const inserted = query({ data: { id: "w2" }, error: null });
+    const from = vi.fn().mockReturnValueOnce(none).mockReturnValueOnce(inserted);
+    vi.mocked(supabaseAdmin).mockReturnValue({ from } as never);
+    const res = await POST(post({ word: "asdfqwer", dictionary: { lookup: "not_found" } }) as never);
+    expect(res.status).toBe(201);
+    expect(lookupWord).not.toHaveBeenCalled();
+    expect(inserted.insert).toHaveBeenCalledWith(expect.objectContaining({ ipa: null, audio_url: null, senses: [], lookup: "not_found" }));
+  });
+
+  it("looks the word up here when the app could not reach the dictionary", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(me);
+    const none = query({ data: null, error: null });
+    const inserted = query({ data: { id: "w2" }, error: null });
+    const from = vi.fn().mockReturnValueOnce(none).mockReturnValueOnce(inserted);
+    vi.mocked(supabaseAdmin).mockReturnValue({ from } as never);
+    await POST(post({ word: "budget", dictionary: { lookup: "failed" } }) as never);
+    expect(lookupWord).toHaveBeenCalledWith("budget");
+    expect(inserted.insert).toHaveBeenCalledWith(expect.objectContaining({ ipa: "/x/", lookup: "found" }));
+  });
+
+  it("400s on a malformed dictionary result without touching the database", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(me);
+    const res = await POST(post({ word: "budget", dictionary: { lookup: "found", ipa: null, audioUrl: "http://x/a.mp3", senses: [] } }) as never);
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("invalid_request");
+    expect(supabaseAdmin).not.toHaveBeenCalled();
   });
 
   it("answers 409 when a parallel insert won the unique key", async () => {

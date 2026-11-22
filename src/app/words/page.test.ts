@@ -27,6 +27,7 @@ const client = vi.hoisted(() => ({
   listWords: vi.fn(),
   addWord: vi.fn(),
   changeWord: vi.fn(),
+  relookupWord: vi.fn(),
   deleteWord: vi.fn(),
 }));
 
@@ -162,12 +163,20 @@ describe("WordsPage", () => {
     expect(nav.push).toHaveBeenCalledWith("/words/w9");
   });
 
-  it("opens the existing card for a word already in the list", async () => {
-    client.addWord.mockResolvedValue({ ok: false, status: 409, code: "duplicate", error: "Already", word: word({ id: "w1" }) });
+  it("opens the existing card for a word already in the list without asking the dictionary", async () => {
     await mount(WordsPage);
     await type(t.wordsWordLabel, "Budget");
     await submit();
     expect(nav.push).toHaveBeenCalledWith("/words/w1");
+    expect(client.addWord).not.toHaveBeenCalled();
+  });
+
+  it("opens the card the server names when the word was added elsewhere meanwhile", async () => {
+    client.addWord.mockResolvedValue({ ok: false, status: 409, code: "duplicate", error: "Already", word: word({ id: "w7" }) });
+    await mount(WordsPage);
+    await type(t.wordsWordLabel, "frugal");
+    await submit();
+    expect(nav.push).toHaveBeenCalledWith("/words/w7");
   });
 
   it("offers a retry when the list cannot be loaded", async () => {
@@ -182,7 +191,7 @@ describe("WordsPage", () => {
   it("shows the server's invalid meaning error and stays on the list", async () => {
     client.addWord.mockResolvedValue({ ok: false, status: 400, code: "invalid_meaning", error: "x" });
     await mount(WordsPage);
-    await type(t.wordsWordLabel, "budget");
+    await type(t.wordsWordLabel, "frugal");
     await submit();
     expect(text()).toContain(t.wordsInvalidMeaning);
     expect(nav.push).not.toHaveBeenCalled();
@@ -219,11 +228,12 @@ describe("WordCardPage", () => {
 
   it("looks a missing word up again", async () => {
     client.listWords.mockResolvedValue({ ok: true, data: [word({ lookup: "not_found", senses: [] })] });
-    client.changeWord.mockResolvedValue({ ok: true, data: word({}) });
+    client.relookupWord.mockResolvedValue({ ok: true, data: word({}) });
     await mount(WordCardPage);
     expect(text()).toContain(t.wordsLookupMissing);
     await click(t.wordsLookupRetry);
-    expect(client.changeWord).toHaveBeenCalledWith("w1", { relookup: true });
+    expect(client.relookupWord).toHaveBeenCalledWith("w1", "budget");
+    expect(client.changeWord).not.toHaveBeenCalled();
   });
 
   it("deletes after confirming and goes back to the list", async () => {

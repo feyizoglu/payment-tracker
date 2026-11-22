@@ -3,7 +3,8 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } 
 import { router, useFocusEffect } from "expo-router";
 
 import { useLang } from "@ptracker/shared/i18n";
-import { filterWords, isValidWord, normalizeWord, vocabErrorText, vocabProgress, type VocabFilter, type VocabWord } from "@ptracker/shared/vocab";
+import { filterWords, isValidWord, normalizeWord, vocabErrorText, vocabProgress, vocabWordKey, type VocabFilter, type VocabWord } from "@ptracker/shared/vocab";
+import { lookupWord } from "@ptracker/shared/word-lookup";
 import { fillTemplate } from "@ptracker/shared/word-game";
 import { TabScreen } from "@/components/tab-screen";
 import { PrimaryButton } from "@/components/ui/primary-button";
@@ -43,16 +44,19 @@ export default function WordsScreen() {
   async function save() {
     const clean = normalizeWord(word);
     if (!isValidWord(clean)) return setError(t.wordsInvalidWord);
+    const known = (words ?? []).find((w) => w.word_key === vocabWordKey(clean));
+    if (known) return router.push({ pathname: "/words/[id]", params: { id: known.id } });
     setSaving(true);
     setError(null);
     try {
-      const added = await api.post<VocabWord>("/api/words", { word: clean, meaningTr: meaning });
+      const dictionary = await lookupWord(clean);
+      const added = await api.post<VocabWord>("/api/words", { word: clean, meaningTr: meaning, dictionary });
       setWord("");
       setMeaning("");
       router.push({ pathname: "/words/[id]", params: { id: added.id } });
     } catch (e) {
       if (e instanceof ApiError && e.code === "duplicate") {
-        const existing = (words ?? []).find((w) => w.word_key === clean.toLowerCase());
+        const existing = (words ?? []).find((w) => w.word_key === vocabWordKey(clean));
         if (existing) return router.push({ pathname: "/words/[id]", params: { id: existing.id } });
       }
       setError(e instanceof ApiError ? vocabErrorText(e.code, e.message, t) : t.updateFailed);

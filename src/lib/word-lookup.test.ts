@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { lookupWord, parseEntries } from "@/lib/word-lookup";
+import { lookupWord, parseEntries, readLookupResult } from "@/lib/word-lookup";
 
 const json = (status: number, body: unknown) =>
   vi.fn<typeof fetch>(async () =>
@@ -56,12 +56,37 @@ describe("parseEntries", () => {
     expect(parsed?.audioUrl).toBeNull();
   });
 
-  it("falls back to the first https recording when none is a US one", () => {
+  it("falls back to the first dictionary recording when none is a US one", () => {
     const parsed = parseEntries([{
-      phonetics: [{ audio: "http://example.com/x-us.mp3" }, { audio: "https://example.com/x-uk.mp3" }, { audio: "https://example.com/x-au.mp3" }],
+      phonetics: [{ audio: "http://api.dictionaryapi.dev/media/pronunciations/en/x-us.mp3" }, { audio: "https://example.com/x-us.mp3" }, { audio: "https://api.dictionaryapi.dev/media/pronunciations/en/x-uk.mp3" }, { audio: "https://api.dictionaryapi.dev/media/pronunciations/en/x-au.mp3" }],
       meanings: [],
     }]);
-    expect(parsed?.audioUrl).toBe("https://example.com/x-uk.mp3");
+    expect(parsed?.audioUrl).toBe("https://api.dictionaryapi.dev/media/pronunciations/en/x-uk.mp3");
+  });
+
+  it("drops a dictionary recording whose URL is longer than 500 characters", () => {
+    const prefix = "https://api.dictionaryapi.dev/media/pronunciations/en/";
+    const audio = prefix + "x".repeat(501 - prefix.length - "-us.mp3".length) + "-us.mp3";
+    expect(audio).toHaveLength(501);
+    const parsed = parseEntries([{ phonetics: [{ audio }], meanings: [] }]);
+    expect(parsed?.audioUrl).toBeNull();
+  });
+
+  it("keeps every field within the limits the server checks", () => {
+    const long = (n: number) => "x".repeat(n);
+    const parsed = parseEntries([{
+      phonetic: long(101),
+      phonetics: [{ text: "/ok/" }],
+      meanings: [
+        { partOfSpeech: long(41), definitions: [{ definition: "dropped with its part of speech" }] },
+        { partOfSpeech: "noun", definitions: [{ definition: long(601) }, { definition: "kept", example: long(601) }] },
+        ...Array.from({ length: 20 }, (_, i) => ({ partOfSpeech: `p${i}`, definitions: [{ definition: "a" }, { definition: "b" }, { definition: "c" }] })),
+      ],
+    }]);
+    expect(parsed?.ipa).toBe("/ok/");
+    expect(parsed?.senses[0]).toEqual({ pos: "noun", definition: "kept" });
+    expect(parsed?.senses).toHaveLength(40);
+    expect(readLookupResult(parsed)).toEqual(parsed);
   });
 
   it("returns null for a body that is not a list of entries", () => {
@@ -90,5 +115,83 @@ describe("lookupWord", () => {
     expect((await lookupWord("x", throwing as unknown as typeof fetch)).lookup).toBe("failed");
     const garbage = vi.fn(async () => new Response("<html>", { status: 200 }));
     expect((await lookupWord("x", garbage as unknown as typeof fetch)).lookup).toBe("failed");
+  });
+});
+
+describe("readLookupResult", () => {
+  const found = { lookup: "found", ipa: "/b/", audioUrl: "https://api.dictionaryapi.dev/media/pronunciations/en/b-us.mp3", senses: [{ pos: "noun", definition: "a plan", example: "a tight budget" }] };
+
+  it("keeps a well-formed found result and trims its text", () => {
+    expect(readLookupResult(found)).toEqual(found);
+    expect(readLookupResult({ ...found, ipa: "  /b/ ", senses: [{ pos: " noun ", definition: " a plan " }] })).toEqual({
+      ...found, senses: [{ pos: "noun", definition: "a plan" }],
+    });
+  });
+
+  it("empties a not_found or failed result whatever else was sent", () => {
+    expect(readLookupResult({ lookup: "failed", ipa: "/x/", senses: [{ pos: "n", definition: "d" }] })).toEqual({ lookup: "failed", ipa: null, audioUrl: null, senses: [] });
+    expect(readLookupResult({ lookup: "not_found" })).toEqual({ lookup: "not_found", ipa: null, audioUrl: null, senses: [] });
+  });
+
+  it("refuses malformed results", () => {
+    const bad = [
+      null,
+      "found",
+      { lookup: "maybe" },
+      { ...found, audioUrl: "http://a/b.mp3" },
+      { ...found, audioUrl: "https://example.com/b-us.mp3" },
+      { ...found, ipa: 5 },
+      { ...found, ipa: "x".repeat(101) },
+      { ...found, audioUrl: "https://" + "a".repeat(500) },
+      { ...found, senses: "none" },
+      { ...found, senses: [{ pos: "noun" }] },
+      { ...found, senses: [{ pos: "p".repeat(41), definition: "d" }] },
+      { ...found, senses: [{ pos: "noun", definition: "d".repeat(601) }] },
+      { ...found, senses: [{ pos: "noun", definition: "d", example: "e".repeat(601) }] },
+      { ...found, senses: Array.from({ length: 41 }, () => ({ pos: "n", definition: "d" })) },
+    ];
+    for (const raw of bad) expect(readLookupResult(raw)).toBeNull();
+  });
+});
+
+describe("lookupWord without AbortSignal.timeout", () => {
+  it("still sends a signal that ends the request", async () => {
+    const original = AbortSignal.timeout;
+    Object.defineProperty(AbortSignal, "timeout", { value: undefined, configurable: true });
+    try {
+      const fetchImpl = vi.fn<typeof fetch>(async (_url, init) => {
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        return new Response("[]", { status: 404 });
+      });
+      const cleared = vi.spyOn(globalThis, "clearTimeout");
+      expect((await lookupWord("zzz", fetchImpl)).lookup).toBe("not_found");
+      expect(cleared).toHaveBeenCalled();
+      cleared.mockRestore();
+    } finally {
+      Object.defineProperty(AbortSignal, "timeout", { value: original, configurable: true });
+    }
+  });
+
+  it("aborts a request that has not settled after five seconds", async () => {
+    const original = AbortSignal.timeout;
+    Object.defineProperty(AbortSignal, "timeout", { value: undefined, configurable: true });
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn<typeof fetch>((_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        })
+      );
+      let settled: Awaited<ReturnType<typeof lookupWord>> | undefined;
+      const pending = lookupWord("slow", fetchImpl).then((r) => { settled = r; });
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(settled).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      await pending;
+      expect(settled).toEqual({ lookup: "failed", ipa: null, audioUrl: null, senses: [] });
+    } finally {
+      vi.useRealTimers();
+      Object.defineProperty(AbortSignal, "timeout", { value: original, configurable: true });
+    }
   });
 });

@@ -47,8 +47,16 @@ A word is 1–40 characters of English letters, spaces, hyphens and apostrophes.
 
 ## Dictionary lookup
 
-One module, `src/lib/word-lookup.ts`, is the only code that knows the source. It takes a word and
+One module, `shared/word-lookup.ts`, is the only code that knows the source. It takes a word and
 returns `{ lookup, ipa, audioUrl, senses }`.
+
+The apps run it on the user's own device (browser or phone) and send the result with the save or
+**Try again** request. The dictionary limits requests per IP, and the web server shares its IPs with
+other sites, so lookups from the server failed in production (owner report, 2026-11-23). The server
+checks what it is sent with the same limits the lookup applies (lengths, at most 40 senses, audio
+only from `https://api.dictionaryapi.dev/media/`) and answers 400 for a malformed result. A word
+already in the loaded list opens its card before any lookup. When the app sends nothing, or a `failed` result, the server looks the word up
+itself as before.
 
 - `GET https://api.dictionaryapi.dev/api/v2/entries/en/<word>` with a 5 second timeout.
 - 200: `ipa` is the first non-empty `phonetic` or `phonetics[].text`; `audioUrl` the first
@@ -67,7 +75,7 @@ returns `{ lookup, ipa, audioUrl, senses }`.
 All routes need a session (`getSessionUser`) and touch only the caller's rows.
 
 - `GET /api/words`: the caller's words, newest first.
-- `POST /api/words` `{ word, meaningTr? }`: validates, looks the word up, inserts. 201 with the row;
+- `POST /api/words` `{ word, meaningTr?, dictionary? }`: validates, uses the app's lookup result or looks the word up, inserts. 201 with the row;
   409 with the existing row; 400 for an invalid word or meaning.
 - `PATCH /api/words/{id}` with exactly one of:
   - `{ meaningTr }`: set or clear the Turkish meaning.
@@ -76,7 +84,7 @@ All routes need a session (`getSessionUser`) and touch only the caller's rows.
     learned word ignores answers. The update is one SQL statement, so two quick answers cannot
     both read the old streak.
   - `{ unlearn: true }`: `streak` 0, `learned_at` null.
-  - `{ relookup: true }`: looks the word up again.
+  - `{ relookup: true | <lookup result> }`: stores the app's new lookup result, or looks the word up again.
 - `DELETE /api/words/{id}`.
 - 404 when the id is not the caller's.
 

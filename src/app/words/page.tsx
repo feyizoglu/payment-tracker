@@ -7,7 +7,7 @@ import Link from "next/link";
 import EventsHeader from "@/components/events/EventsHeader";
 import { StreakDots } from "@/components/words/WordParts";
 import { useLang } from "@/lib/i18n";
-import { filterWords, isValidWord, normalizeWord, vocabErrorText, vocabProgress, type VocabFilter, type VocabWord } from "@/lib/vocab";
+import { filterWords, isValidWord, normalizeWord, vocabErrorText, vocabProgress, vocabWordKey, type VocabFilter, type VocabWord } from "@/lib/vocab";
 import { fillTemplate } from "@/lib/word-game";
 import { addWord, listWords } from "@/lib/words-client";
 
@@ -44,6 +44,8 @@ export default function WordsPage() {
     e.preventDefault();
     const clean = normalizeWord(word);
     if (!isValidWord(clean)) return setError(t.wordsInvalidWord);
+    const known = (words ?? []).find((w) => w.word_key === vocabWordKey(clean));
+    if (known) return router.push(`/words/${known.id}`);
     setSaving(true);
     setError(null);
     const res = await addWord(clean, meaning);

@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/session", () => ({ getSessionUser: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ supabaseAdmin: vi.fn() }));
-vi.mock("@/lib/word-lookup", () => ({ lookupWord: vi.fn() }));
+vi.mock("@/lib/word-lookup", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/word-lookup")>()),
+  lookupWord: vi.fn(),
+}));
 
 import { getSessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -61,7 +64,7 @@ describe("PATCH /api/words/[id]", () => {
   });
 
   it("400s on a relookup or unlearn that is not true", async () => {
-    for (const body of [{ relookup: false }, { unlearn: "yes" }]) {
+    for (const body of [{ relookup: false }, { relookup: { lookup: "maybe" } }, { unlearn: "yes" }]) {
       const res = await PATCH(patch(body) as never, params);
       expect(res.status).toBe(400);
       expect((await res.json()).code).toBe("invalid_request");
@@ -137,6 +140,31 @@ describe("PATCH /api/words/[id]", () => {
     vi.mocked(lookupWord).mockResolvedValue({ lookup: "found", ipa: "/b/", audioUrl: "https://a/b-us.mp3", senses: [{ pos: "noun", definition: "d" }] });
     const { queries } = db({ data: own, error: null }, { data: own, error: null });
     await PATCH(patch({ relookup: true }) as never, params);
+    expect(lookupWord).toHaveBeenCalledWith("budget");
+    expect(queries[1].update).toHaveBeenCalledWith({
+      ipa: "/b/", audio_url: "https://a/b-us.mp3", senses: [{ pos: "noun", definition: "d" }], lookup: "found",
+    });
+  });
+
+  it("stores the dictionary result the app sent with a relookup", async () => {
+    const sent = { lookup: "found", ipa: "/b/", audioUrl: null, senses: [{ pos: "verb", definition: "to plan", example: "budget your time" }] };
+    const { queries } = db({ data: own, error: null }, { data: own, error: null });
+    await PATCH(patch({ relookup: sent }) as never, params);
+    expect(lookupWord).not.toHaveBeenCalled();
+    expect(queries[1].update).toHaveBeenCalledWith({ ipa: "/b/", audio_url: null, senses: sent.senses, lookup: "found" });
+  });
+
+  it("stores a not_found relookup the app sent without looking the word up here", async () => {
+    const { queries } = db({ data: own, error: null }, { data: own, error: null });
+    await PATCH(patch({ relookup: { lookup: "not_found" } }) as never, params);
+    expect(lookupWord).not.toHaveBeenCalled();
+    expect(queries[1].update).toHaveBeenCalledWith({ ipa: null, audio_url: null, senses: [], lookup: "not_found" });
+  });
+
+  it("looks the word up on the server when the app's own lookup failed", async () => {
+    vi.mocked(lookupWord).mockResolvedValue({ lookup: "found", ipa: "/b/", audioUrl: "https://a/b-us.mp3", senses: [{ pos: "noun", definition: "d" }] });
+    const { queries } = db({ data: own, error: null }, { data: own, error: null });
+    await PATCH(patch({ relookup: { lookup: "failed" } }) as never, params);
     expect(lookupWord).toHaveBeenCalledWith("budget");
     expect(queries[1].update).toHaveBeenCalledWith({
       ipa: "/b/", audio_url: "https://a/b-us.mp3", senses: [{ pos: "noun", definition: "d" }], lookup: "found",

@@ -9,7 +9,7 @@ import { AudioButton, SenseList, StreakDots } from "@/components/words/WordParts
 import { useLang } from "@/lib/i18n";
 import { vocabErrorText, type VocabWord } from "@/lib/vocab";
 import { fillTemplate } from "@/lib/word-game";
-import { changeWord, deleteWord, listWords, type WordChange } from "@/lib/words-client";
+import { changeWord, deleteWord, listWords, relookupWord, type WordChange } from "@/lib/words-client";
 
 export default function WordCardPage() {
   const { status } = useSession();
@@ -45,7 +45,7 @@ export default function WordCardPage() {
   async function change(c: WordChange) {
     setBusy(true);
     setError(null);
-    const res = await changeWord(id, c);
+    const res = "relookup" in c && word ? await relookupWord(id, word.word) : await changeWord(id, c);
     setBusy(false);
     if (res.ok) {
       setWord(res.data);
