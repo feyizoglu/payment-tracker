@@ -116,8 +116,11 @@ describe("readLookupResult", () => {
       { ...found, audioUrl: "http://a/b.mp3" },
       { ...found, ipa: 5 },
       { ...found, ipa: "x".repeat(101) },
+      { ...found, audioUrl: "https://" + "a".repeat(500) },
       { ...found, senses: "none" },
       { ...found, senses: [{ pos: "noun" }] },
+      { ...found, senses: [{ pos: "p".repeat(41), definition: "d" }] },
+      { ...found, senses: [{ pos: "noun", definition: "d".repeat(601) }] },
       { ...found, senses: [{ pos: "noun", definition: "d", example: "e".repeat(601) }] },
       { ...found, senses: Array.from({ length: 41 }, () => ({ pos: "n", definition: "d" })) },
     ];

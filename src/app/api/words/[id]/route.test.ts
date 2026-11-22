@@ -153,6 +153,16 @@ describe("PATCH /api/words/[id]", () => {
     expect(lookupWord).not.toHaveBeenCalled();
     expect(queries[1].update).toHaveBeenCalledWith({ ipa: "/b/", audio_url: null, senses: sent.senses, lookup: "found" });
   });
+
+  it("looks the word up on the server when the app's own lookup failed", async () => {
+    vi.mocked(lookupWord).mockResolvedValue({ lookup: "found", ipa: "/b/", audioUrl: "https://a/b-us.mp3", senses: [{ pos: "noun", definition: "d" }] });
+    const { queries } = db({ data: own, error: null }, { data: own, error: null });
+    await PATCH(patch({ relookup: { lookup: "failed" } }) as never, params);
+    expect(lookupWord).toHaveBeenCalledWith("budget");
+    expect(queries[1].update).toHaveBeenCalledWith({
+      ipa: "/b/", audio_url: "https://a/b-us.mp3", senses: [{ pos: "noun", definition: "d" }], lookup: "found",
+    });
+  });
 });
 
 describe("DELETE /api/words/[id]", () => {
