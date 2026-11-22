@@ -76,6 +76,9 @@ function RootNavigator() {
         <Stack.Screen name="manual-gold" options={{ presentation: 'modal' }} />
         <Stack.Screen name="event/[id]" />
         <Stack.Screen name="event-expense" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="words/index" />
+        <Stack.Screen name="words/[id]" />
+        <Stack.Screen name="words/review" />
       </Stack.Protected>
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="games/index" />

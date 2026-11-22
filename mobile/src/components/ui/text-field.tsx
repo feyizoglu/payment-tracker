@@ -14,6 +14,9 @@ export function TextField({
   numeric = false,
   autoFocus = false,
   editable = true,
+  maxLength,
+  autoCapitalize,
+  autoCorrect,
 }: {
   label: string;
   value: string;
@@ -23,6 +26,9 @@ export function TextField({
   numeric?: boolean;
   autoFocus?: boolean;
   editable?: boolean;
+  maxLength?: number;
+  autoCapitalize?: "none" | "sentences";
+  autoCorrect?: boolean;
 }) {
   return (
     <Field label={label} hint={hint}>
@@ -35,6 +41,9 @@ export function TextField({
         keyboardType={numeric ? "decimal-pad" : "default"}
         autoFocus={autoFocus}
         editable={editable}
+        maxLength={maxLength}
+        autoCapitalize={autoCapitalize}
+        autoCorrect={autoCorrect}
       />
     </Field>
   );

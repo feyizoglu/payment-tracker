@@ -273,6 +273,15 @@ describe("RootNavigator Stack.Protected guards", () => {
     expect(guardFor("games/secret")).toBe(true);
   });
 
+  it("keeps My Words closed in game mode and open outside it", async () => {
+    state.gameMode = true;
+    await render();
+    for (const name of ["words/index", "words/[id]", "words/review"]) expect(guardFor(name)).toBe(false);
+    state.gameMode = false;
+    await render();
+    for (const name of ["words/index", "words/[id]", "words/review"]) expect(guardFor(name)).toBe(true);
+  });
+
   it("opens the app and closes the lock screen outside game mode", async () => {
     await render();
     expect(guardFor("(app)")).toBe(true);

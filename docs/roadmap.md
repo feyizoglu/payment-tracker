@@ -14,3 +14,11 @@
 - Kurt Gecesi'nde sahibin karar vereceği kural soruları: doktorun koruduğu kurbanı cadı
   iyileştirirse iksir harcansın mı; anlatıcı modunda cadı kurbanı zehirleyebilsin mi; anlatıcı
   modunda kurbansız gece olabilsin mi.
+
+## Kelimelerim
+
+- Kelimelerim yayında (web `/words`, mobilde Ödemeler başlığındaki 📖 ikonu): kişiye özel İngilizce
+  kelime listesi, ücretsiz sözlükten okunuş ve örnekler, üst üste 3 kez bilinen kelime öğrenilmiş
+  sayılır. Spec: `docs/superpowers/specs/2026-11-22-my-words-design.md`.
+- Sıradakiler: Türkçe anlam ve örnekleri Claude API ile doldurmak (kaynak tek dosyada,
+  `src/lib/word-lookup.ts`), mobilde uygulama içi ses (expo-audio, yeni APK), aralıklı tekrar.

@@ -1,5 +1,5 @@
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public code?: string) {
     super(message);
     this.name = "ApiError";
   }
@@ -22,18 +22,20 @@ export interface ApiClient {
   del<T>(path: string, body?: unknown): Promise<T>;
 }
 
-// This API returns errors as `{ error: string }` JSON. Extract that message so
+// This API returns errors as `{ error: string, code?: string }` JSON. Extract that message so
 // callers surface "Forbidden" to the user, not the raw `{"error":"Forbidden"}`
 // blob. Falls back to the raw body (or an HTTP-status label) for non-JSON bodies.
-async function errorMessage(res: Response): Promise<string> {
+async function errorBody(res: Response): Promise<{ message: string; code?: string }> {
   const text = await res.text().catch(() => "");
   try {
     const parsed = JSON.parse(text);
-    if (parsed && typeof parsed.error === "string") return parsed.error;
+    if (parsed && typeof parsed.error === "string") {
+      return { message: parsed.error, code: typeof parsed.code === "string" ? parsed.code : undefined };
+    }
   } catch {
     // non-JSON body — use the raw text below
   }
-  return text || `HTTP ${res.status}`;
+  return { message: text || `HTTP ${res.status}` };
 }
 
 export function createApiClient(opts: ApiClientOptions): ApiClient {
@@ -52,7 +54,8 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
       throw new ApiError(401, "unauthorized");
     }
     if (!res.ok) {
-      throw new ApiError(res.status, await errorMessage(res));
+      const body = await errorBody(res);
+      throw new ApiError(res.status, body.message, body.code);
     }
     if (res.status === 204) return undefined as T;
     // Assumes every 2xx response from this API has a JSON body (it does today —
