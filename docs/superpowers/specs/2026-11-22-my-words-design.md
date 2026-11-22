@@ -89,10 +89,12 @@ Web pages under `src/app/words/`; mobile screens under `mobile/src/app/words/`, 
   (dashboard, economy, events header). Mobile: a 📖 icon (`menu_book`) beside the games icon in the
   month header.
 - **List.** Progress line and bar ("120 words · 45 learned"); **Review (8)** with the count of
-  unlearned words, disabled at 0; **+ Add word**; a search box matching the word and the Turkish
-  meaning; filter All / Learning / Learned. Each row: word, IPA, Turkish meaning, three dots for the
+  unlearned words, disabled at 0; the add form (below) on the same page; a search box matching the
+  word (by its lowercase key, a Turkish İ or ı counting as i) and the Turkish meaning; filter
+  All / Learning / Learned. Each row: word, IPA, Turkish meaning, three dots for the
   streak (●●○) or ✓ when learned. Tapping a row opens its card.
-- **Add.** Word field and optional Turkish meaning; **Save** looks the word up and opens the card.
+- **Add.** An "Add word" form on the list page: word field and optional Turkish meaning; **Save**
+  looks the word up and opens the card.
   A word already in the list shows "This word is already in your list." and opens its card.
 - **Card.** Word, IPA, 🔊 when there is a recording, the Turkish meaning (editable in place), the
   senses grouped by part of speech with their examples, the streak dots, **Mark as not learned**
@@ -105,6 +107,8 @@ Web pages under `src/app/words/`; mobile screens under `mobile/src/app/words/`, 
   the round going. The end shows "7 of 10 · 2 words learned" and **Another round**. No unlearned
   words: "Nothing to review."
 - **Leaving.** Back during a review just leaves; answers already sent are kept.
+- **Game mode.** My Words is personal data: like Finance and Events it is closed while game mode is
+  on (web lock gate, mobile `Stack.Protected` group).
 - Light and dark themes like the rest of the app. Colour: emerald (tile `emerald-50`, icon
   `emerald-600`).
 - All texts in `en` and `tr`.
@@ -113,7 +117,8 @@ Web pages under `src/app/words/`; mobile screens under `mobile/src/app/words/`, 
 
 The section needs the network; it is not added to the games offline cache. A failed load shows
 "Could not load your words." with **Retry**. The API's errors for this section carry a short
-`code` (`invalid_word`, `invalid_meaning`, `duplicate`, `not_found`) beside the English `error`;
+`code` (`invalid_word`, `invalid_meaning`, `duplicate`, `not_found`, `invalid_request`) beside the English
+`error`;
 both apps show the translated text for the code and fall back to `error` for anything else. A dictionary
 outage never blocks saving.
 
