@@ -13,7 +13,7 @@ import SignOutMenuItem from "@/components/SignOutMenuItem";
 const ACTIVE_LINK = "px-3 py-1.5 rounded-lg text-sm text-purple-700 dark:text-purple-400 bg-purple-50 font-semibold";
 const IDLE_LINK = "px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition font-medium";
 
-export default function EventsHeader({ active = "events" }: { active?: "events" | "games" } = {}) {
+export default function EventsHeader({ active = "events" }: { active?: "events" | "games" | "words" } = {}) {
   const { data: session } = useSession();
   const { lang, setLang, t } = useLang();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -50,6 +50,12 @@ export default function EventsHeader({ active = "events" }: { active?: "events" 
               className={active === "games" ? ACTIVE_LINK : IDLE_LINK}
             >
               {t.games}
+            </Link>
+            <Link
+              href="/words"
+              className={active === "words" ? ACTIVE_LINK : IDLE_LINK}
+            >
+              {t.wordsTitle}
             </Link>
           </nav>
         </div>

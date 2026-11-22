@@ -249,6 +249,12 @@ function Dashboard() {
               >
                 {t.games}
               </Link>
+              <Link
+                href="/words"
+                className="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition font-medium"
+              >
+                {t.wordsTitle}
+              </Link>
             </nav>
           </div>
 
