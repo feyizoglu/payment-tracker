@@ -121,6 +121,18 @@ Web pages under `src/app/words/`; mobile screens under `mobile/src/app/words/`, 
   `emerald-600`).
 - All texts in `en` and `tr`.
 
+## Daily nudge (added 2026-11-25)
+
+The existing daily cron (`/api/cron/send-reminders`, 18:00 UTC = 21:00 Turkey, owner chose to keep
+that time) also sends every user with at least one unlearned word a notification: "📖 Kelimelerim —
+Tekrar bekleyen {n} kelimen var. Bir tur yapalım mı?". It goes to Chrome (web push subscriptions)
+and to the phone (Expo tokens), opens the review (`/words/review` on web; on the phone the review
+screen, unless game mode is on, once the saved app lock has loaded). Users with no unlearned word
+get nothing, and if any page of the word count fails nobody gets it rather than a count that is too
+low. It is sent after the payment reminders, which keep the first share of the run's time, and also
+when the payments query fails. Its result is reported under `words` in the cron response and its
+errors are logged. Code: `src/lib/words-reminder.ts`.
+
 ## Errors and offline
 
 The section needs the network; it is not added to the games offline cache. A failed load shows
