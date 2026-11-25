@@ -73,6 +73,14 @@ describe("SecretKeyboard", () => {
     expect(style("Y").backgroundColor).toBe(c.key);
     expect(style("B").backgroundColor).toBe(c.key);
   });
+
+  it("writes a missed key's letter in the miss colour without a strike-through", () => {
+    const shown = expand(SecretKeyboard({ round: round([]), marks: { Y: "miss" }, palette: c, onKey: () => undefined }));
+    const label = shown.find((n) => n.type === Text && n.props.children === "Y")!;
+    const text = Object.assign({}, ...(label.props.style as object[]));
+    expect(text.color).toBe(c.miss);
+    expect(text.textDecorationLine).toBeUndefined();
+  });
 });
 
 describe("SecretLetter and SecretBoard", () => {

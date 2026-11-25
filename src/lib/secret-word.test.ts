@@ -266,6 +266,26 @@ describe("secretReveal", () => {
     expect(secretReveal(late)).toBe(late);
   });
 
+  it("is still allowed after four guesses", () => {
+    let r = start();
+    for (let i = 0; i < SECRET_TRIES - 2; i++) r = guess(r, "PANDA");
+    expect(secretCanReveal(r)).toBe(true);
+    expect(secretReveal(r).hint).toEqual({ at: SECRET_TRIES - 2, index: 0 });
+  });
+
+  it("is not allowed once the guesses together have hit every position", () => {
+    const r = guess(guess(start(), "HOUSE"), "PARTY");
+    expect(r.phase).toBe("playing");
+    expect(secretCanReveal(r)).toBe(false);
+    expect(secretReveal(r)).toBe(r);
+  });
+
+  it("clears the notice of a refused Enter", () => {
+    const refused = secretSubmit(typeAll(start(), "HO"));
+    expect(refused.notice).toBe("short");
+    expect(secretReveal(refused).notice).toBeNull();
+  });
+
   it("ends the round one guess sooner after a reveal", () => {
     let r = secretReveal(start());
     for (let i = 0; i < SECRET_TRIES - 2; i++) r = guess(r, "PANDA");

@@ -7,7 +7,7 @@ vi.mock("@/lib/i18n", async (importOriginal) => ({
 }));
 
 import { SECRET_COLORS, newSecretRound } from "@/lib/secret-word";
-import { SecretKeyboard, SecretLegend, SecretLetter } from "@/components/games/secret/SecretParts";
+import { SecretKeyboard, SecretLegend, SecretLetter, SecretReveal } from "@/components/games/secret/SecretParts";
 
 type Props = Record<string, unknown> & { children?: unknown };
 type Node = ReactElement<Props>;
@@ -42,6 +42,15 @@ describe("SecretKeyboard", () => {
     const look = (l: string) => all.find((k) => k.props.children === l)!.props.style;
     expect(look("K")).toMatchObject({ backgroundColor: c.hit, color: c.onHit });
     expect(look("A")).toMatchObject({ backgroundColor: c.key, boxShadow: `inset 0 -4px 0 ${c.near}` });
+  });
+});
+
+describe("SecretReveal", () => {
+  it("keeps the focus off the clicked button", () => {
+    const [button] = expand(SecretReveal({ round, onReveal: () => undefined })).filter((n) => n.type === "button");
+    const e = { preventDefault: vi.fn() };
+    (button.props.onMouseDown as (e: unknown) => void)(e);
+    expect(e.preventDefault).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -19,7 +19,7 @@ vi.mock("@/components/ui/primary-button", () => ({ PrimaryButton: () => null }))
 
 import { Pressable, Text } from "react-native";
 import { PrimaryButton } from "@/components/ui/primary-button";
-import { newSecretRound, secretSubmit, secretType, type SecretRound } from "@ptracker/shared/secret-word";
+import { newSecretRound, secretReveal, secretSubmit, secretType, type SecretRound } from "@ptracker/shared/secret-word";
 import { SecretResult } from "@/components/games/secret/secret-parts";
 
 type Props = Record<string, unknown> & { children?: unknown };
@@ -54,6 +54,12 @@ function texts(round: SecretRound, extra: { streak?: number; best?: number; newB
 describe("SecretResult text", () => {
   it("names the try a won round was guessed on", () => {
     expect(texts(won())).toContain("Got it on try 1!");
+  });
+
+  it("counts a revealed letter as a try in a won round", () => {
+    const r = secretSubmit([..."KÖPEK"].reduce(secretType, secretReveal(play([]))));
+    expect(r.phase).toBe("won");
+    expect(texts(r)).toContain("Got it on try 2!");
   });
 
   it("reveals the word after a lost round", () => {
