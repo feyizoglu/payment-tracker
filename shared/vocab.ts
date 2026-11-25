@@ -58,7 +58,7 @@ export function vocabProgress(words: readonly VocabWord[]): { total: number; lea
 export type VocabFilter = "all" | "learning" | "learned";
 
 // Casing that matches whether the text was typed on an English or a Turkish keyboard: every I is i.
-const searchFold = (text: string): string => text.replace(/[İIı]/g, "i").toLowerCase();
+export const searchFold = (text: string): string => text.replace(/[İIı]/g, "i").toLowerCase();
 
 export function filterWords(words: readonly VocabWord[], filter: VocabFilter, query: string): VocabWord[] {
   const q = searchFold(normalizeWord(query));
