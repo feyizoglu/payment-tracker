@@ -17,6 +17,7 @@ function makeDb(opts: {
   subscriptions?: Row[];
   errors?: Record<string, { message: string }>;
   deleteError?: { message: string } | null;
+  failRangeFrom?: number;
 }) {
   const deleted: Record<string, string[]> = {};
   const deleteCalls: [string, string[]][] = [];
@@ -43,6 +44,7 @@ function makeDb(opts: {
         order: () => chain,
         range: async (from: number, to: number) => {
           ranges.push([from, to]);
+          if (opts.failRangeFrom !== undefined && from >= opts.failRangeFrom) return { data: null, error: { message: "page down" } };
           return { data: error ? null : rows[table].slice(from, to + 1), error };
         },
         in: async (_col: string, vals: string[]) => ({
@@ -129,6 +131,16 @@ describe("sendWordsReminders", () => {
     const summary = await sendWordsReminders(db as never);
     expect(db._deleted).toEqual({ devices: ["tok-1"], web_push_subscriptions: ["https://push/a"] });
     expect(summary.webPush.errors).toEqual(["gone"]);
+  });
+
+  it("sends nothing when a later page of words fails, rather than a count that is too low", async () => {
+    const words = [...Array.from({ length: 1000 }, () => word("u-1")), word("u-2")];
+    const db = makeDb({ words, subscriptions: [{ user_id: "u-1", endpoint: "e", p256dh: "p", auth: "a" }], failRangeFrom: 1000 });
+    const summary = await sendWordsReminders(db as never);
+    expect(summary.errors).toEqual(["vocab words query failed: page down"]);
+    expect(summary.users).toBe(0);
+    expect(sendExpoPush).not.toHaveBeenCalled();
+    expect(sendWebPush).not.toHaveBeenCalled();
   });
 
   it("reports failed queries and prunes instead of throwing", async () => {

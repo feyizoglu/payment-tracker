@@ -27,10 +27,17 @@ export async function GET(req: NextRequest) {
 
   const db = supabaseAdmin();
   const resend = new Resend(process.env.RESEND_API_KEY);
-  // Sent before the payment reminders, so a failed payments query does not also cost the words nudge.
-  const words = await sendWordsReminders(db).catch((e: unknown) => ({
-    error: e instanceof Error ? e.message : "words reminders failed",
-  }));
+  // Runs after the payment reminders, which come first in the time budget, and on the
+  // payments-failure path too.
+  const sendWords = async () => {
+    const words = await sendWordsReminders(db).catch((e: unknown) => ({
+      error: e instanceof Error ? e.message : "words reminders failed",
+    }));
+    const errors =
+      "error" in words ? [words.error] : [...words.errors, ...words.push.errors, ...words.webPush.errors];
+    if (errors.length > 0) console.error("words reminders:", errors.join("; "));
+    return words;
+  };
 
   // Tomorrow's local date components — cron fires at 18:00 UTC = 21:00 Turkey (UTC+3)
   const tomorrow = addDays(new Date(), 1);
@@ -44,7 +51,7 @@ export async function GET(req: NextRequest) {
     .select("*, overrides:payment_overrides(*), user:users!payments_user_id_fkey(id, name, email)");
 
   if (error) {
-    return NextResponse.json({ error: error.message, words }, { status: 500 });
+    return NextResponse.json({ error: error.message, words: await sendWords() }, { status: 500 });
   }
 
   const dueByUser = new Map<string, { user: User; items: DueItem[] }>();
@@ -250,6 +257,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  const words = await sendWords();
   return NextResponse.json({
     date: format(tomorrow, "yyyy-MM-dd"),
     sent: results.length,

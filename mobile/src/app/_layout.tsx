@@ -31,7 +31,8 @@ function RootNavigator() {
   // A tapped payment reminder opens the Payments tab on the month it is about; the My Words
   // nudge opens the review, which game mode keeps closed.
   useEffect(() => {
-    if (!ready || !isAuthenticated || !lastNotification) return;
+    // Wait for the saved lock too: until it loads only the spinner is mounted and game mode is unknown.
+    if (!ready || !lockReady || !isAuthenticated || !lastNotification) return;
     const { request } = lastNotification.notification;
     if (handledTapRef.current === request.identifier) return;
     handledTapRef.current = request.identifier;
@@ -42,7 +43,7 @@ function RootNavigator() {
     const month = monthFromNotificationData(request.content.data);
     // `tap` makes a second tap for the same month re-apply it after the user browsed away.
     router.navigate(month ? { pathname: '/', params: { month, tap: request.identifier } } : '/');
-  }, [ready, isAuthenticated, lastNotification, lock.gameMode]);
+  }, [ready, lockReady, isAuthenticated, lastNotification, lock.gameMode]);
 
   // Runs after the guards let the tabs back in; navigating from the PIN screen itself could
   // land before that render, when the tabs are still not a route the stack accepts.

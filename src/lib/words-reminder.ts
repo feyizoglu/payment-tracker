@@ -19,7 +19,8 @@ export interface WordsReminderSummary {
   errors: string[];
 }
 
-/** How many unlearned words each user has; read in pages, as the API returns at most 1000 rows. */
+/** How many unlearned words each user has; read in pages, as the API returns at most 1000 rows.
+ * A failed page sends nothing rather than a count that is too low. */
 async function unlearnedByUser(db: Db, errors: string[]): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
   for (let from = 0; ; from += PAGE) {
@@ -31,7 +32,7 @@ async function unlearnedByUser(db: Db, errors: string[]): Promise<Map<string, nu
       .range(from, from + PAGE - 1);
     if (error) {
       errors.push(`vocab words query failed: ${error.message}`);
-      break;
+      return new Map();
     }
     for (const row of data ?? []) counts.set(row.user_id, (counts.get(row.user_id) ?? 0) + 1);
     if (!data || data.length < PAGE) break;

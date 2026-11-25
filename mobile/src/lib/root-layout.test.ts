@@ -149,7 +149,18 @@ describe("RootNavigator notification deep link", () => {
     state.gameMode = true;
     state.response = tap("w1", { screen: "words-review" });
     await render();
-    expect(router.navigate).not.toHaveBeenCalledWith("/words/review");
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it("holds a tap until the saved lock has loaded, then follows it", async () => {
+    state.lockReady = false;
+    state.response = tap("w1", { screen: "words-review" });
+    await render();
+    expect(router.navigate).not.toHaveBeenCalled();
+    state.lockReady = true;
+    await render();
+    expect(router.navigate).toHaveBeenCalledTimes(1);
+    expect(router.navigate).toHaveBeenCalledWith("/words/review");
   });
 
   it("opens the Payments tab without params when the data carries no valid month", async () => {

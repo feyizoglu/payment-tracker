@@ -334,6 +334,32 @@ describe("GET /api/cron/send-reminders web push", () => {
     expect((await res.json()).words).toMatchObject({ users: 0 });
   });
 
+  it("sends the payment reminders before the My Words nudge", async () => {
+    const db = makeDb({
+      payments: [duePayment],
+      recurring_payments: [],
+      web_push_subscriptions: [{ user_id: "u-1", endpoint: "https://push.example/u1", p256dh: "p1", auth: "a1" }],
+    });
+    vi.mocked(supabaseAdmin).mockReturnValue(db as never);
+    await GET(req("Bearer s3cret") as never);
+    expect(vi.mocked(sendWebPush).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(sendWordsReminders).mock.invocationCallOrder[0]);
+  });
+
+  it("logs the My Words nudge errors so a broken nudge is not silent", async () => {
+    vi.mocked(getInstallments).mockReturnValue([]);
+    vi.mocked(sendWordsReminders).mockResolvedValue({
+      users: 0,
+      push: { sent: 0, invalidTokens: [], errors: ["expo down"] },
+      webPush: { sent: 0, expiredEndpoints: [], errors: [] },
+      errors: ["vocab words query failed: x"],
+    });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(supabaseAdmin).mockReturnValue(makeDb({ payments: [], recurring_payments: [] }) as never);
+    await GET(req("Bearer s3cret") as never);
+    expect(logged).toHaveBeenCalledWith("words reminders:", "vocab words query failed: x; expo down");
+    logged.mockRestore();
+  });
+
   it("still sends the My Words nudge when the payments query fails", async () => {
     const db = makeDb({}, { payments: { message: "down" } });
     vi.mocked(supabaseAdmin).mockReturnValue(db as never);
