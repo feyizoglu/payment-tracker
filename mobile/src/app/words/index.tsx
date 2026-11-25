@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 
@@ -13,18 +13,14 @@ import { TextField } from "@/components/ui/text-field";
 import { StreakDots } from "@/components/words/word-parts";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { sessionUserId } from "@/lib/session-user";
 import { getStoredRaceList, setStoredRaceList } from "@/lib/word-race-storage";
 
 export default function WordsScreen() {
   const { t } = useLang();
-  const { api, user } = useAuth();
-  const userId = user?.id ?? null;
+  const { api } = useAuth();
   const [words, setWords] = useState<VocabWord[] | null>(null);
   const [raceCopy, setRaceCopy] = useState<VocabWord[] | null>(null);
-  const userIdRef = useRef(userId);
-  useEffect(() => {
-    userIdRef.current = userId;
-  }, [userId]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<VocabFilter>("all");
@@ -42,7 +38,8 @@ export default function WordsScreen() {
       void setStoredRaceList(list);
     } catch {
       setLoadFailed(true);
-      setRaceCopy(await getStoredRaceList(userIdRef.current));
+      const owner = await sessionUserId();
+      setRaceCopy(owner ? await getStoredRaceList(owner) : null);
     }
   }, [api]);
 

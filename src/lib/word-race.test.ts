@@ -305,9 +305,8 @@ describe("the clock", () => {
 describe("parseRaceList", () => {
   const list = four();
 
-  it("reads a saved list back", () => {
+  it("reads a saved list back for its owner", () => {
     expect(parseRaceList(JSON.stringify(list), "u1")).toEqual(list);
-    expect(parseRaceList(JSON.stringify(list), null)).toEqual(list);
   });
 
   it("reads nothing from a missing or broken copy", () => {
@@ -316,7 +315,9 @@ describe("parseRaceList", () => {
     }
   });
 
-  it("ignores another user's copy", () => {
+  it("ignores another user's copy, and a copy mixing users", () => {
     expect(parseRaceList(JSON.stringify(list), "u2")).toBeNull();
+    expect(parseRaceList(JSON.stringify([...list, word("e", { user_id: "u2" })]), "u1")).toBeNull();
+    expect(parseRaceList(JSON.stringify(list), "")).toBeNull();
   });
 });

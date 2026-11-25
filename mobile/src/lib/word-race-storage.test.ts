@@ -46,18 +46,17 @@ describe("word race storage", () => {
     expect(await getStoredRaceBest()).toBe(7);
   });
 
-  it("reads the saved list back for its user, or for an unknown user, and not for another", async () => {
+  it("reads the saved list back for its user and not for another", async () => {
     expect(await getStoredRaceList("u1")).toBeNull();
     await setStoredRaceList(list);
     expect(await getStoredRaceList("u1")).toEqual(list);
-    expect(await getStoredRaceList(null)).toEqual(list);
     expect(await getStoredRaceList("u2")).toBeNull();
   });
 
   it("forgets the list when cleared", async () => {
     await setStoredRaceList(list);
     await clearStoredRaceList();
-    expect(await getStoredRaceList(null)).toBeNull();
+    expect(await getStoredRaceList("u1")).toBeNull();
   });
 
   it("never throws when storage fails", async () => {

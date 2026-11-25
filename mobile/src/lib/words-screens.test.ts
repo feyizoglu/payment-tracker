@@ -27,6 +27,7 @@ const state = vi.hoisted(() => ({
   raceCopy: null as VocabWord[] | null,
   savedRaceList: null as VocabWord[] | null,
   user: { id: "u1" } as { id: string } | null,
+  owner: "u1" as string | null,
 }));
 
 vi.mock("react-native", async () => {
@@ -67,8 +68,9 @@ vi.mock("@ptracker/shared/i18n", async (importOriginal) => {
 });
 vi.mock("@ptracker/shared/word-lookup", () => ({ lookupWord: (w: string) => state.lookup(w) }));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ api: state.api, user: state.user }) }));
+vi.mock("@/lib/session-user", () => ({ sessionUserId: async () => state.owner }));
 vi.mock("@/lib/word-race-storage", () => ({
-  getStoredRaceList: async (userId: string | null) => (userId === "u1" ? state.raceCopy : null),
+  getStoredRaceList: async (userId: string) => (userId === "u1" ? state.raceCopy : null),
   setStoredRaceList: async (words: VocabWord[]) => {
     state.savedRaceList = words;
   },
@@ -173,6 +175,7 @@ beforeEach(() => {
   state.raceCopy = null;
   state.savedRaceList = null;
   state.user = { id: "u1" };
+  state.owner = "u1";
   state.api = {
     get: vi.fn(async () => [word({}), learned]),
     post: vi.fn(async () => word({ id: "w9" })),
@@ -221,6 +224,16 @@ describe("Word Race button", () => {
     state.user = { id: "u1" };
     await render(WordsScreen);
     expect(state.api.get).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores the saved list offline without a signed-in account", async () => {
+    state.api.get = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    state.raceCopy = four;
+    state.owner = null;
+    await render(WordsScreen);
+    expect(button(t.wordRaceStart)).toMatchObject({ disabled: true });
   });
 
   it("stays disabled offline without a saved list", async () => {

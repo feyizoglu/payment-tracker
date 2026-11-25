@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   get: async (_path: string) => undefined as unknown,
   back: () => undefined as void,
   user: { id: "u1" } as { id: string } | null,
+  owner: "u1" as string | null,
 }));
 
 vi.mock("react-native", async () => {
@@ -47,6 +48,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
     removeItem: async (k: string) => void state.store.delete(k),
   },
 }));
+vi.mock("@/lib/session-user", () => ({ sessionUserId: async () => state.owner }));
 vi.mock("@ptracker/shared/i18n", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@ptracker/shared/i18n")>();
   return { ...actual, useLang: () => ({ lang: "en", t: actual.translationsFor("en") }) };
@@ -149,6 +151,7 @@ beforeEach(() => {
   state.back = vi.fn();
   state.get = vi.fn(async () => list);
   state.user = { id: "u1" };
+  state.owner = "u1";
 });
 
 afterEach(async () => {
@@ -231,6 +234,27 @@ describe("WordRaceScreen", () => {
     await mount();
     expect(clue()).toBeTruthy();
     expect(text()).not.toContain(t.wordsLoadFailed);
+  });
+
+  it("races with the saved copy offline even before the profile has loaded", async () => {
+    state.user = null;
+    state.store.set("words-race-list", JSON.stringify(list));
+    state.get = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    await mount();
+    expect(clue()).toBeTruthy();
+  });
+
+  it("never uses the saved copy without a signed-in account", async () => {
+    state.owner = null;
+    state.store.set("words-race-list", JSON.stringify(list));
+    state.get = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    await mount();
+    expect(text()).toContain(t.wordsLoadFailed);
+    expect(clue()).toBeUndefined();
   });
 
   it("ignores a saved copy that belongs to someone else", async () => {

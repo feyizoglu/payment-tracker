@@ -20,24 +20,20 @@ import {
 import { TabScreen } from "@/components/tab-screen";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { useAuth } from "@/lib/auth-context";
+import { sessionUserId } from "@/lib/session-user";
 import { useSoloBest } from "@/lib/use-solo-best";
 import { getStoredRaceBest, getStoredRaceList, setStoredRaceBest, setStoredRaceList } from "@/lib/word-race-storage";
 
 export default function WordRaceScreen() {
   const { t } = useLang();
-  const { api, user } = useAuth();
-  const userId = user?.id ?? null;
+  const { api } = useAuth();
   const [race, setRace] = useState<RaceState | null>(null);
   const [now, setNow] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
   const [tooFew, setTooFew] = useState(false);
   const { best, newBest, record, clearNewBest } = useSoloBest(getStoredRaceBest, setStoredRaceBest);
-  // Read through refs so a profile landing mid-load neither restarts the load nor replaces a running round.
-  const userIdRef = useRef(userId);
+  // A second load while one is in flight would replace the round the first one starts.
   const loading = useRef(false);
-  useEffect(() => {
-    userIdRef.current = userId;
-  }, [userId]);
 
   const start = useCallback(async () => {
     if (loading.current) return;
@@ -49,7 +45,8 @@ export default function WordRaceScreen() {
       words = await api.get<VocabWord[]>("/api/words");
       void setStoredRaceList(words);
     } catch {
-      words = await getStoredRaceList(userIdRef.current);
+      const owner = await sessionUserId();
+      words = owner ? await getStoredRaceList(owner) : null;
     }
     loading.current = false;
     const at = Date.now();

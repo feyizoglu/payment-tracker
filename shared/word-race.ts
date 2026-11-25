@@ -154,8 +154,8 @@ function isSavedWord(value: unknown): value is VocabWord {
   );
 }
 
-/** The offline copy of the word list; null when missing, broken or another user's. */
-export function parseRaceList(raw: string | null, userId: string | null): VocabWord[] | null {
+/** The offline copy of the word list for `userId`; null when missing, broken, or not wholly that user's. */
+export function parseRaceList(raw: string | null, userId: string): VocabWord[] | null {
   if (raw === null) return null;
   let value: unknown;
   try {
@@ -164,6 +164,6 @@ export function parseRaceList(raw: string | null, userId: string | null): VocabW
     return null;
   }
   if (!Array.isArray(value) || !value.every(isSavedWord)) return null;
-  if (userId !== null && value.some((w) => w.user_id !== userId)) return null;
+  if (value.some((w) => w.user_id !== userId)) return null;
   return value;
 }

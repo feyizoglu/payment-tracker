@@ -8,8 +8,8 @@ import { getStoredBest, setStoredBest } from "@/lib/best-storage";
 export const getStoredRaceBest = () => getStoredBest(RACE_BEST_KEY);
 export const setStoredRaceBest = (best: number) => setStoredBest(RACE_BEST_KEY, best);
 
-/** The list saved by the last successful read; null when none, broken, or another user's. */
-export async function getStoredRaceList(userId: string | null): Promise<VocabWord[] | null> {
+/** The list saved by the last successful read; null when none, broken, or not wholly this user's. */
+export async function getStoredRaceList(userId: string): Promise<VocabWord[] | null> {
   try {
     return parseRaceList(await AsyncStorage.getItem(RACE_LIST_KEY), userId);
   } catch {
@@ -29,6 +29,6 @@ export async function clearStoredRaceList(): Promise<void> {
   try {
     await AsyncStorage.removeItem(RACE_LIST_KEY);
   } catch {
-    // Nothing more to do: the copy is ignored for any other signed-in user once their profile loads.
+    // Nothing more to do: every read checks the copy against the account of the stored session.
   }
 }
