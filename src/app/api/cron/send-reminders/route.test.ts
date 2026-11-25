@@ -342,6 +342,19 @@ describe("GET /api/cron/send-reminders web push", () => {
     expect(sendWordsReminders).toHaveBeenCalledWith(db);
   });
 
+  it("returns the My Words nudge summary in the 500 body when the payments query fails", async () => {
+    vi.mocked(sendWordsReminders).mockResolvedValue({
+      users: 4,
+      push: { sent: 3, invalidTokens: [], errors: [] },
+      webPush: { sent: 0, expiredEndpoints: [], errors: [] },
+      errors: [],
+    });
+    vi.mocked(supabaseAdmin).mockReturnValue(makeDb({}, { payments: { message: "down" } }) as never);
+    const res = await GET(req("Bearer s3cret") as never);
+    expect(res.status).toBe(500);
+    expect(await res.json()).toMatchObject({ error: "down", words: { users: 4, push: { sent: 3 } } });
+  });
+
   it("reports a thrown My Words nudge instead of failing the payment reminders", async () => {
     vi.mocked(getInstallments).mockReturnValue([]);
     vi.mocked(sendWordsReminders).mockRejectedValue(new Error("boom"));

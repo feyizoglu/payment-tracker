@@ -19,6 +19,7 @@ function makeDb(opts: {
   deleteError?: { message: string } | null;
 }) {
   const deleted: Record<string, string[]> = {};
+  const deleteCalls: [string, string[]][] = [];
   const ranges: [number, number][] = [];
   const filters: Record<string, unknown[]> = {};
   const rows: Record<string, Row[]> = {
@@ -28,6 +29,7 @@ function makeDb(opts: {
   };
   const db = {
     _deleted: deleted,
+    _deleteCalls: deleteCalls,
     _ranges: ranges,
     _filters: filters,
     from(table: string) {
@@ -49,6 +51,7 @@ function makeDb(opts: {
         }),
         delete: () => ({
           in: async (_col: string, vals: string[]) => {
+            deleteCalls.push([table, [...vals]]);
             (deleted[table] ??= []).push(...vals);
             return { error: opts.deleteError ?? null };
           },
@@ -150,5 +153,44 @@ describe("sendWordsReminders", () => {
     );
     expect(lookupsDown.push.errors).toEqual(["devices query failed: x"]);
     expect(lookupsDown.webPush.errors).toEqual(["web push subscriptions query failed: y"]);
+  });
+
+  it("adds up web push results across users and prunes every expired endpoint in one delete", async () => {
+    const db = makeDb({
+      words: [word("u-1"), word("u-2")],
+      subscriptions: [
+        { user_id: "u-1", endpoint: "https://push/a", p256dh: "p", auth: "a" },
+        { user_id: "u-2", endpoint: "https://push/b", p256dh: "p", auth: "a" },
+      ],
+    });
+    vi.mocked(sendWebPush)
+      .mockResolvedValueOnce({ sent: 2, expiredEndpoints: ["https://push/a"], errors: [] })
+      .mockResolvedValueOnce({ sent: 1, expiredEndpoints: ["https://push/b"], errors: [] });
+    const summary = await sendWordsReminders(db as never);
+    expect(sendWebPush).toHaveBeenCalledTimes(2);
+    expect(summary.webPush.sent).toBe(3);
+    expect(summary.webPush.expiredEndpoints).toEqual(["https://push/a", "https://push/b"]);
+    expect(db._deleteCalls).toEqual([["web_push_subscriptions", ["https://push/a", "https://push/b"]]]);
+  });
+
+  it("reports a web push error shared by several users once", async () => {
+    const db = makeDb({
+      words: [word("u-1"), word("u-2")],
+      subscriptions: [
+        { user_id: "u-1", endpoint: "https://push/a", p256dh: "p", auth: "a" },
+        { user_id: "u-2", endpoint: "https://push/b", p256dh: "p", auth: "a" },
+      ],
+    });
+    vi.mocked(sendWebPush).mockResolvedValue({ sent: 0, expiredEndpoints: [], errors: ["VAPID keys missing"] });
+    const summary = await sendWordsReminders(db as never);
+    expect(sendWebPush).toHaveBeenCalledTimes(2);
+    expect(summary.webPush.errors).toEqual(["VAPID keys missing"]);
+  });
+
+  it("reports the errors the Expo push service returns", async () => {
+    const db = makeDb({ words: [word("u-1")], devices: [{ user_id: "u-1", expo_push_token: "tok-1" }] });
+    vi.mocked(sendExpoPush).mockResolvedValue({ sent: 0, invalidTokens: [], errors: ["expo down"] });
+    const summary = await sendWordsReminders(db as never);
+    expect(summary.push.errors).toEqual(["expo down"]);
   });
 });
