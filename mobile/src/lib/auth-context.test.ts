@@ -31,6 +31,7 @@ vi.mock("./auth", () => ({
   fetchProfile: vi.fn(),
 }));
 vi.mock("./widget-refresh", () => ({ refreshWidget: vi.fn() }));
+vi.mock("./word-race-storage", () => ({ clearStoredRaceList: vi.fn(async () => undefined) }));
 vi.mock("./push-native", () => ({
   getNativePushToken: vi.fn(),
   nativePushDeps: vi.fn((post: unknown) => ({ post })),
@@ -49,6 +50,7 @@ import { registerForPush, type PushOutcome } from "./push";
 import { getNativePushToken } from "./push-native";
 import { clearToken, getToken } from "./storage";
 import { refreshWidget } from "./widget-refresh";
+import { clearStoredRaceList } from "./word-race-storage";
 
 interface Root {
   render(node: unknown): void;
@@ -235,6 +237,13 @@ describe("signOut push unregister", () => {
     expect(vi.mocked(refreshWidget).mock.invocationCallOrder[0]).toBeGreaterThan(
       vi.mocked(clearToken).mock.invocationCallOrder[0]
     );
+  });
+
+  it("forgets the offline Word Race list, so the next account never races with it", async () => {
+    await mount();
+    expect(clearStoredRaceList).not.toHaveBeenCalled();
+    await signOut();
+    expect(clearStoredRaceList).toHaveBeenCalledTimes(1);
   });
 
   it("removes only the session token from the secure store, so the app lock survives sign-out", async () => {

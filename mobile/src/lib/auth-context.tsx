@@ -8,6 +8,7 @@ import { registerForPush, unregisterFromPush } from "./push";
 import { getNativePushToken, nativePushDeps } from "./push-native";
 import { clearToken, getToken, setToken } from "./storage";
 import { refreshWidget } from "./widget-refresh";
+import { clearStoredRaceList } from "./word-race-storage";
 
 // Single source of truth: mirror the exact profile shape the auth endpoint
 // returns (defined in ./auth) rather than restating the Pick<User, ...> list.
@@ -62,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const jwt = jwtRef.current;
     pushTokenRef.current = null;
     await clearToken();
+    void clearStoredRaceList();
     setTok(null);
     setUser(null);
     refreshWidget();
