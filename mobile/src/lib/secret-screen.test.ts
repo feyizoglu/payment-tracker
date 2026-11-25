@@ -57,6 +57,7 @@ vi.mock("@/components/games/secret/secret-parts", () => ({
   SecretKeyboard: () => null,
   SecretLegend: () => null,
   SecretResult: () => null,
+  SecretReveal: () => null,
 }));
 vi.mock("@/lib/secret-word-storage", () => storage);
 vi.mock("@/lib/app-lock-context", () => ({ useAppLock: () => ({ lock: { gameMode: true } }) }));
@@ -74,7 +75,7 @@ import SecretScreen from "@/app/games/secret";
 import { Text } from "react-native";
 import { GamesPinSetup } from "@/components/games/game-mode-entry";
 import { GameScreen } from "@/components/games/game-screen";
-import { SecretBoard, SecretKeyboard, SecretResult } from "@/components/games/secret/secret-parts";
+import { SecretBoard, SecretKeyboard, SecretResult, SecretReveal } from "@/components/games/secret/secret-parts";
 import { SECRET_COLORS, secretCardsFor } from "@ptracker/shared/secret-word";
 
 type Props = Record<string, unknown> & { children?: unknown };
@@ -250,6 +251,18 @@ describe("SecretScreen", () => {
     expect(find(SecretResult)).toMatchObject({ streak: 0 });
     expect(find(SecretResult).round.phase).toBe("lost");
     expect(leave.active).toBe(false);
+  });
+
+  it("reveals a letter for one try and loses after five more misses", async () => {
+    await settle();
+    find(SecretReveal).onReveal();
+    await settle();
+    const round = find(SecretKeyboard).round;
+    expect(round.hint).toEqual({ at: 0, index: 0 });
+    expect(find(SecretKeyboard).marks[[...FIRST][0]]).toBe("hit");
+    expect(leave.active).toBe(true);
+    for (let i = 0; i < 5; i++) await typeWord(WRONG);
+    expect(find(SecretResult).round.phase).toBe("lost");
   });
 
   it("goes back to the games from the result once the guard is off", async () => {

@@ -12,6 +12,10 @@ import {
   secretCardsFor,
   secretDelete,
   secretIsWord,
+  secretCanReveal,
+  secretKeyMarks,
+  secretReveal,
+  secretTriesUsed,
   secretLetter,
   secretLines,
   secretOpen,
@@ -230,5 +234,52 @@ describe("secretIsWord", () => {
 
   it("tells a Turkish player the guess is not in the word list", () => {
     expect(translationsFor("tr").secretUnknown).toBe("Bu kelime listede yok.");
+  });
+});
+
+describe("secretReveal", () => {
+  const guess = (r: SecretRound, word: string) => secretSubmit([...word].reduce(secretType, r));
+  const start = () => newSecretRound(card("HORSE"), "en");
+
+  it("shows the leftmost letter no guess has hit, in place, and spends one try", () => {
+    const r = secretReveal(guess(start(), "HOUSE"));
+    expect(r.hint).toEqual({ at: 1, index: 2 });
+    expect(secretTriesUsed(r)).toBe(2);
+    expect(secretLines(r)[1]).toEqual([
+      { letter: "", mark: "empty" },
+      { letter: "", mark: "empty" },
+      { letter: "R", mark: "hit" },
+      { letter: "", mark: "empty" },
+      { letter: "", mark: "empty" },
+    ]);
+    expect(secretLines(r)).toHaveLength(SECRET_TRIES);
+    expect(secretKeyMarks(r).R).toBe("hit");
+  });
+
+  it("is allowed once per round and only while a guess is left after it", () => {
+    const once = secretReveal(start());
+    expect(secretCanReveal(once)).toBe(false);
+    expect(secretReveal(once)).toBe(once);
+    let late = start();
+    for (let i = 0; i < SECRET_TRIES - 1; i++) late = guess(late, "PANDA");
+    expect(secretCanReveal(late)).toBe(false);
+    expect(secretReveal(late)).toBe(late);
+  });
+
+  it("ends the round one guess sooner after a reveal", () => {
+    let r = secretReveal(start());
+    for (let i = 0; i < SECRET_TRIES - 2; i++) r = guess(r, "PANDA");
+    expect(r.phase).toBe("playing");
+    expect(guess(r, "PANDA").phase).toBe("lost");
+  });
+
+  it("counts a reveal as progress worth confirming before leaving", () => {
+    expect(secretOpen(start(), 0)).toBe(false);
+    expect(secretOpen(secretReveal(start()), 0)).toBe(true);
+  });
+
+  it("lets a letter marked missing be typed again", () => {
+    const r = guess(start(), "PANDA");
+    expect(secretType(r, "P").typed).toBe("P");
   });
 });

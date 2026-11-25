@@ -8,19 +8,20 @@ import {
   SECRET_BEST_KEY,
   SECRET_COLORS,
   SECRET_END_GUARD_MS,
-  keyMarks,
   newSecretRound,
   pickSecret,
   secretCardsFor,
   secretDelete,
+  secretKeyMarks,
   secretLetter,
+  secretReveal,
   secretSeenKey,
   secretSubmit,
   secretType,
   type SecretRound,
 } from "@/lib/secret-word";
 import { WORD_CATEGORY_EMOJI, WORD_CATEGORY_LABEL_KEYS, fillTemplate, parseSavedSeen } from "@/lib/word-game";
-import { SecretBoard, SecretKeyboard, SecretLegend, SecretResult } from "./SecretParts";
+import { SecretBoard, SecretKeyboard, SecretLegend, SecretResult, SecretReveal } from "./SecretParts";
 
 function readSeen(lang: Lang): string[] {
   try {
@@ -90,6 +91,10 @@ export default function SecretGame() {
     },
     [apply]
   );
+  const reveal = useCallback(() => {
+    const r = live.current;
+    if (r) apply(secretReveal(r));
+  }, [apply]);
 
   const guarded = () => Date.now() - endedAt.current < SECRET_END_GUARD_MS;
 
@@ -153,7 +158,8 @@ export default function SecretGame() {
       {round.phase === "playing" ? (
         <>
           <p className="h-5 text-center text-sm font-semibold text-gray-700">{round.notice === "short" ? t.secretShort : round.notice === "unknown" ? t.secretUnknown : ""}</p>
-          <SecretKeyboard round={round} marks={keyMarks(round.guesses, round.card.word)} palette={palette} onKey={press} />
+          <SecretReveal round={round} onReveal={reveal} />
+          <SecretKeyboard round={round} marks={secretKeyMarks(round)} palette={palette} onKey={press} />
           <p className="text-center text-xs text-gray-400">{t.secretKeyHint}</p>
         </>
       ) : (

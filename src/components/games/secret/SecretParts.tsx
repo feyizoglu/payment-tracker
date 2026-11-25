@@ -6,7 +6,9 @@ import { fillTemplate } from "@/lib/word-game";
 import {
   SECRET_COLORS,
   SECRET_KEY_ROWS,
+  secretCanReveal,
   secretLines,
+  secretTriesUsed,
   type SecretMark,
   type SecretRound,
   type SecretSlot,
@@ -73,11 +75,27 @@ export function SecretLegend({ palette }: { palette: Palette }) {
   );
 }
 
+export function SecretReveal({ round, onReveal }: { round: SecretRound; onReveal: () => void }) {
+  const { t } = useLang();
+  return (
+    <div className="text-center">
+      <button
+        type="button"
+        disabled={!secretCanReveal(round)}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onReveal}
+        className="rounded-full border border-gray-200 px-3 py-1 text-sm font-semibold text-indigo-700 disabled:opacity-40 dark:text-indigo-300">
+        {t.secretReveal}
+      </button>
+    </div>
+  );
+}
+
 function keyStyle(mark: SecretMark | undefined, c: Palette): CSSProperties {
   const base: CSSProperties = { backgroundColor: c.key, color: c.ink };
   if (mark === "hit") return { ...base, backgroundColor: c.hit, color: c.onHit };
   if (mark === "near") return { ...base, boxShadow: `inset 0 -4px 0 ${c.near}` };
-  if (mark === "miss") return { ...base, color: c.miss, textDecoration: "line-through", opacity: 0.6 };
+  if (mark === "miss") return { ...base, color: c.miss };
   return base;
 }
 
@@ -143,7 +161,7 @@ export function SecretResult({
   return (
     <div className="space-y-2 rounded-2xl border border-gray-100 bg-surface p-4 text-center text-gray-900">
       <p className="text-lg font-semibold">
-        {won ? fillTemplate(t.secretWon, { n: String(round.guesses.length) }) : fillTemplate(t.secretLost, { word: round.card.word })}
+        {won ? fillTemplate(t.secretWon, { n: String(secretTriesUsed(round)) }) : fillTemplate(t.secretLost, { word: round.card.word })}
       </p>
       {won && <p className="text-sm">{fillTemplate(t.secretStreak, { n: String(streak) })}</p>}
       {newBest ? (

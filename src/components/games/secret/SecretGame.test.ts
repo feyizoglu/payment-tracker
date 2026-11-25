@@ -185,7 +185,28 @@ describe("SecretGame", () => {
     await mount();
     await typeWord(WRONG);
     expect(marks().slice(0, 5)).toEqual(["miss", "miss", "miss", "miss", "miss"]);
-    expect(button(WRONG[0])!.props.style).toMatchObject({ textDecoration: "line-through" });
+    const missed = button(WRONG[0])!.props.style as Record<string, unknown>;
+    expect(missed.textDecoration).toBeUndefined();
+    expect(missed.opacity).toBeUndefined();
+    expect(missed.color).toBe(SECRET_COLORS.light.miss);
+  });
+
+  it("types a letter again after it was marked missing", async () => {
+    await mount();
+    await typeWord(WRONG);
+    await click(WRONG[0]);
+    expect(lastRender().filter((n) => n.type === "span" && n.props["data-mark"] === "typed").map((n) => n.props.children)).toEqual([WRONG[0]]);
+  });
+
+  it("reveals one letter in place for one try, then turns the button off", async () => {
+    await mount();
+    await click("💡 Reveal a letter (uses a try)");
+    expect(marks().slice(0, 5)).toEqual(["hit", "empty", "empty", "empty", "empty"]);
+    expect(button("💡 Reveal a letter (uses a try)")!.props.disabled).toBe(true);
+    expect(button(FIRST[0])!.props.style).toMatchObject({ backgroundColor: SECRET_COLORS.light.hit });
+    for (let i = 0; i < 4; i++) await typeWord(WRONG);
+    await typeWord(FIRST);
+    expect(text()).toContain("Got it on try 6!");
   });
 
   it("wins, raises the streak, saves the best, and deals the next word only after 400 ms", async () => {

@@ -6,13 +6,14 @@ import { bestAfter, newSessionBest, sessionRead } from "@ptracker/shared/best-sc
 import {
   SECRET_COLORS,
   SECRET_END_GUARD_MS,
-  keyMarks,
   newSecretRound,
   pickSecret,
   secretCardsFor,
   secretDelete,
+  secretKeyMarks,
   secretLetter,
   secretOpen,
+  secretReveal,
   secretSubmit,
   secretType,
   type SecretRound,
@@ -20,7 +21,7 @@ import {
 import { WORD_CATEGORY_EMOJI, WORD_CATEGORY_LABEL_KEYS, fillTemplate } from "@ptracker/shared/word-game";
 import { GamesPinSetup, useEnterGameModeOnce } from "@/components/games/game-mode-entry";
 import { GameScreen } from "@/components/games/game-screen";
-import { SecretBoard, SecretKeyboard, SecretLegend, SecretResult } from "@/components/games/secret/secret-parts";
+import { SecretBoard, SecretKeyboard, SecretLegend, SecretResult, SecretReveal } from "@/components/games/secret/secret-parts";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useAppLock } from "@/lib/app-lock-context";
 import { leaveGameScreen, useConfirmLeave } from "@/lib/leave-game";
@@ -109,6 +110,10 @@ export default function SecretScreen() {
     },
     [apply]
   );
+  const reveal = useCallback(() => {
+    const r = live.current;
+    if (r) apply(secretReveal(r));
+  }, [apply]);
 
   const guarded = () => Date.now() - endedAt.current < SECRET_END_GUARD_MS;
 
@@ -137,7 +142,8 @@ export default function SecretScreen() {
           {round.phase === "playing" ? (
             <>
               <Text className="h-5 text-center text-sm font-semibold text-gray-700">{round.notice === "short" ? t.secretShort : round.notice === "unknown" ? t.secretUnknown : ""}</Text>
-              <SecretKeyboard round={round} marks={keyMarks(round.guesses, round.card.word)} palette={palette} onKey={press} />
+              <SecretReveal round={round} onReveal={reveal} />
+              <SecretKeyboard round={round} marks={secretKeyMarks(round)} palette={palette} onKey={press} />
             </>
           ) : (
             <SecretResult

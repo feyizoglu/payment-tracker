@@ -133,6 +133,12 @@ export type SecretPhase = "playing" | "won" | "lost";
 /** Why the last Enter was refused: fewer than five letters, or not a word. Cleared by the next key. */
 export type SecretNotice = "short" | "unknown" | null;
 
+/** A letter shown by "Reveal a letter": its position in the word, and how many guesses came before it. */
+export interface SecretHint {
+  at: number;
+  index: number;
+}
+
 export interface SecretRound {
   lang: Lang;
   card: SecretCard;
@@ -140,6 +146,7 @@ export interface SecretRound {
   typed: string;
   phase: SecretPhase;
   notice: SecretNotice;
+  hint: SecretHint | null;
 }
 
 export const newSecretRound = (card: SecretCard, lang: Lang): SecretRound => ({
@@ -149,7 +156,35 @@ export const newSecretRound = (card: SecretCard, lang: Lang): SecretRound => ({
   typed: "",
   phase: "playing",
   notice: null,
+  hint: null,
 });
+
+/** The tries spent so far: every guess, plus one for a revealed letter. */
+export const secretTriesUsed = (r: SecretRound) => r.guesses.length + (r.hint ? 1 : 0);
+
+/** The leftmost position no guess has hit yet, or null when every position is known. */
+function revealIndex(r: SecretRound): number | null {
+  const word = [...r.card.word];
+  const index = word.findIndex((l, i) => !r.guesses.some((g) => [...g][i] === l));
+  return index === -1 ? null : index;
+}
+
+/** One reveal per round, and only while it leaves at least one try for a guess. */
+export const secretCanReveal = (r: SecretRound) =>
+  r.phase === "playing" && r.hint === null && secretTriesUsed(r) < SECRET_TRIES - 1 && revealIndex(r) !== null;
+
+export function secretReveal(r: SecretRound): SecretRound {
+  const index = revealIndex(r);
+  if (!secretCanReveal(r) || index === null) return r;
+  return { ...r, hint: { at: r.guesses.length, index }, notice: null };
+}
+
+/** The keyboard's marks: every guessed letter, and the revealed letter as found. */
+export function secretKeyMarks(r: SecretRound): Record<string, SecretMark> {
+  const marks = keyMarks(r.guesses, r.card.word);
+  if (r.hint) marks[[...r.card.word][r.hint.index]] = "hit";
+  return marks;
+}
 
 export function secretType(r: SecretRound, letter: string): SecretRound {
   if (r.phase !== "playing" || [...r.typed].length >= SECRET_LEN || !SECRET_ALPHABET[r.lang].includes(letter)) return r;
@@ -167,18 +202,24 @@ export function secretSubmit(r: SecretRound): SecretRound {
   // A refused guess costs no try; the letters stay so the player can change them.
   if (notice) return r.notice === notice ? r : { ...r, notice };
   const guesses = [...r.guesses, r.typed];
-  const phase: SecretPhase = r.typed === r.card.word ? "won" : guesses.length >= SECRET_TRIES ? "lost" : "playing";
+  const used = guesses.length + (r.hint ? 1 : 0);
+  const phase: SecretPhase = r.typed === r.card.word ? "won" : used >= SECRET_TRIES ? "lost" : "playing";
   return { ...r, guesses, typed: "", phase, notice: null };
 }
 
 export type SecretSlot = { letter: string; mark: SecretMark | "typed" | "empty" };
 
-/** The page's six lines: the marked guesses, the letters being typed, then empty lines. */
+/** The page's six lines: the marked guesses and any revealed letter, the letters being typed, then empty lines. */
 export function secretLines(r: SecretRound): SecretSlot[][] {
   const lines: SecretSlot[][] = r.guesses.map((g) => {
     const marks = markGuess(g, r.card.word);
     return [...g].map((letter, i) => ({ letter, mark: marks[i] }));
   });
+  if (r.hint) {
+    const { at, index } = r.hint;
+    const letter = [...r.card.word][index];
+    lines.splice(at, 0, Array.from({ length: SECRET_LEN }, (_, i): SecretSlot => (i === index ? { letter, mark: "hit" } : { letter: "", mark: "empty" })));
+  }
   if (r.phase === "playing") {
     const typed = [...r.typed];
     lines.push(Array.from({ length: SECRET_LEN }, (_, i) => (i < typed.length ? { letter: typed[i], mark: "typed" } : { letter: "", mark: "empty" })));
@@ -187,9 +228,9 @@ export function secretLines(r: SecretRound): SecretSlot[][] {
   return lines;
 }
 
-/** Leaving would lose something: a guess made in the round under way, or a streak running. */
+/** Leaving would lose something: a guess or reveal in the round under way, or a streak running. */
 export const secretOpen = (r: SecretRound | null, streak: number) =>
-  r !== null && (streak > 0 || (r.phase === "playing" && r.guesses.length > 0));
+  r !== null && (streak > 0 || (r.phase === "playing" && secretTriesUsed(r) > 0));
 
 export const SECRET_COLORS = {
   light: {
