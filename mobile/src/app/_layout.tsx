@@ -85,6 +85,7 @@ function RootNavigator() {
         <Stack.Screen name="words/index" />
         <Stack.Screen name="words/[id]" />
         <Stack.Screen name="words/review" />
+        <Stack.Screen name="words/race" />
       </Stack.Protected>
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="games/index" />

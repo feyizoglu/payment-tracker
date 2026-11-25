@@ -301,10 +301,10 @@ describe("RootNavigator Stack.Protected guards", () => {
   it("keeps My Words closed in game mode and open outside it", async () => {
     state.gameMode = true;
     await render();
-    for (const name of ["words/index", "words/[id]", "words/review"]) expect(guardFor(name)).toBe(false);
+    for (const name of ["words/index", "words/[id]", "words/review", "words/race"]) expect(guardFor(name)).toBe(false);
     state.gameMode = false;
     await render();
-    for (const name of ["words/index", "words/[id]", "words/review"]) expect(guardFor(name)).toBe(true);
+    for (const name of ["words/index", "words/[id]", "words/review", "words/race"]) expect(guardFor(name)).toBe(true);
   });
 
   it("opens the app and closes the lock screen outside game mode", async () => {

@@ -24,6 +24,10 @@ const state = vi.hoisted(() => ({
   router: { back: () => undefined as void, push: (_to: unknown) => undefined as void },
   browser: (_url: string) => Promise.resolve(undefined as unknown),
   lookup: (_word: string) => Promise.resolve(undefined as unknown),
+  raceCopy: null as VocabWord[] | null,
+  savedRaceList: null as VocabWord[] | null,
+  user: { id: "u1" } as { id: string } | null,
+  owner: "u1" as string | null,
 }));
 
 vi.mock("react-native", async () => {
@@ -63,7 +67,14 @@ vi.mock("@ptracker/shared/i18n", async (importOriginal) => {
   return { ...actual, useLang: () => ({ lang: "en", t: actual.translationsFor("en") }) };
 });
 vi.mock("@ptracker/shared/word-lookup", () => ({ lookupWord: (w: string) => state.lookup(w) }));
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ api: state.api }) }));
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ api: state.api, user: state.user }) }));
+vi.mock("@/lib/session-user", () => ({ sessionUserId: async () => state.owner }));
+vi.mock("@/lib/word-race-storage", () => ({
+  getStoredRaceList: async (userId: string) => (userId === "u1" ? state.raceCopy : null),
+  setStoredRaceList: async (words: VocabWord[]) => {
+    state.savedRaceList = words;
+  },
+}));
 vi.mock("@/components/tab-screen", async () => {
   const { Fragment, createElement: h } = await import("react");
   return { TabScreen: ({ children }: { children?: unknown }) => h(Fragment, null, children as never) };
@@ -161,6 +172,10 @@ beforeEach(() => {
   state.router = { back: vi.fn(), push: vi.fn() };
   state.browser = vi.fn(async () => undefined);
   state.lookup = vi.fn(async () => found);
+  state.raceCopy = null;
+  state.savedRaceList = null;
+  state.user = { id: "u1" };
+  state.owner = "u1";
   state.api = {
     get: vi.fn(async () => [word({}), learned]),
     post: vi.fn(async () => word({ id: "w9" })),
@@ -173,6 +188,61 @@ afterEach(async () => {
   await act(async () => root?.unmount());
   root = null;
   vi.unstubAllGlobals();
+});
+
+describe("Word Race button", () => {
+  const four = ["budget", "thrive", "frugal", "vivid"].map((w, i) => word({ id: `r${i}`, word: w, word_key: w, meaning_tr: `anlam ${i}` }));
+
+  it("is disabled with a hint while fewer than four words can be asked", async () => {
+    await render(WordsScreen);
+    expect(button(t.wordRaceStart)).toMatchObject({ disabled: true });
+    expect(text()).toContain(t.wordRaceNeedWords);
+  });
+
+  it("opens the race once four words can be asked, and keeps the list for offline races", async () => {
+    state.api.get = vi.fn(async () => four);
+    await render(WordsScreen);
+    expect(state.savedRaceList).toEqual(four);
+    expect(text()).not.toContain(t.wordRaceNeedWords);
+    await press(button(t.wordRaceStart));
+    expect(state.router.push).toHaveBeenCalledWith("/words/race");
+  });
+
+  it("decides from the saved list when the words cannot be loaded", async () => {
+    state.api.get = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    state.raceCopy = four;
+    await render(WordsScreen);
+    expect(text()).toContain(t.wordsLoadFailed);
+    expect(button(t.wordRaceStart)).toMatchObject({ disabled: false });
+  });
+
+  it("reads the list once when the profile lands after the screen opened", async () => {
+    state.user = null;
+    await render(WordsScreen);
+    state.user = { id: "u1" };
+    await render(WordsScreen);
+    expect(state.api.get).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores the saved list offline without a signed-in account", async () => {
+    state.api.get = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    state.raceCopy = four;
+    state.owner = null;
+    await render(WordsScreen);
+    expect(button(t.wordRaceStart)).toMatchObject({ disabled: true });
+  });
+
+  it("stays disabled offline without a saved list", async () => {
+    state.api.get = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    await render(WordsScreen);
+    expect(button(t.wordRaceStart)).toMatchObject({ disabled: true });
+  });
 });
 
 describe("WordsScreen", () => {

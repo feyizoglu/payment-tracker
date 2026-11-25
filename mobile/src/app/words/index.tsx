@@ -6,17 +6,21 @@ import { useLang } from "@ptracker/shared/i18n";
 import { filterWords, isValidWord, normalizeWord, vocabErrorText, vocabProgress, vocabWordKey, type VocabFilter, type VocabWord } from "@ptracker/shared/vocab";
 import { lookupWord } from "@ptracker/shared/word-lookup";
 import { fillTemplate } from "@ptracker/shared/word-game";
+import { canRace } from "@ptracker/shared/word-race";
 import { TabScreen } from "@/components/tab-screen";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { TextField } from "@/components/ui/text-field";
 import { StreakDots } from "@/components/words/word-parts";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { sessionUserId } from "@/lib/session-user";
+import { getStoredRaceList, setStoredRaceList } from "@/lib/word-race-storage";
 
 export default function WordsScreen() {
   const { t } = useLang();
   const { api } = useAuth();
   const [words, setWords] = useState<VocabWord[] | null>(null);
+  const [raceCopy, setRaceCopy] = useState<VocabWord[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<VocabFilter>("all");
@@ -29,9 +33,13 @@ export default function WordsScreen() {
   const load = useCallback(async () => {
     setLoadFailed(false);
     try {
-      setWords(await api.get<VocabWord[]>("/api/words"));
+      const list = await api.get<VocabWord[]>("/api/words");
+      setWords(list);
+      void setStoredRaceList(list);
     } catch {
       setLoadFailed(true);
+      const owner = await sessionUserId();
+      setRaceCopy(owner ? await getStoredRaceList(owner) : null);
     }
   }, [api]);
 
@@ -68,6 +76,7 @@ export default function WordsScreen() {
   const progress = vocabProgress(words ?? []);
   const unlearned = progress.total - progress.learned;
   const shown = filterWords(words ?? [], filter, query);
+  const raceReady = canRace(words ?? raceCopy ?? []);
   const filters: [VocabFilter, string][] = [["all", t.wordsFilterAll], ["learning", t.wordsFilterLearning], ["learned", t.wordsFilterLearned]];
 
   return (
@@ -94,6 +103,8 @@ export default function WordsScreen() {
             <View className="h-full bg-emerald-700" style={{ width: `${progress.total ? (progress.learned / progress.total) * 100 : 0}%` }} />
           </View>
           <PrimaryButton label={fillTemplate(t.wordsReview, { n: String(unlearned) })} onPress={() => router.push("/words/review")} disabled={unlearned === 0} />
+          <PrimaryButton label={t.wordRaceStart} onPress={() => router.push("/words/race")} disabled={!raceReady} />
+          {words && !raceReady ? <Text className="text-xs text-gray-500">{t.wordRaceNeedWords}</Text> : null}
         </View>
         <View className="gap-2 rounded-xl bg-surface p-4">
           <Text className="text-sm font-semibold text-gray-900">{t.wordsAdd}</Text>

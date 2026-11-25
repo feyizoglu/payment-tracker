@@ -39,9 +39,9 @@ vi.mock("react/jsx-dev-runtime", async (importOriginal) => {
   const actual = await importOriginal<Record<string, (...args: unknown[]) => unknown>>();
   return { ...actual, jsxDEV: host.wrap(actual.jsxDEV) };
 });
-const session = vi.hoisted(() => ({ status: "authenticated" as "authenticated" | "unauthenticated" }));
+const session = vi.hoisted(() => ({ status: "authenticated" as "authenticated" | "unauthenticated", id: "u-1" as string | undefined }));
 vi.mock("next-auth/react", () => ({
-  useSession: () => ({ data: session.status === "authenticated" ? { user: { id: "u-1" } } : null, status: session.status }),
+  useSession: () => ({ data: session.status === "authenticated" ? { user: { id: session.id } } : null, status: session.status }),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => nav.router,
@@ -58,6 +58,7 @@ import { LanguageProvider, translationsFor } from "@/lib/i18n";
 import WordsPage from "@/app/words/page";
 import WordCardPage from "@/app/words/[id]/page";
 import WordsReviewPage from "@/app/words/review/page";
+import WordRacePage from "@/app/words/race/page";
 
 interface Root {
   render(node: unknown): void;
@@ -118,6 +119,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   nav.id = "w1";
   session.status = "authenticated";
+  session.id = "u-1";
   client.listWords.mockResolvedValue({
     ok: true,
     data: [word({}), word({ id: "w2", word: "thrive", word_key: "thrive", meaning_tr: null, learned_at: "2026-11-22T11:00:00Z", streak: 3 })],
@@ -367,11 +369,185 @@ describe("WordsReviewPage", () => {
   });
 });
 
+describe("Word Race button", () => {
+  it("is disabled with a hint while fewer than four words can be asked", async () => {
+    await mount(WordsPage);
+    expect(lastRender().some((n) => n.type === "a" && n.props.href === "/words/race")).toBe(false);
+    expect(text()).toContain(t.wordRaceStart);
+    expect(text()).toContain(t.wordRaceNeedWords);
+  });
+
+  it("opens the race once four words can be asked, learned ones included", async () => {
+    client.listWords.mockResolvedValue({ ok: true, data: raceList });
+    await mount(WordsPage);
+    expect(lastRender().find((n) => n.type === "a" && n.props.href === "/words/race")).toBeTruthy();
+    expect(text()).not.toContain(t.wordRaceNeedWords);
+  });
+});
+
+const raceList = [
+  word({ id: "r1", word: "budget", word_key: "budget", meaning_tr: "bütçe" }),
+  word({ id: "r2", word: "thrive", word_key: "thrive", meaning_tr: "gelişmek", learned_at: "2026-11-22T11:00:00Z", streak: 3 }),
+  word({ id: "r3", word: "frugal", word_key: "frugal", meaning_tr: "tutumlu" }),
+  word({ id: "r4", word: "vivid", word_key: "vivid", meaning_tr: "canlı" }),
+];
+const answerFor: Record<string, string> = { bütçe: "budget", gelişmek: "thrive", tutumlu: "frugal", canlı: "vivid" };
+const RACE_NOW = Date.UTC(2026, 10, 25, 18, 0, 0);
+
+describe("WordRacePage", () => {
+  let store: Map<string, string>;
+
+  const clue = () => Object.keys(answerFor).find((c) => lastRender().some((n) => n.type === "p" && flat(n.props.children) === c));
+  const choices = () => lastRender().filter((n) => n.type === "button" && Object.values(answerFor).includes(flat(n.props.children)));
+  const right = () => answerFor[clue()!];
+  const wrong = () => Object.values(answerFor).find((w) => w !== right())!;
+  const button = (label: string) => lastRender().find((n) => n.type === "button" && flat(n.props.children) === label)!;
+  const advance = (ms: number) => act(async () => void vi.advanceTimersByTime(ms));
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout", "Date"], now: RACE_NOW });
+    store = new Map();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    });
+    client.listWords.mockResolvedValue({ ok: true, data: raceList });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("starts at once with a clue and four choices, and keeps the list for offline races", async () => {
+    await mount(WordRacePage);
+    expect(text()).toContain("60s");
+    expect(clue()).toBeTruthy();
+    expect(choices()).toHaveLength(4);
+    expect(JSON.parse(store.get("words-race-list")!)).toHaveLength(4);
+  });
+
+  it("scores a right answer, ignores taps during the pause, then asks the next word", async () => {
+    await mount(WordRacePage);
+    const first = clue();
+    await click(right());
+    expect(text()).toContain("Score: 1");
+    expect(String(button(right()).props.className)).toContain("bg-emerald-600");
+    await click(wrong());
+    expect(text()).toContain("Score: 1");
+    expect(text()).toContain("60s");
+    await advance(600);
+    expect(clue()).not.toBe(first);
+    expect(choices().every((c) => !String(c.props.className).includes("bg-emerald-600"))).toBe(true);
+  });
+
+  it("shows a wrong pick in red next to the right answer and takes three seconds off", async () => {
+    await mount(WordRacePage);
+    const answer = right();
+    const miss = wrong();
+    await click(miss);
+    expect(String(button(miss).props.className)).toContain("bg-red-600");
+    expect(String(button(answer).props.className)).toContain("bg-emerald-600");
+    expect(text()).toContain("57s");
+  });
+
+  it("ends at zero with the score, best combo, missed words and a saved new best", async () => {
+    store.set("words-race-best", "0");
+    await mount(WordRacePage);
+    const missedClue = clue()!;
+    await click(wrong());
+    await advance(600);
+    await click(right());
+    await advance(60_000);
+    expect(text()).toContain("Score: 1");
+    expect(text()).toContain(t.wordRaceNewBest);
+    expect(text()).toContain("Best: 1");
+    expect(text()).toContain("Best combo: 1");
+    expect(text()).toContain(t.wordRaceMissed);
+    expect(text()).toContain(answerFor[missedClue]);
+    expect(text()).toContain(missedClue);
+    expect(store.get("words-race-best")).toBe("1");
+    expect(choices()).toHaveLength(0);
+  });
+
+  it("plays again with the list read again", async () => {
+    await mount(WordRacePage);
+    await advance(60_000);
+    expect(text()).toContain(t.wordRaceNoMissed);
+    await click(t.wordRacePlayAgain);
+    expect(client.listWords).toHaveBeenCalledTimes(2);
+    expect(text()).toContain("60s");
+    expect(choices()).toHaveLength(4);
+  });
+
+  it("races with the saved copy when the list cannot be read", async () => {
+    store.set("words-race-list", JSON.stringify(raceList));
+    client.listWords.mockResolvedValue({ ok: false, status: 0, code: undefined, error: "" });
+    await mount(WordRacePage);
+    expect(clue()).toBeTruthy();
+    expect(text()).not.toContain(t.wordsLoadFailed);
+  });
+
+  it("ignores a saved copy that belongs to someone else", async () => {
+    store.set("words-race-list", JSON.stringify(raceList.map((w) => ({ ...w, user_id: "u-2" }))));
+    client.listWords.mockResolvedValue({ ok: false, status: 0, code: undefined, error: "" });
+    await mount(WordRacePage);
+    expect(text()).toContain(t.wordsLoadFailed);
+    expect(clue()).toBeUndefined();
+  });
+
+  it("never trusts the saved copy when the session carries no user id", async () => {
+    session.id = undefined;
+    store.set("words-race-list", JSON.stringify(raceList));
+    client.listWords.mockResolvedValue({ ok: false, status: 0, code: undefined, error: "" });
+    await mount(WordRacePage);
+    expect(text()).toContain(t.wordsLoadFailed);
+    expect(clue()).toBeUndefined();
+  });
+
+  it("falls back to the saved copy when the answer is not a word list, and keeps the copy", async () => {
+    const saved = JSON.stringify(raceList);
+    store.set("words-race-list", saved);
+    client.listWords.mockResolvedValue({ ok: true, data: null });
+    await mount(WordRacePage);
+    expect(clue()).toBeTruthy();
+    expect(store.get("words-race-list")).toBe(saved);
+  });
+
+  it("shows the combo from three right answers in a row", async () => {
+    await mount(WordRacePage);
+    for (let i = 0; i < 2; i++) {
+      await click(right());
+      await advance(600);
+    }
+    expect(text()).not.toContain("🔥");
+    await click(right());
+    expect(text()).toContain("🔥 x3");
+  });
+
+  it("reads the list again on retry after a failed load", async () => {
+    client.listWords.mockResolvedValueOnce({ ok: false, status: 0, code: undefined, error: "" });
+    await mount(WordRacePage);
+    expect(text()).toContain(t.wordsLoadFailed);
+    await click(t.wordsRetry);
+    expect(client.listWords).toHaveBeenCalledTimes(2);
+    expect(clue()).toBeTruthy();
+    expect(text()).not.toContain(t.wordsLoadFailed);
+  });
+
+  it("says four words are needed when too few can be asked", async () => {
+    client.listWords.mockResolvedValue({ ok: true, data: raceList.slice(0, 3) });
+    await mount(WordRacePage);
+    expect(text()).toContain(t.wordRaceNeedWords);
+    expect(choices()).toHaveLength(0);
+  });
+});
+
 describe("signed out", () => {
   for (const [name, page] of [
     ["WordsPage", WordsPage],
     ["WordCardPage", WordCardPage],
     ["WordsReviewPage", WordsReviewPage],
+    ["WordRacePage", WordRacePage],
   ] as const) {
     it(`${name} sends a signed-out visitor home without loading words`, async () => {
       session.status = "unauthenticated";
