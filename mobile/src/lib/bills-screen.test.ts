@@ -205,6 +205,13 @@ describe("BillsScreen", () => {
     expect(board().onStartShouldSetPanResponder()).toBe(false);
   });
 
+  it("draws in the dark palette in the dark scheme", async () => {
+    env.scheme = "dark";
+    await start();
+    expect(props(HuntWorld).dark).toBe(true);
+    expect(overlay().ink).toBe(HUNT_COLORS.dark.ink);
+  });
+
   it("draws the board once laid out, and starts on Start with the header hidden and leaving asked", async () => {
     await start();
     expect(props(HuntWorld)).toMatchObject({ width: 300, height: 600, phase: "aiming", month: 1, launcher: 35 });

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 
@@ -36,16 +36,29 @@ export function useHuntView(): HuntView {
   const aim = useSharedValue<number[]>([PARKED, PARKED, PARKED, PARKED]);
   // Stable across renders: the screen's frame loop depends on it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  return useMemo(() => ({ coins, aim, sync: (s: HuntState, aimEnd: { x: number; y: number } | null) => {
-    const flat = parkedCoins();
-    const list = s.shot?.coins ?? [];
-    for (let i = 0; i < Math.min(list.length, COIN_CAP); i++) {
-      flat[2 * i] = list[i].x;
-      flat[2 * i + 1] = list[i].y;
-    }
-    coins.value = flat;
-    aim.value = aimEnd ? [s.launcher, HUNT_H - COIN_R, aimEnd.x, aimEnd.y] : [PARKED, PARKED, PARKED, PARKED];
-  } }), []);
+  return useMemo(() => {
+    // Shared values are written only when they change: aiming publishes on every finger move.
+    let coinsParked = true;
+    let lastAim = [PARKED, PARKED, PARKED, PARKED].join(",");
+    return { coins, aim, sync: (s: HuntState, aimEnd: { x: number; y: number } | null) => {
+      const list = s.shot?.coins ?? [];
+      if (list.length > 0 || !coinsParked) {
+        const flat = parkedCoins();
+        for (let i = 0; i < Math.min(list.length, COIN_CAP); i++) {
+          flat[2 * i] = list[i].x;
+          flat[2 * i + 1] = list[i].y;
+        }
+        coins.value = flat;
+        coinsParked = list.length === 0;
+      }
+      const next = aimEnd ? [s.launcher, HUNT_H - COIN_R, aimEnd.x, aimEnd.y] : [PARKED, PARKED, PARKED, PARKED];
+      const key = next.join(",");
+      if (key !== lastAim) {
+        aim.value = next;
+        lastAim = key;
+      }
+    } };
+  }, []);
 }
 
 function Coin({ view, slot, scale, fill }: { view: HuntView; slot: number; scale: number; fill: string }) {
@@ -108,6 +121,21 @@ function Cell({ item, month, scale, colors }: { item: HuntItem; month: number; s
   );
 }
 
+// Coins and aim dots move on the UI thread; their props never change during a game, so the board
+// re-rendering on every paid bill leaves this layer alone.
+export const HuntSprites = memo(function HuntSprites({ view, scale, coin, aim }: { view: HuntView; scale: number; coin: string; aim: string }) {
+  return (
+    <>
+      {Array.from({ length: AIM_DOTS }, (_, dot) => (
+        <AimDot key={`aim-${dot}`} view={view} dot={dot} scale={scale} fill={aim} />
+      ))}
+      {Array.from({ length: COIN_CAP }, (_, slot) => (
+        <Coin key={`coin-${slot}`} view={view} slot={slot} scale={scale} fill={coin} />
+      ))}
+    </>
+  );
+});
+
 export function HuntWorld({
   view,
   items,
@@ -140,12 +168,7 @@ export function HuntWorld({
         {phase === "aiming" || phase === "ready" ? (
           <View style={{ position: "absolute", left: (launcher - COIN_R) * scale, top: (HUNT_H - 2 * COIN_R) * scale, width: size, height: size, borderRadius: size / 2, backgroundColor: c.coin }} />
         ) : null}
-        {Array.from({ length: AIM_DOTS }, (_, dot) => (
-          <AimDot key={`aim-${dot}`} view={view} dot={dot} scale={scale} fill={c.aim} />
-        ))}
-        {Array.from({ length: COIN_CAP }, (_, slot) => (
-          <Coin key={`coin-${slot}`} view={view} slot={slot} scale={scale} fill={c.coin} />
-        ))}
+        <HuntSprites view={view} scale={scale} coin={c.coin} aim={c.aim} />
       </View>
     </View>
   );

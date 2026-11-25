@@ -94,9 +94,10 @@ seeded test can replay a game.
   again and Back to games. Both buttons stay disabled for 500 ms after the game ends, as in Book
   Tower.
 - Look: bills are small receipt cards showing their amount, shaded by amount relative to the
-  month; double bills have a darker edge. Coins are gold circles; the "+1 coin" a pulsing small
-  coin; power-ups are round badges with ↔ ↕ 🔀 💥. Mobile game screens are dark in every app
-  theme, so the overlay uses fixed light text.
+  month; double bills have a darker edge. Coins are gold circles; the "+1 coin" a small gold
+  coin marked +1; power-ups are round badges with ↔ ↕ 🔀 💥. The board has a light and a dark
+  palette following the app theme, and the overlay text takes its colour from the board's
+  palette, as in Book Tower.
 
 ## Platform behaviour
 

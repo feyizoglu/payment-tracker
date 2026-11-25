@@ -19,7 +19,7 @@ vi.mock("@/components/ui/primary-button", () => ({ PrimaryButton: () => null }))
 
 import { Pressable, Text, View } from "react-native";
 import { COIN_CAP, COIN_R, HUNT_COLORS, HUNT_H, huntBillShade, type HuntItem, type HuntState } from "@ptracker/shared/bill-hunt";
-import { AIM_DOTS, HuntWorld, useHuntView } from "@/components/games/bills/hunt-world";
+import { AIM_DOTS, HuntSprites, HuntWorld, useHuntView } from "@/components/games/bills/hunt-world";
 import { HuntOverlay } from "@/components/games/bills/hunt-overlay";
 import { PrimaryButton } from "@/components/ui/primary-button";
 
@@ -37,8 +37,9 @@ const styleOf = (n: Node): Style => {
   const s = n.props.style;
   return (Array.isArray(s) ? Object.assign({}, ...s) : s) as Style;
 };
-/** Renders a child component element (Cell, Coin, AimDot) one level down. */
-const expand = (n: Node) => nodes((n.type as (p: Props) => unknown)(n.props));
+type Render = (p: Props) => unknown;
+/** Renders a child component element (Cell, Coin, AimDot, or the memoised sprite layer) one level down. */
+const expand = (n: Node) => nodes((typeof n.type === "function" ? (n.type as Render) : (n.type as unknown as { type: Render }).type)(n.props));
 
 const item = (over: Partial<HuntItem>): HuntItem => ({ id: 1, kind: "bill", col: 0, row: 0, value: 3, double: false, used: false, ...over });
 const state = (over: Partial<HuntState>): HuntState => ({
@@ -58,18 +59,39 @@ describe("useHuntView", () => {
     expect(view.aim.value).toEqual([30, HUNT_H - COIN_R, 12, 3]);
     expect(view.coins.value.every((v) => v === -1000)).toBe(true);
   });
+
+  it("leaves the shared values alone when nothing in them changed", () => {
+    const view = useHuntView();
+    const coins = view.coins.value;
+    const aim = view.aim.value;
+    view.sync(state({}), null);
+    expect(view.coins.value).toBe(coins);
+    expect(view.aim.value).toBe(aim);
+    view.sync(state({}), { x: 1, y: 2 });
+    const aimed = view.aim.value;
+    view.sync(state({}), { x: 1, y: 2 });
+    expect(view.aim.value).toBe(aimed);
+  });
 });
 
 describe("HuntWorld", () => {
   const world = (over: Partial<Parameters<typeof HuntWorld>[0]> = {}) =>
     nodes(HuntWorld({ view: useHuntView(), items: [], month: 5, launcher: 35, phase: "aiming", width: 300, height: 600, dark: true, ...over }));
 
+  const sprites = (all: Node[]) => expand(all.find((n) => n.type === HuntSprites)!);
+
   it("paints the page in the theme's colour and keeps a slot for every possible coin and aim dot", () => {
     const all = world();
     expect(all[0].type).toBe(View);
     expect(styleOf(all[0]).backgroundColor).toBe(HUNT_COLORS.dark.bg);
-    expect(all.filter((n) => "slot" in n.props)).toHaveLength(COIN_CAP);
-    expect(all.filter((n) => "dot" in n.props)).toHaveLength(AIM_DOTS);
+    expect(sprites(all).filter((n) => "slot" in n.props)).toHaveLength(COIN_CAP);
+    expect(sprites(all).filter((n) => "dot" in n.props)).toHaveLength(AIM_DOTS);
+  });
+
+  it("gives the sprite layer only props that stay the same while the board changes", () => {
+    const view = useHuntView();
+    const layer = (items: HuntItem[]) => world({ view, items }).find((n) => n.type === HuntSprites)!.props;
+    expect(layer([item({ value: 3 })])).toEqual(layer([item({ value: 2 })]));
   });
 
   it("shows each bill's amount on its shade, edges a double bill, and the other items' symbols", () => {
@@ -94,7 +116,7 @@ describe("HuntWorld", () => {
   it("moves a coin slot and the aim dots with the shared values", () => {
     const view = useHuntView();
     view.sync(state({ phase: "throwing", shot: { coins: [{ x: 10, y: 20, vx: 0, vy: 0, down: false, cell: -1 }], total: 1, fired: 1, t: 1, acc: 0, speed: 1, firstDown: null, gained: 0, angle: 1 } }), null);
-    const all = nodes(HuntWorld({ view, items: [], month: 1, launcher: 35, phase: "throwing", width: 350, height: 1000, dark: false }));
+    const all = sprites(nodes(HuntWorld({ view, items: [], month: 1, launcher: 35, phase: "throwing", width: 350, height: 1000, dark: false })));
     const coin = expand(all.find((n) => n.props.slot === 0)!)[0];
     expect(styleOf(coin)).toMatchObject({ left: (10 - COIN_R) * 5, top: (20 - COIN_R) * 5 });
     view.sync(state({ launcher: 30 }), { x: 30, y: 0 });

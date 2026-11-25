@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRequire } from "node:module";
 import { act, createElement } from "react";
-import type { HuntState } from "@/lib/bill-hunt";
+import { HUNT_COLORS, type HuntState } from "@/lib/bill-hunt";
 
 const host = vi.hoisted(() => {
   const nodes: Array<{ type: string; props: Record<string, unknown> }> = [];
@@ -54,6 +54,7 @@ const frames: ((now: number) => void)[] = [];
 let now = 0;
 const store = new Map<string, string>();
 let calls: { name: string; args: unknown[] }[] = [];
+const theme = { dark: false, changed: null as null | (() => void) };
 
 function container() {
   const noop = { addEventListener: () => undefined, removeEventListener: () => undefined };
@@ -83,11 +84,16 @@ beforeEach(() => {
   vi.stubGlobal("document", {
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
-    documentElement: { classList: { contains: () => false } },
+    documentElement: { classList: { contains: () => theme.dark } },
   });
   vi.stubGlobal("requestAnimationFrame", (fn: (t: number) => void) => frames.push(fn));
   vi.stubGlobal("cancelAnimationFrame", () => undefined);
+  theme.dark = false;
+  theme.changed = null;
   vi.stubGlobal("MutationObserver", class {
+    constructor(fn: () => void) {
+      theme.changed = fn;
+    }
     observe() {}
     disconnect() {}
   });
@@ -219,6 +225,31 @@ describe("HuntGame", () => {
     await press("Again");
     expect(text()).toContain("Month 1");
     expect(text()).not.toContain("New best!");
+  });
+
+  it("follows a theme change with the dark palette and redraws", async () => {
+    await mount();
+    await press("Start");
+    theme.dark = true;
+    calls = [];
+    await act(async () => theme.changed!());
+    expect(calls.some((c) => c.name === "fillRect")).toBe(true);
+    const hud = lastRender().find((n) => n.type === "div" && (n.props.style as { color?: string } | undefined)?.color);
+    expect((hud!.props.style as { color: string }).color).toBe(HUNT_COLORS.dark.ink);
+  });
+
+  it("ignores moves and lets go of another finger than the one pulling", async () => {
+    await mount();
+    await press("Start");
+    await fire("onPointerDown", pointer(150, 300));
+    calls = [];
+    await fire("onPointerMove", pointer(150, 400, { pointerId: 2 }));
+    expect(calls).toHaveLength(0);
+    await fire("onPointerUp", pointer(150, 400, { pointerId: 2 }));
+    expect(button("Call back")).toBeUndefined();
+    await fire("onPointerMove", pointer(150, 400));
+    await fire("onPointerUp", pointer(150, 400));
+    expect(button("Call back")).toBeTruthy();
   });
 
   it("keeps the best that was not beaten", async () => {
