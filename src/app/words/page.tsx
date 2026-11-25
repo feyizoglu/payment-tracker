@@ -9,6 +9,7 @@ import { StreakDots } from "@/components/words/WordParts";
 import { useLang } from "@/lib/i18n";
 import { filterWords, isValidWord, normalizeWord, vocabErrorText, vocabProgress, vocabWordKey, type VocabFilter, type VocabWord } from "@/lib/vocab";
 import { fillTemplate } from "@/lib/word-game";
+import { canRace } from "@/lib/word-race";
 import { addWord, listWords } from "@/lib/words-client";
 
 export default function WordsPage() {
@@ -58,6 +59,7 @@ export default function WordsPage() {
   const progress = vocabProgress(words ?? []);
   const shown = filterWords(words ?? [], filter, query);
   const unlearned = progress.total - progress.learned;
+  const raceReady = canRace(words ?? []);
   const filters: [VocabFilter, string][] = [["all", t.wordsFilterAll], ["learning", t.wordsFilterLearning], ["learned", t.wordsFilterLearned]];
 
   return (
@@ -83,6 +85,16 @@ export default function WordsPage() {
           ) : (
             <span className="inline-block rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-400">{fillTemplate(t.wordsReview, { n: "0" })}</span>
           )}
+          <div>
+            {raceReady ? (
+              <Link href="/words/race" className="inline-block rounded-lg border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                {t.wordRaceStart}
+              </Link>
+            ) : (
+              <span className="inline-block rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-400">{t.wordRaceStart}</span>
+            )}
+            {words && !raceReady ? <p className="pt-1 text-xs text-gray-500">{t.wordRaceNeedWords}</p> : null}
+          </div>
         </div>
         <form onSubmit={save} className="space-y-2 rounded-xl bg-surface p-4">
           <p className="text-sm font-semibold text-gray-900">{t.wordsAdd}</p>

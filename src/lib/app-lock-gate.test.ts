@@ -20,6 +20,7 @@ describe("lockScreenFor", () => {
     expect(lockScreenFor("/gamesx", game, false)).toBe("game");
     expect(lockScreenFor("/words", game, false)).toBe("game");
     expect(lockScreenFor("/words/review", game, false)).toBe("game");
+    expect(lockScreenFor("/words/race", game, false)).toBe("game");
   });
 
   it("locks Economy per visit when the economy lock is on", () => {
