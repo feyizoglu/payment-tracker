@@ -126,6 +126,7 @@ function lastRender() {
 const flat = (c: unknown): string => (Array.isArray(c) ? c.map(flat).join("") : typeof c === "string" || typeof c === "number" ? String(c) : "");
 const text = () => lastRender().map((n) => flat(n.props.children)).filter(Boolean).join(" | ");
 const button = (label: string) => lastRender().find((n) => n.type === "button" && flat(n.props.children).includes(label));
+const backLink = () => lastRender().find((n) => n.type === "a" && n.props.href === "/games");
 async function press(label: string) {
   const b = button(label);
   if (!b) throw new Error(`no button ${label} in ${text()}`);
@@ -219,8 +220,12 @@ describe("HuntGame", () => {
     expect(text()).toContain("New best!");
     expect(store.get("bill-hunt-best")).toBe("3");
     expect(button("Again")!.props.disabled).toBe(true);
+    expect(backLink()!.props["aria-disabled"]).toBe(true);
+    expect(backLink()!.props.className).toContain("pointer-events-none");
     await act(async () => vi.advanceTimersByTime(500));
     expect(button("Again")!.props.disabled).toBe(false);
+    expect(backLink()!.props["aria-disabled"]).toBe(false);
+    expect(backLink()!.props.className).not.toContain("pointer-events-none");
     engine.endWith = null;
     await press("Again");
     expect(text()).toContain("Month 1");
