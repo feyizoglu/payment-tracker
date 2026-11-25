@@ -50,6 +50,12 @@ EAS update.
   "elsewhere" only while that letter's unmatched count in the answer lasts.
 - The keyboard shows the best mark each letter has had (right place > elsewhere > not in it); a
   key's mark only ever improves.
+- Every key stays typeable. A "not in it" key keeps the normal key background and only greys its
+  letter (2026-11-25: the owner read the earlier faded, struck-through key as disabled).
+- **Reveal a letter** (added 2026-11-25, owner's choices): once per round, a button shows the
+  leftmost letter no guess has hit yet, in its place, on its own line of the page. It costs one of
+  the six tries, so it is offered only while at least one guess would be left after it. The
+  revealed letter's key is marked as found. "Got it on try n" counts the reveal as a try.
 - Enter with fewer than five letters does nothing but show "Five letters, please."; Enter on a
   non-word does nothing but show "Not in the word list."
 - A round keeps the language it started in. The next round uses the current app language.

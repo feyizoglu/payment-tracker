@@ -10,8 +10,8 @@ vi.mock("@/components/ui/primary-button", () => ({ PrimaryButton: () => null }))
 
 import { Pressable, Text } from "react-native";
 import { PrimaryButton } from "@/components/ui/primary-button";
-import { SECRET_ALPHABET, SECRET_COLORS, newSecretRound, secretSubmit, secretType, type SecretRound } from "@ptracker/shared/secret-word";
-import { SecretBoard, SecretKeyboard, SecretLegend, SecretLetter, SecretResult } from "@/components/games/secret/secret-parts";
+import { SECRET_ALPHABET, SECRET_COLORS, newSecretRound, secretReveal, secretSubmit, secretType, type SecretRound } from "@ptracker/shared/secret-word";
+import { SecretBoard, SecretKeyboard, SecretLegend, SecretLetter, SecretResult, SecretReveal } from "@/components/games/secret/secret-parts";
 
 type Props = Record<string, unknown> & { children?: unknown };
 type Node = ReactElement<Props>;
@@ -33,6 +33,25 @@ const round = (typed: string[], guesses: string[] = []): SecretRound => {
   for (const g of guesses) r = secretSubmit([...g].reduce(secretType, r));
   return typed.reduce(secretType, r);
 };
+
+describe("SecretReveal", () => {
+  it("reveals on a press while a reveal is allowed, and is turned off after it", () => {
+    const onReveal = vi.fn();
+    const ready = SecretReveal({ round: round([]), onReveal }) as Node;
+    expect(ready.props.disabled).toBe(false);
+    (ready.props.onPress as () => void)();
+    expect(onReveal).toHaveBeenCalledTimes(1);
+    const used = SecretReveal({ round: secretReveal(round([])), onReveal }) as Node;
+    expect(used.props.disabled).toBe(true);
+    expect(used.props.style).toMatchObject({ opacity: 0.4 });
+  });
+
+  it("keeps its label light on the game's dark background whatever the app theme", () => {
+    const label = expand(SecretReveal({ round: round([]), onReveal: () => undefined })).find((n) => n.type === Text)!;
+    expect(String(label.props.className).split(" ")).toContain("text-indigo-300");
+    expect(String(label.props.className)).not.toMatch(/indigo-[4-9]00/);
+  });
+});
 
 describe("SecretKeyboard", () => {
   it("has a key for every Turkish letter, plus Enter and delete with spoken labels", () => {
@@ -56,8 +75,17 @@ describe("SecretKeyboard", () => {
     const style = (l: string) => Object.assign({}, ...(keys.find((k) => k.props.accessibilityLabel === l)!.props.style as object[]));
     expect(style("K").backgroundColor).toBe(c.hit);
     expect(style("A").borderBottomColor).toBe(c.near);
-    expect(style("Y").opacity).toBe(0.6);
+    expect(style("Y").opacity).toBeUndefined();
+    expect(style("Y").backgroundColor).toBe(c.key);
     expect(style("B").backgroundColor).toBe(c.key);
+  });
+
+  it("writes a missed key's letter in the miss colour without a strike-through", () => {
+    const shown = expand(SecretKeyboard({ round: round([]), marks: { Y: "miss" }, palette: c, onKey: () => undefined }));
+    const label = shown.find((n) => n.type === Text && n.props.children === "Y")!;
+    const text = Object.assign({}, ...(label.props.style as object[]));
+    expect(text.color).toBe(c.miss);
+    expect(text.textDecorationLine).toBeUndefined();
   });
 });
 

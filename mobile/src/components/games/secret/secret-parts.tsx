@@ -4,7 +4,9 @@ import { useLang } from "@ptracker/shared/i18n";
 import {
   SECRET_COLORS,
   SECRET_KEY_ROWS,
+  secretCanReveal,
   secretLines,
+  secretTriesUsed,
   type SecretMark,
   type SecretRound,
   type SecretSlot,
@@ -98,7 +100,7 @@ function keyLook(mark: SecretMark | undefined, c: SecretPalette): { box: ViewSty
   const box: ViewStyle = { backgroundColor: c.key };
   if (mark === "hit") return { box: { backgroundColor: c.hit }, text: { color: c.onHit } };
   if (mark === "near") return { box: { ...box, borderBottomWidth: 4, borderBottomColor: c.near }, text: { color: c.ink } };
-  if (mark === "miss") return { box: { ...box, opacity: 0.6 }, text: { color: c.miss, textDecorationLine: "line-through" } };
+  if (mark === "miss") return { box, text: { color: c.miss } };
   return { box, text: { color: c.ink } };
 }
 
@@ -129,6 +131,22 @@ function Key({
       onPress={onRelease ? onPress : undefined}
       style={[{ flex: grow, height: 46, borderRadius: 6, alignItems: "center", justifyContent: "center" }, look.box]}>
       <Text style={[{ fontSize: 17, fontWeight: "600" }, look.text]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export function SecretReveal({ round, onReveal }: { round: SecretRound; onReveal: () => void }) {
+  const { t } = useLang();
+  const can = secretCanReveal(round);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !can }}
+      disabled={!can}
+      onPress={onReveal}
+      className="self-center rounded-full border border-gray-200 px-3 py-1"
+      style={{ opacity: can ? 1 : 0.4 }}>
+      <Text className="text-sm font-semibold text-indigo-300">{t.secretReveal}</Text>
     </Pressable>
   );
 }
@@ -184,7 +202,7 @@ export function SecretResult({
   return (
     <View className="gap-3 rounded-2xl bg-surface p-4">
       <Text className="text-center text-lg font-semibold text-gray-900">
-        {won ? fillTemplate(t.secretWon, { n: String(round.guesses.length) }) : fillTemplate(t.secretLost, { word: round.card.word })}
+        {won ? fillTemplate(t.secretWon, { n: String(secretTriesUsed(round)) }) : fillTemplate(t.secretLost, { word: round.card.word })}
       </Text>
       {won ? <Text className="text-center text-sm text-gray-700">{fillTemplate(t.secretStreak, { n: String(streak) })}</Text> : null}
       {newBest ? (
