@@ -13,7 +13,7 @@ import { AppLockProvider, useAppLock } from '@/lib/app-lock-context';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language-storage';
 import { applyTheme, getStoredTheme } from '@/lib/theme-storage';
-import { monthFromNotificationData } from '@/lib/push';
+import { monthFromNotificationData, opensWordsReview } from '@/lib/push';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -28,16 +28,21 @@ function RootNavigator() {
   // sign-out and sign-in would replay it.
   const handledTapRef = useRef<string | null>(null);
 
-  // A tapped reminder opens the Payments tab on the month it is about.
+  // A tapped payment reminder opens the Payments tab on the month it is about; the My Words
+  // nudge opens the review, which game mode keeps closed.
   useEffect(() => {
     if (!ready || !isAuthenticated || !lastNotification) return;
     const { request } = lastNotification.notification;
     if (handledTapRef.current === request.identifier) return;
     handledTapRef.current = request.identifier;
+    if (opensWordsReview(request.content.data)) {
+      if (!lock.gameMode) router.navigate('/words/review');
+      return;
+    }
     const month = monthFromNotificationData(request.content.data);
     // `tap` makes a second tap for the same month re-apply it after the user browsed away.
     router.navigate(month ? { pathname: '/', params: { month, tap: request.identifier } } : '/');
-  }, [ready, isAuthenticated, lastNotification]);
+  }, [ready, isAuthenticated, lastNotification, lock.gameMode]);
 
   // Runs after the guards let the tabs back in; navigating from the PIN screen itself could
   // land before that render, when the tabs are still not a route the stack accepts.

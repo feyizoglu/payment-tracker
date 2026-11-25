@@ -56,3 +56,7 @@ export function monthFromNotificationData(data: unknown): string | null {
   const month = (data as { month?: unknown } | null | undefined)?.month;
   return typeof month === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month : null;
 }
+
+// The daily My Words nudge (src/lib/words-reminder.ts) asks to open the review screen.
+export const opensWordsReview = (data: unknown): boolean =>
+  (data as { screen?: unknown } | null | undefined)?.screen === "words-review";

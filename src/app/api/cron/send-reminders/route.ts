@@ -6,6 +6,7 @@ import { Resend } from "resend";
 import { addDays, format } from "date-fns";
 import { sendExpoPush, type PushMessage } from "@/lib/push";
 import { sendWebPush, type WebPushResult } from "@/lib/web-push";
+import { sendWordsReminders } from "@/lib/words-reminder";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,10 @@ export async function GET(req: NextRequest) {
 
   const db = supabaseAdmin();
   const resend = new Resend(process.env.RESEND_API_KEY);
+  // Sent before the payment reminders, so a failed payments query does not also cost the words nudge.
+  const words = await sendWordsReminders(db).catch((e: unknown) => ({
+    error: e instanceof Error ? e.message : "words reminders failed",
+  }));
 
   // Tomorrow's local date components — cron fires at 18:00 UTC = 21:00 Turkey (UTC+3)
   const tomorrow = addDays(new Date(), 1);
@@ -39,7 +44,7 @@ export async function GET(req: NextRequest) {
     .select("*, overrides:payment_overrides(*), user:users!payments_user_id_fkey(id, name, email)");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message, words }, { status: 500 });
   }
 
   const dueByUser = new Map<string, { user: User; items: DueItem[] }>();
@@ -251,5 +256,6 @@ export async function GET(req: NextRequest) {
     results,
     push: pushSummary,
     webPush: webPushSummary,
+    words,
   });
 }

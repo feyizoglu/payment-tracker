@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   DEVICES_PATH,
   monthFromNotificationData,
+  opensWordsReview,
   registerForPush,
   unregisterBody,
   unregisterFromPush,
@@ -122,5 +123,15 @@ describe("unregisterFromPush", () => {
     await expect(
       unregisterFromPush({ knownToken: "ExponentPushToken[abc]", isDevice: true, getPushToken: getPushToken(), del })
     ).rejects.toThrow("offline");
+  });
+});
+
+describe("opensWordsReview", () => {
+  it("is true only for the My Words nudge", () => {
+    expect(opensWordsReview({ screen: "words-review" })).toBe(true);
+    expect(opensWordsReview({ month: "2026-03" })).toBe(false);
+    expect(opensWordsReview({ screen: "words" })).toBe(false);
+    expect(opensWordsReview(null)).toBe(false);
+    expect(opensWordsReview(undefined)).toBe(false);
   });
 });

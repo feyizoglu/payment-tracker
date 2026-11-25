@@ -4,6 +4,7 @@ import { addDays, format } from "date-fns";
 vi.mock("@/lib/supabase", () => ({ supabaseAdmin: vi.fn() }));
 vi.mock("@/lib/push", () => ({ sendExpoPush: vi.fn() }));
 vi.mock("@/lib/web-push", () => ({ sendWebPush: vi.fn() }));
+vi.mock("@/lib/words-reminder", () => ({ sendWordsReminders: vi.fn() }));
 // Mock the installment math (already unit-tested in payments.test.ts) so we can
 // deterministically place a payment "due tomorrow" without reconstructing dates.
 vi.mock("@/lib/payments", () => ({
@@ -19,6 +20,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { sendExpoPush } from "@/lib/push";
 import { sendWebPush } from "@/lib/web-push";
 import { getInstallments } from "@/lib/payments";
+import { sendWordsReminders } from "@/lib/words-reminder";
 import { GET } from "./route";
 
 // Minimal stub of the Supabase fluent chain used by this route:
@@ -73,6 +75,12 @@ const req = (auth?: string) =>
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(sendWebPush).mockResolvedValue({ sent: 0, expiredEndpoints: [], errors: [] });
+  vi.mocked(sendWordsReminders).mockResolvedValue({
+    users: 0,
+    push: { sent: 0, invalidTokens: [], errors: [] },
+    webPush: { sent: 0, expiredEndpoints: [], errors: [] },
+    errors: [],
+  });
 });
 
 describe("GET /api/cron/send-reminders", () => {
@@ -81,6 +89,7 @@ describe("GET /api/cron/send-reminders", () => {
     const res = await GET(req("Bearer wrong") as never);
     expect(res.status).toBe(401);
     expect(supabaseAdmin).not.toHaveBeenCalled();
+    expect(sendWordsReminders).not.toHaveBeenCalled();
   });
 
   it("pushes to due users' devices and prunes tokens Expo reports invalid", async () => {
@@ -315,6 +324,31 @@ describe("GET /api/cron/send-reminders web push", () => {
     expect(db._selectedIn.web_push_subscriptions).toBeUndefined();
     expect(sendWebPush).not.toHaveBeenCalled();
     expect(json.webPush).toEqual({ sent: 0, expiredEndpoints: [], errors: [] });
+  });
+  it("sends the My Words nudge every run and reports it, even when nobody is due tomorrow", async () => {
+    vi.mocked(getInstallments).mockReturnValue([]);
+    const db = makeDb({ payments: [], recurring_payments: [] });
+    vi.mocked(supabaseAdmin).mockReturnValue(db as never);
+    const res = await GET(req("Bearer s3cret") as never);
+    expect(sendWordsReminders).toHaveBeenCalledWith(db);
+    expect((await res.json()).words).toMatchObject({ users: 0 });
+  });
+
+  it("still sends the My Words nudge when the payments query fails", async () => {
+    const db = makeDb({}, { payments: { message: "down" } });
+    vi.mocked(supabaseAdmin).mockReturnValue(db as never);
+    const res = await GET(req("Bearer s3cret") as never);
+    expect(res.status).toBe(500);
+    expect(sendWordsReminders).toHaveBeenCalledWith(db);
+  });
+
+  it("reports a thrown My Words nudge instead of failing the payment reminders", async () => {
+    vi.mocked(getInstallments).mockReturnValue([]);
+    vi.mocked(sendWordsReminders).mockRejectedValue(new Error("boom"));
+    vi.mocked(supabaseAdmin).mockReturnValue(makeDb({ payments: [], recurring_payments: [] }) as never);
+    const res = await GET(req("Bearer s3cret") as never);
+    expect(res.status).toBe(200);
+    expect((await res.json()).words).toEqual({ error: "boom" });
   });
 });
 
