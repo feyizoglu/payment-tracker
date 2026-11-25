@@ -202,8 +202,7 @@ export function secretSubmit(r: SecretRound): SecretRound {
   // A refused guess costs no try; the letters stay so the player can change them.
   if (notice) return r.notice === notice ? r : { ...r, notice };
   const guesses = [...r.guesses, r.typed];
-  const used = guesses.length + (r.hint ? 1 : 0);
-  const phase: SecretPhase = r.typed === r.card.word ? "won" : used >= SECRET_TRIES ? "lost" : "playing";
+  const phase: SecretPhase = r.typed === r.card.word ? "won" : secretTriesUsed(r) + 1 >= SECRET_TRIES ? "lost" : "playing";
   return { ...r, guesses, typed: "", phase, notice: null };
 }
 

@@ -45,6 +45,12 @@ describe("SecretReveal", () => {
     expect(used.props.disabled).toBe(true);
     expect(used.props.style).toMatchObject({ opacity: 0.4 });
   });
+
+  it("keeps its label light on the game's dark background whatever the app theme", () => {
+    const label = expand(SecretReveal({ round: round([]), onReveal: () => undefined })).find((n) => n.type === Text)!;
+    expect(String(label.props.className).split(" ")).toContain("text-indigo-300");
+    expect(String(label.props.className)).not.toMatch(/indigo-[4-9]00/);
+  });
 });
 
 describe("SecretKeyboard", () => {

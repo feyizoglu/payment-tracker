@@ -146,7 +146,7 @@ export function SecretReveal({ round, onReveal }: { round: SecretRound; onReveal
       onPress={onReveal}
       className="self-center rounded-full border border-gray-200 px-3 py-1"
       style={{ opacity: can ? 1 : 0.4 }}>
-      <Text className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">{t.secretReveal}</Text>
+      <Text className="text-sm font-semibold text-indigo-300">{t.secretReveal}</Text>
     </Pressable>
   );
 }
