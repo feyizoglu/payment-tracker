@@ -281,6 +281,24 @@ describe("WordRaceScreen", () => {
     expect(clue()).toBeTruthy();
   });
 
+  it("starts one load when Play again is pressed twice and keeps the round it starts", async () => {
+    await mount();
+    await advance(60_000);
+    const answers: ((words: VocabWord[]) => void)[] = [];
+    state.get = vi.fn(() => new Promise<VocabWord[]>((r) => answers.push(r)));
+    await press(state.buttons.findLast((b) => b.label === t.wordRacePlayAgain));
+    await press(state.buttons.findLast((b) => b.label === t.wordRacePlayAgain));
+    expect(state.get).toHaveBeenCalledTimes(1);
+    await act(async () => answers[0](list));
+    await flush();
+    await press(choice(right()));
+    const score = () => texts().findLast((s) => s.startsWith("Score:"));
+    expect(score()).toBe("Score: 1");
+    for (const answer of answers.slice(1)) await act(async () => answer(list));
+    await flush();
+    expect(score()).toBe("Score: 1");
+  });
+
   it("shows the combo from three right answers in a row", async () => {
     await mount();
     for (let i = 0; i < 2; i++) {
