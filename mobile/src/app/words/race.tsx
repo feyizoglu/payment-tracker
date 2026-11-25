@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 
@@ -32,8 +32,16 @@ export default function WordRaceScreen() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [tooFew, setTooFew] = useState(false);
   const { best, newBest, record, clearNewBest } = useSoloBest(getStoredRaceBest, setStoredRaceBest);
+  // Read through refs so a profile landing mid-load neither restarts the load nor replaces a running round.
+  const userIdRef = useRef(userId);
+  const loading = useRef(false);
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
 
   const start = useCallback(async () => {
+    if (loading.current) return;
+    loading.current = true;
     setLoadFailed(false);
     clearNewBest();
     let words: VocabWord[] | null;
@@ -41,15 +49,16 @@ export default function WordRaceScreen() {
       words = await api.get<VocabWord[]>("/api/words");
       void setStoredRaceList(words);
     } catch {
-      words = await getStoredRaceList(userId);
+      words = await getStoredRaceList(userIdRef.current);
     }
+    loading.current = false;
     const at = Date.now();
     const next = words ? startRace(words, at) : null;
     setLoadFailed(words === null);
     setTooFew(words !== null && next === null);
     setRace(next);
     setNow(at);
-  }, [api, userId, clearNewBest]);
+  }, [api, clearNewBest]);
 
   useFocusEffect(
     useCallback(() => {

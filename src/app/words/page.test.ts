@@ -39,9 +39,9 @@ vi.mock("react/jsx-dev-runtime", async (importOriginal) => {
   const actual = await importOriginal<Record<string, (...args: unknown[]) => unknown>>();
   return { ...actual, jsxDEV: host.wrap(actual.jsxDEV) };
 });
-const session = vi.hoisted(() => ({ status: "authenticated" as "authenticated" | "unauthenticated" }));
+const session = vi.hoisted(() => ({ status: "authenticated" as "authenticated" | "unauthenticated", id: "u-1" as string | undefined }));
 vi.mock("next-auth/react", () => ({
-  useSession: () => ({ data: session.status === "authenticated" ? { user: { id: "u-1" } } : null, status: session.status }),
+  useSession: () => ({ data: session.status === "authenticated" ? { user: { id: session.id } } : null, status: session.status }),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => nav.router,
@@ -119,6 +119,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   nav.id = "w1";
   session.status = "authenticated";
+  session.id = "u-1";
   client.listWords.mockResolvedValue({
     ok: true,
     data: [word({}), word({ id: "w2", word: "thrive", word_key: "thrive", meaning_tr: null, learned_at: "2026-11-22T11:00:00Z", streak: 3 })],
@@ -492,6 +493,45 @@ describe("WordRacePage", () => {
     await mount(WordRacePage);
     expect(text()).toContain(t.wordsLoadFailed);
     expect(clue()).toBeUndefined();
+  });
+
+  it("never trusts the saved copy when the session carries no user id", async () => {
+    session.id = undefined;
+    store.set("words-race-list", JSON.stringify(raceList));
+    client.listWords.mockResolvedValue({ ok: false, status: 0, code: undefined, error: "" });
+    await mount(WordRacePage);
+    expect(text()).toContain(t.wordsLoadFailed);
+    expect(clue()).toBeUndefined();
+  });
+
+  it("falls back to the saved copy when the answer is not a word list, and keeps the copy", async () => {
+    const saved = JSON.stringify(raceList);
+    store.set("words-race-list", saved);
+    client.listWords.mockResolvedValue({ ok: true, data: null });
+    await mount(WordRacePage);
+    expect(clue()).toBeTruthy();
+    expect(store.get("words-race-list")).toBe(saved);
+  });
+
+  it("shows the combo from three right answers in a row", async () => {
+    await mount(WordRacePage);
+    for (let i = 0; i < 2; i++) {
+      await click(right());
+      await advance(600);
+    }
+    expect(text()).not.toContain("🔥");
+    await click(right());
+    expect(text()).toContain("🔥 x3");
+  });
+
+  it("reads the list again on retry after a failed load", async () => {
+    client.listWords.mockResolvedValueOnce({ ok: false, status: 0, code: undefined, error: "" });
+    await mount(WordRacePage);
+    expect(text()).toContain(t.wordsLoadFailed);
+    await click(t.wordsRetry);
+    expect(client.listWords).toHaveBeenCalledTimes(2);
+    expect(clue()).toBeTruthy();
+    expect(text()).not.toContain(t.wordsLoadFailed);
   });
 
   it("says four words are needed when too few can be asked", async () => {

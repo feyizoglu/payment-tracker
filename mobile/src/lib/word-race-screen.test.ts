@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
   store: new Map<string, string>(),
   get: async (_path: string) => undefined as unknown,
   back: () => undefined as void,
+  user: { id: "u1" } as { id: string } | null,
 }));
 
 vi.mock("react-native", async () => {
@@ -52,8 +53,8 @@ vi.mock("@ptracker/shared/i18n", async (importOriginal) => {
 });
 vi.mock("@/lib/auth-context", () => {
   // The real provider hands out the same client on every render.
-  const auth = { api: { get: (p: string) => state.get(p) }, user: { id: "u1" } };
-  return { useAuth: () => auth };
+  const api = { get: (p: string) => state.get(p) };
+  return { useAuth: () => ({ api, user: state.user }) };
 });
 vi.mock("@/components/tab-screen", async () => {
   const { Fragment, createElement: h } = await import("react");
@@ -147,6 +148,7 @@ beforeEach(() => {
   state.store = new Map();
   state.back = vi.fn();
   state.get = vi.fn(async () => list);
+  state.user = { id: "u1" };
 });
 
 afterEach(async () => {
@@ -239,6 +241,40 @@ describe("WordRaceScreen", () => {
     await mount();
     expect(text()).toContain(t.wordsLoadFailed);
     expect(clue()).toBeUndefined();
+  });
+
+  it("keeps one load and the running round when the profile lands mid-load", async () => {
+    let answer!: (words: VocabWord[]) => void;
+    state.get = vi.fn(() => new Promise<VocabWord[]>((r) => (answer = r)));
+    state.user = null;
+    await mount();
+    state.user = { id: "u1" };
+    await act(async () => root?.render(createElement(WordRaceScreen)));
+    await flush();
+    await act(async () => answer(list));
+    await flush();
+    expect(state.get).toHaveBeenCalledTimes(1);
+    expect(clue()).toBeTruthy();
+  });
+
+  it("shows the combo from three right answers in a row", async () => {
+    await mount();
+    for (let i = 0; i < 2; i++) {
+      await press(choice(right()));
+      await advance(600);
+    }
+    expect(text()).not.toContain("🔥");
+    await press(choice(right()));
+    expect(text()).toContain("🔥 x3");
+  });
+
+  it("reads the list again on retry after a failed load", async () => {
+    state.get = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue(list);
+    await mount();
+    expect(text()).toContain(t.wordsLoadFailed);
+    await press(state.pressables.findLast((p) => flat(p.children).includes(t.wordsRetry)));
+    expect(state.get).toHaveBeenCalledTimes(2);
+    expect(clue()).toBeTruthy();
   });
 
   it("says four words are needed when too few can be asked", async () => {

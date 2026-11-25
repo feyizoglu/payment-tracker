@@ -50,8 +50,10 @@ export default function WordRacePage() {
 
   const loaded = useCallback(
     (res: Awaited<ReturnType<typeof listWords>>) => {
-      if (res.ok) writeRaceList(res.data);
-      const words = res.ok ? res.data : readRaceList(userId);
+      const fresh = res.ok && Array.isArray(res.data) ? res.data : null;
+      if (fresh) writeRaceList(fresh);
+      // The saved copy is only trusted for a known account: rows of another user must never be played.
+      const words = fresh ?? (userId ? readRaceList(userId) : null);
       const at = Date.now();
       const next = words ? startRace(words, at) : null;
       setLoadFailed(words === null);

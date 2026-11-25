@@ -26,6 +26,7 @@ const state = vi.hoisted(() => ({
   lookup: (_word: string) => Promise.resolve(undefined as unknown),
   raceCopy: null as VocabWord[] | null,
   savedRaceList: null as VocabWord[] | null,
+  user: { id: "u1" } as { id: string } | null,
 }));
 
 vi.mock("react-native", async () => {
@@ -65,7 +66,7 @@ vi.mock("@ptracker/shared/i18n", async (importOriginal) => {
   return { ...actual, useLang: () => ({ lang: "en", t: actual.translationsFor("en") }) };
 });
 vi.mock("@ptracker/shared/word-lookup", () => ({ lookupWord: (w: string) => state.lookup(w) }));
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ api: state.api, user: { id: "u1" } }) }));
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ api: state.api, user: state.user }) }));
 vi.mock("@/lib/word-race-storage", () => ({
   getStoredRaceList: async (userId: string | null) => (userId === "u1" ? state.raceCopy : null),
   setStoredRaceList: async (words: VocabWord[]) => {
@@ -171,6 +172,7 @@ beforeEach(() => {
   state.lookup = vi.fn(async () => found);
   state.raceCopy = null;
   state.savedRaceList = null;
+  state.user = { id: "u1" };
   state.api = {
     get: vi.fn(async () => [word({}), learned]),
     post: vi.fn(async () => word({ id: "w9" })),
@@ -211,6 +213,14 @@ describe("Word Race button", () => {
     await render(WordsScreen);
     expect(text()).toContain(t.wordsLoadFailed);
     expect(button(t.wordRaceStart)).toMatchObject({ disabled: false });
+  });
+
+  it("reads the list once when the profile lands after the screen opened", async () => {
+    state.user = null;
+    await render(WordsScreen);
+    state.user = { id: "u1" };
+    await render(WordsScreen);
+    expect(state.api.get).toHaveBeenCalledTimes(1);
   });
 
   it("stays disabled offline without a saved list", async () => {

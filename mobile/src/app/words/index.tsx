@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 
@@ -21,6 +21,10 @@ export default function WordsScreen() {
   const userId = user?.id ?? null;
   const [words, setWords] = useState<VocabWord[] | null>(null);
   const [raceCopy, setRaceCopy] = useState<VocabWord[] | null>(null);
+  const userIdRef = useRef(userId);
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<VocabFilter>("all");
@@ -38,9 +42,9 @@ export default function WordsScreen() {
       void setStoredRaceList(list);
     } catch {
       setLoadFailed(true);
-      setRaceCopy(await getStoredRaceList(userId));
+      setRaceCopy(await getStoredRaceList(userIdRef.current));
     }
-  }, [api, userId]);
+  }, [api]);
 
   useFocusEffect(
     useCallback(() => {
