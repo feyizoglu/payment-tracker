@@ -44,7 +44,8 @@ look and rules below are this app's own.
 
 - Put a finger (or the mouse) anywhere on the board and pull back: the coins go the opposite way
   of the pull.
-- The aim is shown as a dotted line from the launcher to the first thing the coin would hit.
+- The aim is shown as a dotted line from the launcher to the first thing the coin would hit,
+  computed by running one ghost coin with the same mover the throw uses.
 - The direction is clamped to between 8° and 172° above the horizontal. A pull shorter than 4
   world units, or one that points the throw downwards, shows no line, and letting go then throws
   nothing.
@@ -54,12 +55,16 @@ look and rules below are this app's own.
 - Coins leave the launcher one after another, 0.08 s apart, all in the aimed direction, at 90
   world units per second.
 - They bounce off the side walls, the ceiling and bills. Each bounce off a bill takes 1 off it; a
-  bill at 0 disappears.
-- Coins pass through every other item; what happens is triggered once each time a coin enters the
-  item's cell.
+  bill at 0 disappears. A bill loses at most 1 to the same coin in one sub-step, even at a corner.
+- Coins pass through every other item; what happens is triggered once each time a coin's centre
+  enters the item's cell.
 - A coin that reaches the floor stops there. The first one down sets the next launcher position.
 - So that no coin bounces sideways forever, after every bounce a coin moving more flatly than 8°
   is turned to 8° (its speed stays the same).
+- Every throw ends: after 30 s of game time (sped-up time counts as game time) the throw is called
+  back automatically.
+- The coin count is capped at 120: a "+1 coin" collected at the cap is still removed but adds
+  nothing.
 - While coins are in the air two buttons show:
   - **Speed up (⏩):** the rest of this throw runs 3 times faster.
   - **Call back:** the throw ends at once; coins still in the air or not yet thrown count as
@@ -97,10 +102,10 @@ seeded test can replay a game.
 
 - **Mobile:** the game screen asks "Leave the game?" on back while a game is running, and the
   throw stops while the screen is not shown (background, PIN screen, dialog), using the existing
-  `useConfirmLeave` and `useGameOnScreen`. The best goes through `useSoloBest`. At most 120 coins
-  are drawn; more still play but are not drawn.
-- **Web:** a canvas with pointer events for the pull, scaled to its box, following the light/dark
-  theme; best through `saved-best`. A hidden tab simply stops the frames; the simulation never
+  `useConfirmLeave` and `useGameOnScreen`. The best goes through `useSoloBest`. All coins are
+  drawn (at most 120, the cap). The pull uses `PanResponder`, as the Scale needle does.
+- **Web:** a canvas with pointer events for the pull (with pointer capture, and a cancelled pointer
+  cancels the aim), scaled to its box, following the light/dark theme; best through `saved-best`. A hidden tab simply stops the frames; the simulation never
   takes a step longer than 1/30 s.
 
 ## What it does not do
@@ -119,11 +124,15 @@ seeded test can replay a game.
   - `huntViewport(width, height)`, `huntBillShade(value, month)`, `HUNT_COLORS`, constants.
   - `stepHunt` runs fixed sub-steps of 1/240 s (a coin moves at most 0.375 units per sub-step,
     well under its radius, so it cannot pass through a bill), moving x then y and bouncing on
-    overlap.
+    overlap. Collisions look up only the cells a coin's box touches (a 7 × 9 cell index), never
+    scan every item; the state is copied once per `stepHunt` call, not per sub-step.
 - `src/lib/bill-hunt.ts` re-exports it for web.
 - Web: `src/app/games/bills/page.tsx`, `src/components/games/bills/{HuntGame,HuntOverlay}.tsx`,
   `draw-hunt.ts`.
 - Mobile: `mobile/src/app/games/bills.tsx`, `mobile/src/components/games/bills/{hunt-world,hunt-overlay}.tsx`,
   `mobile/src/lib/bill-hunt-storage.ts`.
 - i18n: `hunt*` keys in English and Turkish; the score card reuses the `solo*` keys.
-- Tests: unit tests for the rules (seeded), drawing and screen tests in the style of Book Tower's.
+- Tests: unit tests for the rules (seeded), drawing and screen tests in the style of Book Tower's,
+  and a seeded auto-player that plays several whole games with random legal aims and checks that
+  every throw ends within the cap, no coin overlaps a bill or leaves the board, coins grow only by
+  collected "+1 coin"s, and every game ends.
