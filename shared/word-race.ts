@@ -53,7 +53,10 @@ export function raceClue(word: VocabWord): string | null {
   return definition ? maskWord(definition, word.word) : null;
 }
 
-export const raceWords = (words: readonly VocabWord[]): VocabWord[] => words.filter((w) => raceClue(w) !== null);
+// Same answer as `raceClue(w) !== null` without building the mask: the My Words screens ask on every render.
+const hasClue = (w: VocabWord): boolean => !!w.meaning_tr?.trim() || !!w.senses[0]?.definition.trim();
+
+export const raceWords = (words: readonly VocabWord[]): VocabWord[] => words.filter(hasClue);
 
 export const canRace = (words: readonly VocabWord[]): boolean => raceWords(words).length >= RACE_MIN_WORDS;
 

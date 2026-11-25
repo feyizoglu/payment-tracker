@@ -96,8 +96,13 @@ describe("raceClue", () => {
 
 describe("raceWords and canRace", () => {
   it("asks learned words too, but not words without a clue", () => {
-    const list = [word("a", { learned_at: "2026-11-25T11:00:00Z", streak: 3 }), word("b", { meaning_tr: null })];
-    expect(raceWords(list).map((w) => w.id)).toEqual(["a"]);
+    const list = [
+      word("a", { learned_at: "2026-11-25T11:00:00Z", streak: 3 }),
+      word("b", { meaning_tr: null }),
+      word("c", { meaning_tr: " ", senses: [{ pos: "noun", definition: "a letter" }] }),
+      word("d", { meaning_tr: " ", senses: [{ pos: "noun", definition: "  " }] }),
+    ];
+    expect(raceWords(list).map((w) => w.id)).toEqual(["a", "c"]);
   });
 
   it("needs four words that can be asked", () => {
@@ -144,29 +149,42 @@ describe("startRace", () => {
       word("e", { meaning_tr: "uzun" }),
       word("f", { meaning_tr: "kısa" }),
     ];
+    let checked = 0;
     for (let seed = 1; seed < 40; seed++) {
       const s = startRace(list, NOW, seeded(seed))!;
       const ids = s.question.choices.map((c) => c.id);
       if (s.question.id === "a") expect(ids).not.toContain("b");
       if (s.question.id === "b") expect(ids).not.toContain("a");
+      if (s.question.id === "a" || s.question.id === "b") checked++;
     }
+    expect(checked).toBeGreaterThan(0);
   });
 
   it("folds Turkish dotted and dotless I when comparing clues", () => {
     const list = [word("a", { meaning_tr: "İyi" }), word("b", { meaning_tr: "iyi" }), word("c"), word("d")];
-    for (let seed = 1; seed < 20; seed++) {
+    let checked = 0;
+    for (let seed = 1; seed < 40; seed++) {
       const s = startRace(list, NOW, seeded(seed))!;
       const ids = s.question.choices.map((c) => c.id);
-      if (s.question.id === "a") expect(ids).not.toContain("b");
+      if (s.question.id === "a") {
+        expect(ids).not.toContain("b");
+        checked++;
+      }
     }
+    expect(checked).toBeGreaterThan(0);
   });
 
   it("shows fewer choices when there are not enough other words", () => {
     const list = [word("a", { meaning_tr: "aynı" }), word("b", { meaning_tr: "aynı" }), word("c"), word("d")];
-    for (let seed = 1; seed < 20; seed++) {
+    let checked = 0;
+    for (let seed = 1; seed < 40; seed++) {
       const s = startRace(list, NOW, seeded(seed))!;
-      if (s.question.id === "a") expect(s.question.choices.map((c) => c.id).sort()).toEqual(["a", "c", "d"]);
+      if (s.question.id === "a") {
+        expect(s.question.choices.map((c) => c.id).sort()).toEqual(["a", "c", "d"]);
+        checked++;
+      }
     }
+    expect(checked).toBeGreaterThan(0);
   });
 });
 

@@ -112,15 +112,19 @@ export default function WordRaceScreen() {
               <Text className="text-sm font-semibold text-gray-900">{fillTemplate(t.wordRaceScore, { n: String(race.score) })}</Text>
             </View>
             <Text className="min-h-16 text-center text-lg text-gray-900">{race.question.clue}</Text>
-            <View className="flex-row flex-wrap justify-between gap-y-2">
-              {race.question.choices.map((c) => {
-                const tone = choiceTone(c);
-                return (
-                  <Pressable key={c.id} onPress={() => pick(c.id, Date.now())} className={`w-[48%] items-center rounded-lg px-3 py-4 ${tone.box}`}>
-                    <Text className={`text-center text-sm font-semibold ${tone.label}`}>{c.word}</Text>
-                  </Pressable>
-                );
-              })}
+            <View className="gap-2">
+              {[race.question.choices.slice(0, 2), race.question.choices.slice(2)].filter((row) => row.length > 0).map((row) => (
+                <View key={row[0].id} className="flex-row gap-2">
+                  {row.map((c) => {
+                    const tone = choiceTone(c);
+                    return (
+                      <Pressable key={c.id} onPress={() => pick(c.id, Date.now())} className={`flex-1 items-center rounded-lg px-3 py-4 ${tone.box}`}>
+                        <Text className={`text-center text-sm font-semibold ${tone.label}`}>{c.word}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ))}
             </View>
           </View>
         ) : null}
