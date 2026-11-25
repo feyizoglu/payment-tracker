@@ -145,6 +145,18 @@ export default function GamesScreen() {
         </View>
         <Text className="text-xl text-gray-400">›</Text>
       </Pressable>
+      <Pressable
+        onPress={() => router.push("/games/bills")}
+        className="flex-row items-center gap-4 rounded-xl border border-gray-100 p-4">
+        <View className="rounded-lg bg-green-50 p-3">
+          <Text className="text-2xl">🧾</Text>
+        </View>
+        <View className="flex-1">
+          <Text className="text-base font-semibold text-gray-900">{t.huntTitle}</Text>
+          <Text className="text-sm text-gray-500">{t.huntDesc}</Text>
+        </View>
+        <Text className="text-xl text-gray-400">›</Text>
+      </Pressable>
     </GameScreen>
   );
 }

@@ -296,6 +296,7 @@ describe("RootNavigator Stack.Protected guards", () => {
     expect(guardFor("games/plane")).toBe(true);
     expect(guardFor("games/tower")).toBe(true);
     expect(guardFor("games/secret")).toBe(true);
+    expect(guardFor("games/bills")).toBe(true);
   });
 
   it("keeps My Words closed in game mode and open outside it", async () => {
