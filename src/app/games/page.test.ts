@@ -11,6 +11,7 @@ vi.mock("lucide-react", () => ({
   Lightbulb: () => null,
   MessageSquareText: () => null,
   Moon: () => null,
+  Receipt: () => null,
   Send: () => null,
   Library: () => null,
   SpellCheck: () => null,
@@ -29,10 +30,10 @@ import GamesPage from "./page";
 const html = () => renderToStaticMarkup(createElement(GamesPage));
 
 describe("GamesPage", () => {
-  it("links the word game after the Imposter game, then Wolf Night, Hot Potato, Who Am I?, Scale, One Clue, Paper Plane, Book Tower and Secret Word", () => {
+  it("links the word game after the Imposter game, then Wolf Night, Hot Potato, Who Am I?, Scale, One Clue, Paper Plane, Book Tower, Secret Word and Bill Hunt", () => {
     const hrefs = [...html().matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]);
 
-    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who", "/games/scale", "/games/clue", "/games/plane", "/games/tower", "/games/secret"]);
+    expect(hrefs).toEqual(["/games/imposter", "/games/word", "/games/wolf", "/games/potato", "/games/who", "/games/scale", "/games/clue", "/games/plane", "/games/tower", "/games/secret", "/games/bills"]);
   });
 
   it("shows the word game's title and description on its link", () => {
@@ -111,6 +112,18 @@ describe("GamesPage", () => {
     const dark = css.slice(css.indexOf(".dark {"));
     expect(dark).toMatch(/--color-amber-50:/);
     expect(dark).toMatch(/--color-amber-200:/);
+  });
+
+  it("shows Bill Hunt's title and description on its link, in green, remapped in the dark theme", () => {
+    const link = html().match(/<a href="\/games\/bills"[^>]*>(.*?)<\/a>/)?.[0] ?? "";
+
+    expect(link).toMatch(/>huntTitle<\/p><p[^>]*>huntDesc<\/p>/);
+    expect(link).toContain("hover:border-green-200");
+    expect(link).toContain("bg-green-50");
+    const css = readFileSync(fileURLToPath(new URL("../globals.css", import.meta.url)), "utf8");
+    const dark = css.slice(css.indexOf(".dark {"));
+    expect(dark).toMatch(/--color-green-50:/);
+    expect(dark).toMatch(/--color-green-200:/);
   });
 
   it("shows Secret Word's title and description on its link, in indigo, remapped in the dark theme", () => {

@@ -800,6 +800,15 @@ const translations = {
     soloNewBest: "New best!",
     soloAgain: "Again",
     soloBackToGames: "Back to games",
+    huntTitle: "Bill Hunt",
+    huntDesc: "Pull back, let go and pay off the bills with bouncing coins before they reach the bottom.",
+    huntHint: "Pull back to aim, let go to throw.",
+    huntStart: "Start",
+    huntMonth: "Month {n}",
+    huntCoins: "×{n}",
+    huntSpeedUp: "Speed up",
+    huntCallBack: "Call back",
+    huntScore: "Months lasted",
   },
   tr: {
     // Landing
@@ -1587,6 +1596,15 @@ const translations = {
     soloNewBest: "Yeni rekor!",
     soloAgain: "Tekrar",
     soloBackToGames: "Oyunlara dön",
+    huntTitle: "Fatura Avı",
+    huntDesc: "Geri çek, bırak ve faturaları aşağı inmeden seken paralarla öde.",
+    huntHint: "Nişan için geri çek, atmak için bırak.",
+    huntStart: "Başla",
+    huntMonth: "Ay {n}",
+    huntCoins: "×{n}",
+    huntSpeedUp: "Hızlandır",
+    huntCallBack: "Geri çağır",
+    huntScore: "Dayanılan ay",
   },
 };
 
