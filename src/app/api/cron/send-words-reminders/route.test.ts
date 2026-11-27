@@ -40,6 +40,20 @@ describe("GET /api/cron/send-words-reminders", () => {
     expect(sendWordsReminders).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["unset", undefined],
+    ["empty", ""],
+  ])("401s when CRON_SECRET is %s, even for a 'Bearer undefined' header", async (_label, secret) => {
+    if (secret === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = secret;
+    for (const auth of ["Bearer undefined", "Bearer ", undefined]) {
+      const res = await GET(req(auth) as never);
+      expect(res.status).toBe(401);
+    }
+    expect(supabaseAdmin).not.toHaveBeenCalled();
+    expect(sendWordsReminders).not.toHaveBeenCalled();
+  });
+
   it("sends the My Words nudge and returns its summary", async () => {
     vi.mocked(sendWordsReminders).mockResolvedValue({
       users: 4,
@@ -53,7 +67,7 @@ describe("GET /api/cron/send-words-reminders", () => {
     expect(await res.json()).toMatchObject({ users: 4, push: { sent: 3 }, webPush: { sent: 1 } });
   });
 
-  it("logs the nudge errors so a broken nudge is not silent", async () => {
+  it("returns 500 with the summary and logs it when the word count fails, so the skipped nudge shows red", async () => {
     vi.mocked(sendWordsReminders).mockResolvedValue({
       users: 0,
       push: { sent: 0, invalidTokens: [], errors: ["expo down"] },
@@ -62,8 +76,24 @@ describe("GET /api/cron/send-words-reminders", () => {
     });
     const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const res = await GET(req("Bearer s3cret") as never);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(500);
+    expect(await res.json()).toMatchObject({ users: 0, errors: ["vocab words query failed: x"] });
     expect(logged).toHaveBeenCalledWith("words reminders:", "vocab words query failed: x; expo down; web push down");
+    logged.mockRestore();
+  });
+
+  it("keeps 200 but logs per-channel push errors, as the nudge still went out on the other channels", async () => {
+    vi.mocked(sendWordsReminders).mockResolvedValue({
+      users: 2,
+      push: { sent: 1, invalidTokens: [], errors: ["expo down"] },
+      webPush: { sent: 0, expiredEndpoints: [], errors: ["web push down"] },
+      errors: [],
+    });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const res = await GET(req("Bearer s3cret") as never);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ users: 2, push: { sent: 1 } });
+    expect(logged).toHaveBeenCalledWith("words reminders:", "expo down; web push down");
     logged.mockRestore();
   });
 

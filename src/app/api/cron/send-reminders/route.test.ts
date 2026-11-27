@@ -92,6 +92,20 @@ describe("GET /api/cron/send-reminders", () => {
     expect(sendWordsReminders).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["unset", undefined],
+    ["empty", ""],
+  ])("401s when CRON_SECRET is %s, even for a 'Bearer undefined' header", async (_label, secret) => {
+    if (secret === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = secret;
+    for (const auth of ["Bearer undefined", "Bearer ", undefined]) {
+      const res = await GET(req(auth) as never);
+      expect(res.status).toBe(401);
+    }
+    expect(supabaseAdmin).not.toHaveBeenCalled();
+    process.env.CRON_SECRET = "s3cret";
+  });
+
   it("pushes to due users' devices and prunes tokens Expo reports invalid", async () => {
     process.env.CRON_SECRET = "s3cret";
 

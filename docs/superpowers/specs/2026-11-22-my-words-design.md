@@ -130,9 +130,11 @@ yapalım mı?". It goes to Chrome (web push subscriptions) and to the phone (Exp
 review (`/words/review` on web; on the phone the review screen, unless game mode is on, once the
 saved app lock has loaded). Users with no unlearned word get nothing, and if any page of the word
 count fails nobody gets it rather than a count that is too low. The cron response is the nudge's
-summary; its errors are logged, and a nudge that throws returns 500. On the Vercel Hobby plan a cron
-may fire any time within its hour, so the nudge can arrive between 15:00 and 15:59. Code:
-`src/lib/words-reminder.ts`, `src/app/api/cron/send-words-reminders/route.ts`.
+summary; its errors are logged, and it returns 500 when the word count fails or the nudge throws
+(per-channel push errors keep 200). Like the payment cron, it answers 401 when `CRON_SECRET` is not
+set. On the Vercel Hobby plan a cron may fire any time within its hour, so the nudge can arrive
+between 15:00 and 15:59. Code: `src/lib/words-reminder.ts`,
+`src/app/api/cron/send-words-reminders/route.ts`.
 
 ## Errors and offline
 
