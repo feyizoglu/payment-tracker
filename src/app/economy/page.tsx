@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
+import AppNav from "@/components/AppNav";
 import { Asset, Currency, FiatCurrency, GoldType, ExchangeRates, Team } from "@/types";
 import { useLang, type Translations } from "@/lib/i18n";
 import {
@@ -26,7 +26,6 @@ import {
   toUSD,
 } from "@/lib/economy";
 import {
-  CreditCard,
   ChevronDown,
   ChevronUp,
   RefreshCw,
@@ -66,7 +65,7 @@ export default function Economy() {
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [addToBankName, setAddToBankName] = useState<string | null>(null);
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [headerMenu, setHeaderMenu] = useState<"nav" | "user" | null>(null);
   const [showTeamsPanel, setShowTeamsPanel] = useState(false);
   const [showManualGold, setShowManualGold] = useState(false);
   const [myColor, setMyColor] = useState<string | null>(null);
@@ -171,42 +170,8 @@ export default function Economy() {
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
       <header className="bg-surface border-b border-gray-100 sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-y-1 py-2 lg:py-0 lg:h-14">
-          <div className="contents lg:flex lg:items-center lg:gap-4">
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              <span className="font-bold text-gray-900">PayTrack</span>
-            </div>
-            <nav className="order-last w-full flex items-center gap-1 lg:order-none lg:w-auto">
-              <Link
-                href="/dashboard"
-                className="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition font-medium"
-              >
-                {t.dashboard}
-              </Link>
-              <span className="px-3 py-1.5 rounded-lg text-sm text-green-700 dark:text-green-400 bg-green-50 font-semibold">
-                {t.economy}
-              </span>
-              <Link
-                href="/events"
-                className="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition font-medium"
-              >
-                {t.events}
-              </Link>
-              <Link
-                href="/games"
-                className="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition font-medium"
-              >
-                {t.games}
-              </Link>
-              <Link
-                href="/words"
-                className="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition font-medium"
-              >
-                {t.wordsTitle}
-              </Link>
-            </nav>
-          </div>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
+          <AppNav active="economy" open={headerMenu === "nav"} onOpenChange={(open) => setHeaderMenu(open ? "nav" : null)} />
 
           <div className="flex items-center gap-2">
             <PushToggle />
@@ -227,7 +192,7 @@ export default function Economy() {
 
             <div className="relative">
               <button
-                onClick={() => setShowUserMenu((v) => !v)}
+                onClick={() => setHeaderMenu((m) => (m === "user" ? null : "user"))}
                 className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
               >
                 {session?.user?.image ? (
@@ -243,7 +208,7 @@ export default function Economy() {
                 <ChevronDown className="w-4 h-4 text-gray-400" />
               </button>
 
-              {showUserMenu && (
+              {headerMenu === "user" && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-lg border border-gray-100 py-1 z-50">
                   <div className="px-3 py-2 border-b border-gray-100">
                     <p className="text-xs font-medium text-gray-900 truncate">{session?.user?.name}</p>
@@ -438,8 +403,8 @@ export default function Economy() {
         </div>
       )}
 
-      {showUserMenu && (
-        <div className="fixed inset-0 z-30" onClick={() => setShowUserMenu(false)} />
+      {headerMenu === "user" && (
+        <div className="fixed inset-0 z-30" onClick={() => setHeaderMenu(null)} />
       )}
     </div>
   );

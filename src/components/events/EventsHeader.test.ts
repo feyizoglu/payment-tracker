@@ -4,12 +4,13 @@ import type { ReactElement } from "react";
 const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   signOutWithPushCleanup: vi.fn().mockResolvedValue(undefined),
-  menuOpen: true,
+  menu: "user" as "nav" | "user" | null,
+  setMenu: vi.fn(),
 }));
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
-  return { ...actual, useState: () => [mocks.menuOpen, vi.fn()] };
+  return { ...actual, useState: () => [mocks.menu, mocks.setMenu] };
 });
 
 vi.mock("next-auth/react", () => ({
@@ -30,6 +31,7 @@ vi.mock("@/components/PushToggle", () => ({ default: function PushToggle() { ret
 vi.mock("@/lib/web-push-client", () => ({ signOutWithPushCleanup: mocks.signOutWithPushCleanup }));
 
 import EventsHeader from "./EventsHeader";
+import AppNav from "@/components/AppNav";
 import PushToggle from "@/components/PushToggle";
 import SignOutMenuItem from "@/components/SignOutMenuItem";
 
@@ -58,7 +60,8 @@ function hasText(node: unknown, text: string): boolean {
 beforeEach(() => {
   mocks.signOut.mockClear();
   mocks.signOutWithPushCleanup.mockClear();
-  mocks.menuOpen = true;
+  mocks.menu = "user";
+  mocks.setMenu.mockClear();
 });
 
 describe("EventsHeader", () => {
@@ -89,21 +92,42 @@ describe("EventsHeader", () => {
   });
 
   it("keeps sign-out out of the header while the user menu is closed", () => {
-    mocks.menuOpen = false;
+    mocks.menu = null;
 
     expect(findAll(EventsHeader(), (el) => el.type === SignOutMenuItem)).toHaveLength(0);
   });
 
-  it("highlights the nav item of the current section", () => {
-    const linkClass = (tree: unknown, href: string) =>
-      findAll(tree, (el) => el.props?.href === href)[0].props.className as string;
+  it("renders the shared section nav for its section, events by default", () => {
+    const navOf = (tree: unknown) => findAll(tree, (el) => el.type === AppNav);
 
-    const events = EventsHeader();
-    expect(linkClass(events, "/events")).toContain("font-semibold");
-    expect(linkClass(events, "/games")).not.toContain("font-semibold");
+    expect(navOf(EventsHeader())).toHaveLength(1);
+    expect(navOf(EventsHeader())[0].props.active).toBe("events");
+    expect(navOf(EventsHeader({ active: "games" }))[0].props.active).toBe("games");
+    expect(navOf(EventsHeader({ active: "words" }))[0].props.active).toBe("words");
+  });
 
-    const games = EventsHeader({ active: "games" });
-    expect(linkClass(games, "/games")).toContain("font-semibold");
-    expect(linkClass(games, "/events")).not.toContain("font-semibold");
+  it("keeps one header menu open at a time: the section menu or the user menu", () => {
+    mocks.menu = "nav";
+    const [nav] = findAll(EventsHeader(), (el) => el.type === AppNav);
+    expect(nav.props.open).toBe(true);
+    expect(findAll(EventsHeader(), (el) => el.type === SignOutMenuItem)).toHaveLength(0);
+
+    (nav.props.onOpenChange as (open: boolean) => void)(true);
+    expect(mocks.setMenu).toHaveBeenLastCalledWith("nav");
+    (nav.props.onOpenChange as (open: boolean) => void)(false);
+    expect(mocks.setMenu).toHaveBeenLastCalledWith(null);
+
+    const [avatar] = findAll(EventsHeader(), (el) => el.type === "button" && String(el.props.className).includes("hover:text-gray-900"));
+    (avatar.props.onClick as () => void)();
+    const next = mocks.setMenu.mock.lastCall?.[0] as (m: "nav" | "user" | null) => "nav" | "user" | null;
+    expect(next("nav")).toBe("user");
+    expect(next(null)).toBe("user");
+    expect(next("user")).toBe(null);
+  });
+
+  it("closes the section menu while the user menu is open", () => {
+    mocks.menu = "user";
+    const [nav] = findAll(EventsHeader(), (el) => el.type === AppNav);
+    expect(nav.props.open).toBe(false);
   });
 });
