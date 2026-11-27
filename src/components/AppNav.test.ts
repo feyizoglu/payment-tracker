@@ -32,7 +32,8 @@ function findAll(node: unknown, match: (el: Node) => boolean, out: Node[] = []):
   return out;
 }
 
-const render = (active: AppSection = "events") => AppNav({ active }) as unknown as Node;
+const onOpen = vi.fn();
+const render = (active: AppSection = "events") => AppNav({ active, onOpen }) as unknown as Node;
 const toggle = (tree: Node) => findAll(tree, (el) => el.type === "button")[0];
 const panel = (tree: Node) => findAll(tree, (el) => el.type === "nav" && el.props.id !== undefined)[0];
 const inline = (tree: Node) => findAll(tree, (el) => el.type === "nav" && el.props.id === undefined)[0];
@@ -42,6 +43,7 @@ const backdrop = (tree: Node) => findAll(tree, (el) => el.type === "div" && el.p
 beforeEach(() => {
   mocks.open = false;
   mocks.setOpen.mockClear();
+  onOpen.mockClear();
 });
 
 describe("AppNav", () => {
@@ -109,12 +111,23 @@ describe("AppNav", () => {
     expect(backdrop(tree)).toHaveLength(1);
   });
 
-  it("opens and closes from the menu button", () => {
+  it("opens and closes from the menu button, telling the header only when it opens", () => {
     (toggle(render()).props.onClick as () => void)();
     expect(mocks.setOpen).toHaveBeenLastCalledWith(true);
+    expect(onOpen).toHaveBeenCalledTimes(1);
     mocks.open = true;
     (toggle(render()).props.onClick as () => void)();
     expect(mocks.setOpen).toHaveBeenLastCalledWith(false);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens without an onOpen handler", () => {
+    (toggle(AppNav({ active: "games" }) as unknown as Node).props.onClick as () => void)();
+    expect(mocks.setOpen).toHaveBeenLastCalledWith(true);
+  });
+
+  it("keeps the menu button above its backdrop so a tap on it closes the menu itself", () => {
+    expect(toggle(render()).props.className).toContain("relative z-50");
   });
 
   it("closes when a section in the panel is chosen", () => {

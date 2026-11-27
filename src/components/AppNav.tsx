@@ -18,7 +18,7 @@ const ACTIVE: Record<AppSection, string> = {
 };
 const IDLE = "text-gray-500 hover:bg-gray-100 transition font-medium";
 
-export default function AppNav({ active }: { active: AppSection }) {
+export default function AppNav({ active, onOpen }: { active: AppSection; onOpen?: () => void }) {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
   const sections: { key: AppSection; href: string; label: string }[] = [
@@ -41,11 +41,14 @@ export default function AppNav({ active }: { active: AppSection }) {
     >
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (!open) onOpen?.();
+          setOpen(!open);
+        }}
         aria-label={t.menu}
         aria-expanded={open}
         aria-controls={PANEL_ID}
-        className="lg:hidden -ml-1.5 p-1.5 rounded-lg text-gray-600 hover:bg-gray-100 transition"
+        className="lg:hidden relative z-50 -ml-1.5 p-1.5 rounded-lg text-gray-600 hover:bg-gray-100 transition"
       >
         {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>

@@ -37,6 +37,7 @@ vi.mock("lucide-react", () => ({
   CalendarRange: () => null,
   Menu: () => null,
   X: () => null,
+  KeyRound: () => null,
 }));
 vi.mock("next/link", () => ({ default: () => null }));
 vi.mock("next-auth/react", () => ({
@@ -208,5 +209,32 @@ describe("DashboardPage togglePaid", () => {
     await act(async () => expect(view().onTogglePaid(installment)).resolves.toBeUndefined());
 
     expect(view().payments[0].paid_installments).toBe(2);
+  });
+});
+
+describe("DashboardPage header menus", () => {
+  const latest = (match: (n: { type: string; props: Record<string, unknown> }) => boolean) =>
+    host.nodes.filter(match).at(-1);
+  const sectionToggle = () => latest((n) => n.type === "button" && n.props["aria-controls"] === "app-nav-menu");
+  const userToggle = () =>
+    latest((n) => n.type === "button" && String(n.props.className ?? "").includes("hover:text-gray-900"));
+  const userMenuOpen = async () => {
+    host.nodes.length = 0;
+    await act(async () =>
+      root?.render(createElement(LanguageProvider, { initialLang: "en" }, createElement(DashboardPage)))
+    );
+    return host.nodes.some((n) => n.type === "div" && String(n.props.className ?? "").includes("w-56"));
+  };
+
+  it("closes the user menu when the section menu opens", async () => {
+    stubFetch(async () => reply(loan));
+    await render();
+
+    await act(async () => (userToggle()?.props.onClick as () => void)());
+    expect(await userMenuOpen()).toBe(true);
+
+    await act(async () => (sectionToggle()?.props.onClick as () => void)());
+    expect(await userMenuOpen()).toBe(false);
+    expect(sectionToggle()?.props["aria-expanded"]).toBe(true);
   });
 });

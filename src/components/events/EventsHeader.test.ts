@@ -5,11 +5,12 @@ const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   signOutWithPushCleanup: vi.fn().mockResolvedValue(undefined),
   menuOpen: true,
+  setMenuOpen: vi.fn(),
 }));
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
-  return { ...actual, useState: () => [mocks.menuOpen, vi.fn()] };
+  return { ...actual, useState: () => [mocks.menuOpen, mocks.setMenuOpen] };
 });
 
 vi.mock("next-auth/react", () => ({
@@ -102,5 +103,13 @@ describe("EventsHeader", () => {
     expect(navOf(EventsHeader())[0].props.active).toBe("events");
     expect(navOf(EventsHeader({ active: "games" }))[0].props.active).toBe("games");
     expect(navOf(EventsHeader({ active: "words" }))[0].props.active).toBe("words");
+  });
+
+  it("closes the user menu when the section menu opens, so the two never overlap", () => {
+    const [nav] = findAll(EventsHeader(), (el) => el.type === AppNav);
+
+    (nav.props.onOpen as () => void)();
+
+    expect(mocks.setMenuOpen).toHaveBeenCalledWith(false);
   });
 });
