@@ -30,6 +30,7 @@ vi.mock("@/components/PushToggle", () => ({ default: function PushToggle() { ret
 vi.mock("@/lib/web-push-client", () => ({ signOutWithPushCleanup: mocks.signOutWithPushCleanup }));
 
 import EventsHeader from "./EventsHeader";
+import AppNav from "@/components/AppNav";
 import PushToggle from "@/components/PushToggle";
 import SignOutMenuItem from "@/components/SignOutMenuItem";
 
@@ -94,16 +95,12 @@ describe("EventsHeader", () => {
     expect(findAll(EventsHeader(), (el) => el.type === SignOutMenuItem)).toHaveLength(0);
   });
 
-  it("highlights the nav item of the current section", () => {
-    const linkClass = (tree: unknown, href: string) =>
-      findAll(tree, (el) => el.props?.href === href)[0].props.className as string;
+  it("renders the shared section nav for its section, events by default", () => {
+    const navOf = (tree: unknown) => findAll(tree, (el) => el.type === AppNav);
 
-    const events = EventsHeader();
-    expect(linkClass(events, "/events")).toContain("font-semibold");
-    expect(linkClass(events, "/games")).not.toContain("font-semibold");
-
-    const games = EventsHeader({ active: "games" });
-    expect(linkClass(games, "/games")).toContain("font-semibold");
-    expect(linkClass(games, "/events")).not.toContain("font-semibold");
+    expect(navOf(EventsHeader())).toHaveLength(1);
+    expect(navOf(EventsHeader())[0].props.active).toBe("events");
+    expect(navOf(EventsHeader({ active: "games" }))[0].props.active).toBe("games");
+    expect(navOf(EventsHeader({ active: "words" }))[0].props.active).toBe("words");
   });
 });

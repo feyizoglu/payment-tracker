@@ -35,6 +35,8 @@ vi.mock("lucide-react", () => ({
   Users: () => null,
   ChevronDown: () => null,
   CalendarRange: () => null,
+  Menu: () => null,
+  X: () => null,
 }));
 vi.mock("next/link", () => ({ default: () => null }));
 vi.mock("next-auth/react", () => ({

@@ -260,6 +260,7 @@ const translations = {
     // Games
     games: "Games",
     wordsTitle: "My Words",
+    menu: "Menu",
     wordsProgress: "{n} words · {learned} learned",
     wordsReview: "Review ({n})",
     wordsAdd: "Add word",
@@ -1056,6 +1057,7 @@ const translations = {
     // Games
     games: "Oyunlar",
     wordsTitle: "Kelimelerim",
+    menu: "Menü",
     wordsProgress: "{n} kelime · {learned} öğrenildi",
     wordsReview: "Tekrar et ({n})",
     wordsAdd: "Kelime ekle",
