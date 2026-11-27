@@ -123,15 +123,16 @@ Web pages under `src/app/words/`; mobile screens under `mobile/src/app/words/`, 
 
 ## Daily nudge (added 2026-11-25)
 
-The existing daily cron (`/api/cron/send-reminders`, 18:00 UTC = 21:00 Turkey, owner chose to keep
-that time) also sends every user with at least one unlearned word a notification: "📖 Kelimelerim —
-Tekrar bekleyen {n} kelimen var. Bir tur yapalım mı?". It goes to Chrome (web push subscriptions)
-and to the phone (Expo tokens), opens the review (`/words/review` on web; on the phone the review
-screen, unless game mode is on, once the saved app lock has loaded). Users with no unlearned word
-get nothing, and if any page of the word count fails nobody gets it rather than a count that is too
-low. It is sent after the payment reminders, which keep the first share of the run's time, and also
-when the payments query fails. Its result is reported under `words` in the cron response and its
-errors are logged. Code: `src/lib/words-reminder.ts`.
+Its own daily cron (`/api/cron/send-words-reminders`, 12:00 UTC = 15:00 Turkey; moved there from
+the 21:00 payment reminder cron on 2026-11-27 at the owner's request) sends every user with at least
+one unlearned word a notification: "📖 Kelimelerim — Tekrar bekleyen {n} kelimen var. Bir tur
+yapalım mı?". It goes to Chrome (web push subscriptions) and to the phone (Expo tokens), opens the
+review (`/words/review` on web; on the phone the review screen, unless game mode is on, once the
+saved app lock has loaded). Users with no unlearned word get nothing, and if any page of the word
+count fails nobody gets it rather than a count that is too low. The cron response is the nudge's
+summary; its errors are logged, and a nudge that throws returns 500. On the Vercel Hobby plan a cron
+may fire any time within its hour, so the nudge can arrive between 15:00 and 15:59. Code:
+`src/lib/words-reminder.ts`, `src/app/api/cron/send-words-reminders/route.ts`.
 
 ## Errors and offline
 

@@ -6,7 +6,6 @@ import { Resend } from "resend";
 import { addDays, format } from "date-fns";
 import { sendExpoPush, type PushMessage } from "@/lib/push";
 import { sendWebPush, type WebPushResult } from "@/lib/web-push";
-import { sendWordsReminders } from "@/lib/words-reminder";
 
 export const dynamic = "force-dynamic";
 
@@ -27,18 +26,6 @@ export async function GET(req: NextRequest) {
 
   const db = supabaseAdmin();
   const resend = new Resend(process.env.RESEND_API_KEY);
-  // Runs after the payment reminders, which come first in the time budget, and on the
-  // payments-failure path too.
-  const sendWords = async () => {
-    const words = await sendWordsReminders(db).catch((e: unknown) => ({
-      error: e instanceof Error ? e.message : "words reminders failed",
-    }));
-    const errors =
-      "error" in words ? [words.error] : [...words.errors, ...words.push.errors, ...words.webPush.errors];
-    if (errors.length > 0) console.error("words reminders:", errors.join("; "));
-    return words;
-  };
-
   // Tomorrow's local date components — cron fires at 18:00 UTC = 21:00 Turkey (UTC+3)
   const tomorrow = addDays(new Date(), 1);
   const tYear = tomorrow.getFullYear();
@@ -51,7 +38,7 @@ export async function GET(req: NextRequest) {
     .select("*, overrides:payment_overrides(*), user:users!payments_user_id_fkey(id, name, email)");
 
   if (error) {
-    return NextResponse.json({ error: error.message, words: await sendWords() }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   const dueByUser = new Map<string, { user: User; items: DueItem[] }>();
@@ -257,13 +244,11 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const words = await sendWords();
   return NextResponse.json({
     date: format(tomorrow, "yyyy-MM-dd"),
     sent: results.length,
     results,
     push: pushSummary,
     webPush: webPushSummary,
-    words,
   });
 }
