@@ -36,3 +36,15 @@ describe("DashboardPage month param", () => {
     expect(html).not.toContain("May 2026</h2>");
   });
 });
+
+describe("DashboardPage nav", () => {
+  it("marks Dashboard as the current section in the shared nav", () => {
+    const html = renderToStaticMarkup(
+      createElement(LanguageProvider, { initialLang: "en" }, createElement(DashboardPage))
+    );
+    const current = html.match(/<a[^>]*aria-current="page"[^>]*>/g) ?? [];
+
+    expect(current).toHaveLength(2);
+    for (const tag of current) expect(tag).toContain('href="/dashboard"');
+  });
+});
