@@ -4,13 +4,13 @@ import type { ReactElement } from "react";
 const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   signOutWithPushCleanup: vi.fn().mockResolvedValue(undefined),
-  menuOpen: true,
-  setMenuOpen: vi.fn(),
+  menu: "user" as "nav" | "user" | null,
+  setMenu: vi.fn(),
 }));
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
-  return { ...actual, useState: () => [mocks.menuOpen, mocks.setMenuOpen] };
+  return { ...actual, useState: () => [mocks.menu, mocks.setMenu] };
 });
 
 vi.mock("next-auth/react", () => ({
@@ -60,7 +60,8 @@ function hasText(node: unknown, text: string): boolean {
 beforeEach(() => {
   mocks.signOut.mockClear();
   mocks.signOutWithPushCleanup.mockClear();
-  mocks.menuOpen = true;
+  mocks.menu = "user";
+  mocks.setMenu.mockClear();
 });
 
 describe("EventsHeader", () => {
@@ -91,7 +92,7 @@ describe("EventsHeader", () => {
   });
 
   it("keeps sign-out out of the header while the user menu is closed", () => {
-    mocks.menuOpen = false;
+    mocks.menu = null;
 
     expect(findAll(EventsHeader(), (el) => el.type === SignOutMenuItem)).toHaveLength(0);
   });
@@ -105,11 +106,28 @@ describe("EventsHeader", () => {
     expect(navOf(EventsHeader({ active: "words" }))[0].props.active).toBe("words");
   });
 
-  it("closes the user menu when the section menu opens, so the two never overlap", () => {
+  it("keeps one header menu open at a time: the section menu or the user menu", () => {
+    mocks.menu = "nav";
     const [nav] = findAll(EventsHeader(), (el) => el.type === AppNav);
+    expect(nav.props.open).toBe(true);
+    expect(findAll(EventsHeader(), (el) => el.type === SignOutMenuItem)).toHaveLength(0);
 
-    (nav.props.onOpen as () => void)();
+    (nav.props.onOpenChange as (open: boolean) => void)(true);
+    expect(mocks.setMenu).toHaveBeenLastCalledWith("nav");
+    (nav.props.onOpenChange as (open: boolean) => void)(false);
+    expect(mocks.setMenu).toHaveBeenLastCalledWith(null);
 
-    expect(mocks.setMenuOpen).toHaveBeenCalledWith(false);
+    const [avatar] = findAll(EventsHeader(), (el) => el.type === "button" && String(el.props.className).includes("hover:text-gray-900"));
+    (avatar.props.onClick as () => void)();
+    const next = mocks.setMenu.mock.lastCall?.[0] as (m: "nav" | "user" | null) => "nav" | "user" | null;
+    expect(next("nav")).toBe("user");
+    expect(next(null)).toBe("user");
+    expect(next("user")).toBe(null);
+  });
+
+  it("closes the section menu while the user menu is open", () => {
+    mocks.menu = "user";
+    const [nav] = findAll(EventsHeader(), (el) => el.type === AppNav);
+    expect(nav.props.open).toBe(false);
   });
 });

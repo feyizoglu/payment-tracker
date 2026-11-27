@@ -13,12 +13,12 @@ import SignOutMenuItem from "@/components/SignOutMenuItem";
 export default function EventsHeader({ active = "events" }: { active?: "events" | "games" | "words" } = {}) {
   const { data: session } = useSession();
   const { lang, setLang } = useLang();
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [headerMenu, setHeaderMenu] = useState<"nav" | "user" | null>(null);
 
   return (
     <header className="bg-surface border-b border-gray-100 sticky top-0 z-40">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
-        <AppNav active={active} onOpen={() => setShowUserMenu(false)} />
+        <AppNav active={active} open={headerMenu === "nav"} onOpenChange={(open) => setHeaderMenu(open ? "nav" : null)} />
 
         <div className="flex items-center gap-2">
           <PushToggle />
@@ -31,7 +31,7 @@ export default function EventsHeader({ active = "events" }: { active?: "events" 
 
           <div className="relative">
             <button
-              onClick={() => setShowUserMenu((v) => !v)}
+              onClick={() => setHeaderMenu((m) => (m === "user" ? null : "user"))}
               className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
             >
               <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-xs">
@@ -43,7 +43,7 @@ export default function EventsHeader({ active = "events" }: { active?: "events" 
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
 
-            {showUserMenu && (
+            {headerMenu === "user" && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-lg border border-gray-100 py-1 z-50">
                 <div className="px-3 py-2 border-b border-gray-100">
                   <p className="text-xs font-medium text-gray-900 truncate">{session?.user?.name}</p>

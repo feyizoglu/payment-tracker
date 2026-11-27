@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { CreditCard, Menu, X } from "lucide-react";
 import { useLang } from "@/lib/i18n";
@@ -18,9 +17,17 @@ const ACTIVE: Record<AppSection, string> = {
 };
 const IDLE = "text-gray-500 hover:bg-gray-100 transition font-medium";
 
-export default function AppNav({ active, onOpen }: { active: AppSection; onOpen?: () => void }) {
+/** The header owns `open` so that its user menu and this menu are never open together. */
+export default function AppNav({
+  active,
+  open,
+  onOpenChange,
+}: {
+  active: AppSection;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const { t } = useLang();
-  const [open, setOpen] = useState(false);
   const sections: { key: AppSection; href: string; label: string }[] = [
     { key: "dashboard", href: "/dashboard", label: t.dashboard },
     { key: "economy", href: "/economy", label: t.economy },
@@ -30,7 +37,7 @@ export default function AppNav({ active, onOpen }: { active: AppSection; onOpen?
   ];
   const tone = (key: AppSection) => (key === active ? ACTIVE[key] : IDLE);
   const current = (key: AppSection) => (key === active ? ("page" as const) : undefined);
-  const close = () => setOpen(false);
+  const close = () => onOpenChange(false);
 
   return (
     <div
@@ -41,10 +48,7 @@ export default function AppNav({ active, onOpen }: { active: AppSection; onOpen?
     >
       <button
         type="button"
-        onClick={() => {
-          if (!open) onOpen?.();
-          setOpen(!open);
-        }}
+        onClick={() => onOpenChange(!open)}
         aria-label={t.menu}
         aria-expanded={open}
         aria-controls={PANEL_ID}

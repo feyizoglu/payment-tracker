@@ -1,13 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ReactElement } from "react";
 
-const mocks = vi.hoisted(() => ({ open: false, setOpen: vi.fn() }));
-
-vi.mock("react", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react")>();
-  return { ...actual, useState: () => [mocks.open, mocks.setOpen] };
-});
-
 vi.mock("@/lib/i18n", () => ({
   useLang: () => ({
     t: { dashboard: "DASH", economy: "ECON", events: "EVENTS", games: "GAMES", wordsTitle: "WORDS", menu: "MENU" },
@@ -32,8 +25,9 @@ function findAll(node: unknown, match: (el: Node) => boolean, out: Node[] = []):
   return out;
 }
 
-const onOpen = vi.fn();
-const render = (active: AppSection = "events") => AppNav({ active, onOpen }) as unknown as Node;
+const onOpenChange = vi.fn();
+let open = false;
+const render = (active: AppSection = "events") => AppNav({ active, open, onOpenChange }) as unknown as Node;
 const toggle = (tree: Node) => findAll(tree, (el) => el.type === "button")[0];
 const panel = (tree: Node) => findAll(tree, (el) => el.type === "nav" && el.props.id !== undefined)[0];
 const inline = (tree: Node) => findAll(tree, (el) => el.type === "nav" && el.props.id === undefined)[0];
@@ -41,14 +35,13 @@ const links = (node: unknown) => findAll(node, (el) => el.type === Link);
 const backdrop = (tree: Node) => findAll(tree, (el) => el.type === "div" && el.props["aria-hidden"] === "true");
 
 beforeEach(() => {
-  mocks.open = false;
-  mocks.setOpen.mockClear();
-  onOpen.mockClear();
+  open = false;
+  onOpenChange.mockClear();
 });
 
 describe("AppNav", () => {
   it("links the five sections in order, inline and in the menu panel", () => {
-    mocks.open = true;
+    open = true;
     const tree = render();
     const expected = [
       ["/dashboard", "DASH"],
@@ -69,7 +62,7 @@ describe("AppNav", () => {
     ["games", "/games", "text-purple-700"],
     ["words", "/words", "text-purple-700"],
   ] as const)("marks %s as the current page in its colour, the others idle", (section, href, colour) => {
-    mocks.open = true;
+    open = true;
     const tree = render(section);
     for (const nav of [inline(tree), panel(tree)]) {
       for (const link of links(nav)) {
@@ -104,26 +97,19 @@ describe("AppNav", () => {
   });
 
   it("shows the panel and a backdrop while open", () => {
-    mocks.open = true;
+    open = true;
     const tree = render();
     expect(toggle(tree).props["aria-expanded"]).toBe(true);
     expect(panel(tree).props.hidden).toBe(false);
     expect(backdrop(tree)).toHaveLength(1);
   });
 
-  it("opens and closes from the menu button, telling the header only when it opens", () => {
+  it("asks the header to open and close it from the menu button", () => {
     (toggle(render()).props.onClick as () => void)();
-    expect(mocks.setOpen).toHaveBeenLastCalledWith(true);
-    expect(onOpen).toHaveBeenCalledTimes(1);
-    mocks.open = true;
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    open = true;
     (toggle(render()).props.onClick as () => void)();
-    expect(mocks.setOpen).toHaveBeenLastCalledWith(false);
-    expect(onOpen).toHaveBeenCalledTimes(1);
-  });
-
-  it("opens without an onOpen handler", () => {
-    (toggle(AppNav({ active: "games" }) as unknown as Node).props.onClick as () => void)();
-    expect(mocks.setOpen).toHaveBeenLastCalledWith(true);
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
 
   it("keeps the menu button above its backdrop so a tap on it closes the menu itself", () => {
@@ -131,26 +117,26 @@ describe("AppNav", () => {
   });
 
   it("closes when a section in the panel is chosen", () => {
-    mocks.open = true;
+    open = true;
     const [, economy] = links(panel(render()));
     (economy.props.onClick as () => void)();
-    expect(mocks.setOpen).toHaveBeenCalledWith(false);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it("closes on a tap outside the panel", () => {
-    mocks.open = true;
+    open = true;
     (backdrop(render())[0].props.onClick as () => void)();
-    expect(mocks.setOpen).toHaveBeenCalledWith(false);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it("closes on Escape and ignores other keys", () => {
-    mocks.open = true;
+    open = true;
     const tree = render();
     const onKeyDown = tree.props.onKeyDown as (e: { key: string }) => void;
     onKeyDown({ key: "Enter" });
-    expect(mocks.setOpen).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
     onKeyDown({ key: "Escape" });
-    expect(mocks.setOpen).toHaveBeenCalledWith(false);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it("shows the PayTrack word only from sm, next to the logo", () => {

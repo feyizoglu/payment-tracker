@@ -237,4 +237,17 @@ describe("DashboardPage header menus", () => {
     expect(await userMenuOpen()).toBe(false);
     expect(sectionToggle()?.props["aria-expanded"]).toBe(true);
   });
+
+  it("closes the section menu when the user menu opens", async () => {
+    stubFetch(async () => reply(loan));
+    await render();
+
+    await act(async () => (sectionToggle()?.props.onClick as () => void)());
+    expect(await userMenuOpen()).toBe(false);
+    expect(sectionToggle()?.props["aria-expanded"]).toBe(true);
+
+    await act(async () => (userToggle()?.props.onClick as () => void)());
+    expect(await userMenuOpen()).toBe(true);
+    expect(sectionToggle()?.props["aria-expanded"]).toBe(false);
+  });
 });

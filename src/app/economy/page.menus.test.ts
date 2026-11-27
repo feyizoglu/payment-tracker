@@ -115,4 +115,18 @@ describe("EconomyPage header menus", () => {
     expect(userMenuShown()).toBe(false);
     expect(sectionToggle()?.props["aria-expanded"]).toBe(true);
   });
+
+  it("closes the section menu when the user menu opens", async () => {
+    root = createRoot(container());
+    await act(async () => root?.render(page()));
+
+    await act(async () => (sectionToggle()?.props.onClick as () => void)());
+    await rerender();
+    expect(sectionToggle()?.props["aria-expanded"]).toBe(true);
+
+    await act(async () => (userToggle()?.props.onClick as () => void)());
+    await rerender();
+    expect(userMenuShown()).toBe(true);
+    expect(sectionToggle()?.props["aria-expanded"]).toBe(false);
+  });
 });

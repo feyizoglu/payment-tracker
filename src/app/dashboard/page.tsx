@@ -61,7 +61,7 @@ function Dashboard() {
   const [activeView, setActiveView] = useState<View>("monthly");
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [headerMenu, setHeaderMenu] = useState<"nav" | "user" | null>(null);
   const [showTeamsPanel, setShowTeamsPanel] = useState(false);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<Date | null>(null);
   const [calendarDate, setCalendarDate] = useState(() => parseMonthParam(searchParams.get("month")) ?? new Date());
@@ -222,7 +222,7 @@ function Dashboard() {
       {/* Navbar */}
       <header className="bg-surface border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
-          <AppNav active="dashboard" onOpen={() => setShowUserMenu(false)} />
+          <AppNav active="dashboard" open={headerMenu === "nav"} onOpenChange={(open) => setHeaderMenu(open ? "nav" : null)} />
 
           <div className="flex items-center gap-2">
             <PushToggle />
@@ -246,7 +246,7 @@ function Dashboard() {
             {/* User menu */}
             <div className="relative">
               <button
-                onClick={() => setShowUserMenu((v) => !v)}
+                onClick={() => setHeaderMenu((m) => (m === "user" ? null : "user"))}
                 className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
               >
                 {session?.user?.image ? (
@@ -262,7 +262,7 @@ function Dashboard() {
                 <ChevronDown className="w-4 h-4 text-gray-400" />
               </button>
 
-              {showUserMenu && (
+              {headerMenu === "user" && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-lg border border-gray-100 py-1 z-50">
                   <div className="px-3 py-2 border-b border-gray-100">
                     <p className="text-xs font-medium text-gray-900 truncate">{session?.user?.name}</p>
@@ -482,8 +482,8 @@ function Dashboard() {
       )}
 
       {/* Backdrop for user menu */}
-      {showUserMenu && (
-        <div className="fixed inset-0 z-30" onClick={() => setShowUserMenu(false)} />
+      {headerMenu === "user" && (
+        <div className="fixed inset-0 z-30" onClick={() => setHeaderMenu(null)} />
       )}
     </div>
   );
