@@ -149,7 +149,12 @@ async function render() {
 }
 
 beforeEach(() => {
-  vi.stubGlobal("window", { HTMLIFrameElement: class {} });
+  vi.stubGlobal("window", {
+    HTMLIFrameElement: class {},
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    matchMedia: () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }),
+  });
   calendar.props = null;
 });
 

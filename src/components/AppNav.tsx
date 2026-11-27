@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { CreditCard, Menu, X } from "lucide-react";
 import { useLang } from "@/lib/i18n";
@@ -7,6 +8,7 @@ import { useLang } from "@/lib/i18n";
 export type AppSection = "dashboard" | "economy" | "events" | "games" | "words";
 
 const PANEL_ID = "app-nav-menu";
+const WIDE = "(min-width: 1024px)";
 const PURPLE = "text-purple-700 dark:text-purple-400 bg-purple-50 font-semibold";
 const ACTIVE: Record<AppSection, string> = {
   dashboard: "text-blue-700 dark:text-blue-400 bg-blue-50 font-semibold",
@@ -38,15 +40,33 @@ export default function AppNav({
   const tone = (key: AppSection) => (key === active ? ACTIVE[key] : IDLE);
   const current = (key: AppSection) => (key === active ? ("page" as const) : undefined);
   const close = () => onOpenChange(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  // On window, not the nav: a clicked button does not take focus in Safari. The panel hides
+  // with lg:hidden, so an open menu would come back when a wide window is narrowed again.
+  useEffect(() => {
+    if (!open) return;
+    const wide = window.matchMedia(WIDE);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      onOpenChange(false);
+      toggleRef.current?.focus();
+    };
+    const onWide = () => {
+      if (wide.matches) onOpenChange(false);
+    };
+    window.addEventListener("keydown", onKey);
+    wide.addEventListener("change", onWide);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      wide.removeEventListener("change", onWide);
+    };
+  }, [open, onOpenChange]);
 
   return (
-    <div
-      className="flex items-center gap-2 lg:gap-4"
-      onKeyDown={(e) => {
-        if (e.key === "Escape") close();
-      }}
-    >
+    <div className="flex items-center gap-2 lg:gap-4">
       <button
+        ref={toggleRef}
         type="button"
         onClick={() => onOpenChange(!open)}
         aria-label={t.menu}
