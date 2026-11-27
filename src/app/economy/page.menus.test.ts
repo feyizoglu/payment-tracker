@@ -90,7 +90,12 @@ const userMenuShown = () =>
   host.nodes.some((n) => n.type === "div" && String(n.props.className ?? "").includes("w-56"));
 
 beforeEach(() => {
-  vi.stubGlobal("window", { HTMLIFrameElement: class {} });
+  vi.stubGlobal("window", {
+    HTMLIFrameElement: class {},
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    matchMedia: () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }),
+  });
   vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => undefined, removeItem: () => undefined });
   vi.stubGlobal("fetch", vi.fn(async (url: string) => ({ ok: true, json: async () => (url === "/api/exchange-rates" ? {} : []) })));
 });

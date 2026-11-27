@@ -1,5 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactElement } from "react";
+
+const hooks = vi.hoisted(() => ({
+  effects: [] as Array<() => void | (() => void)>,
+  button: { focus: () => undefined },
+}));
+
+vi.mock("react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react")>();
+  return {
+    ...actual,
+    useRef: () => ({ current: hooks.button }),
+    useEffect: (effect: () => void | (() => void)) => {
+      hooks.effects.push(effect);
+    },
+  };
+});
 
 vi.mock("@/lib/i18n", () => ({
   useLang: () => ({
@@ -34,10 +50,44 @@ const inline = (tree: Node) => findAll(tree, (el) => el.type === "nav" && el.pro
 const links = (node: unknown) => findAll(node, (el) => el.type === Link);
 const backdrop = (tree: Node) => findAll(tree, (el) => el.type === "div" && el.props["aria-hidden"] === "true");
 
+type Listener = (e: { key: string; defaultPrevented?: boolean; isComposing?: boolean }) => void;
+let keyListeners: Listener[];
+let wideListeners: Array<() => void>;
+let wide: { matches: boolean };
+
 beforeEach(() => {
   open = false;
   onOpenChange.mockClear();
+  hooks.effects.length = 0;
+  hooks.button.focus = vi.fn();
+  keyListeners = [];
+  wideListeners = [];
+  wide = { matches: false };
+  vi.stubGlobal("window", {
+    addEventListener: (type: string, fn: Listener) => type === "keydown" && keyListeners.push(fn),
+    removeEventListener: (type: string, fn: Listener) => {
+      if (type === "keydown") keyListeners = keyListeners.filter((l) => l !== fn);
+    },
+    matchMedia: (query: string) => {
+      expect(query).toBe("(min-width: 64rem)");
+      return {
+        get matches() {
+          return wide.matches;
+        },
+        addEventListener: (_type: string, fn: () => void) => wideListeners.push(fn),
+        removeEventListener: (_type: string, fn: () => void) => {
+          wideListeners = wideListeners.filter((l) => l !== fn);
+        },
+      };
+    },
+  });
 });
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+const runEffects = () => hooks.effects.map((effect) => effect()).filter((c): c is () => void => typeof c === "function");
 
 describe("AppNav", () => {
   it("links the five sections in order, inline and in the menu panel", () => {
@@ -129,14 +179,55 @@ describe("AppNav", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("closes on Escape and ignores other keys", () => {
+  it("listens for nothing while closed", () => {
+    render();
+    runEffects();
+    expect(keyListeners).toHaveLength(0);
+    expect(wideListeners).toHaveLength(0);
+  });
+
+  it("closes on Escape wherever the focus is and puts focus back on the menu button", () => {
     open = true;
-    const tree = render();
-    const onKeyDown = tree.props.onKeyDown as (e: { key: string }) => void;
-    onKeyDown({ key: "Enter" });
+    render();
+    runEffects();
+    for (const l of keyListeners) l({ key: "Enter" });
     expect(onOpenChange).not.toHaveBeenCalled();
-    onKeyDown({ key: "Escape" });
+    for (const l of keyListeners) l({ key: "Escape" });
     expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(hooks.button.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves an Escape that cancels typing or that another control already handled", () => {
+    open = true;
+    render();
+    runEffects();
+    for (const l of keyListeners) l({ key: "Escape", isComposing: true });
+    for (const l of keyListeners) l({ key: "Escape", defaultPrevented: true });
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(hooks.button.focus).not.toHaveBeenCalled();
+  });
+
+  it("closes when the window grows to lg, where the panel is hidden, so it does not come back on shrinking", () => {
+    open = true;
+    render();
+    runEffects();
+    for (const l of wideListeners) l();
+    expect(onOpenChange).not.toHaveBeenCalled();
+    wide.matches = true;
+    for (const l of wideListeners) l();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("stops listening when it closes or unmounts", () => {
+    open = true;
+    render();
+    for (const cleanup of runEffects()) cleanup();
+    expect(keyListeners).toHaveLength(0);
+    expect(wideListeners).toHaveLength(0);
+  });
+
+  it("gives the menu button the ref that Escape focuses", () => {
+    expect(toggle(render()).props.ref).toEqual({ current: hooks.button });
   });
 
   it("shows the PayTrack word only from sm, next to the logo", () => {

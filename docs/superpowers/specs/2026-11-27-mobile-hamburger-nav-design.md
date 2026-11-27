@@ -26,7 +26,10 @@ Below the `lg` breakpoint the links move into a hamburger menu. From `lg` up not
 - Panel: under the header, full width, the five sections one per row. The current one is
   highlighted in its section colour (Panel blue, Ekonomi green, the others purple, as today) and
   carries `aria-current="page"`. It closes when a link is chosen, when the user taps outside it (a
-  backdrop) and on Escape while focus is in the nav.
+  backdrop), on Escape wherever the focus is (focus then returns to ☰) and when the window grows to
+  `lg`, so a widened-then-narrowed window does not bring it back.
+- Each header holds one open-menu value (section menu, user menu or none) and passes it to
+  `AppNav`, so the section menu and the user menu are never open together.
 - Inline links from `lg`: as today, with the same per-section active colour; the active one is a
   link with `aria-current="page"` everywhere (Panel and Ekonomi used a plain span).
 - The user menu, the right-hand controls and the Expo app are unchanged.
