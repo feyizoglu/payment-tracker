@@ -50,7 +50,7 @@ const inline = (tree: Node) => findAll(tree, (el) => el.type === "nav" && el.pro
 const links = (node: unknown) => findAll(node, (el) => el.type === Link);
 const backdrop = (tree: Node) => findAll(tree, (el) => el.type === "div" && el.props["aria-hidden"] === "true");
 
-type Listener = (e: { key: string }) => void;
+type Listener = (e: { key: string; defaultPrevented?: boolean; isComposing?: boolean }) => void;
 let keyListeners: Listener[];
 let wideListeners: Array<() => void>;
 let wide: { matches: boolean };
@@ -69,7 +69,7 @@ beforeEach(() => {
       if (type === "keydown") keyListeners = keyListeners.filter((l) => l !== fn);
     },
     matchMedia: (query: string) => {
-      expect(query).toBe("(min-width: 1024px)");
+      expect(query).toBe("(min-width: 64rem)");
       return {
         get matches() {
           return wide.matches;
@@ -195,6 +195,16 @@ describe("AppNav", () => {
     for (const l of keyListeners) l({ key: "Escape" });
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(hooks.button.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves an Escape that cancels typing or that another control already handled", () => {
+    open = true;
+    render();
+    runEffects();
+    for (const l of keyListeners) l({ key: "Escape", isComposing: true });
+    for (const l of keyListeners) l({ key: "Escape", defaultPrevented: true });
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(hooks.button.focus).not.toHaveBeenCalled();
   });
 
   it("closes when the window grows to lg, where the panel is hidden, so it does not come back on shrinking", () => {

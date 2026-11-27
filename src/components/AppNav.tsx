@@ -8,7 +8,8 @@ import { useLang } from "@/lib/i18n";
 export type AppSection = "dashboard" | "economy" | "events" | "games" | "words";
 
 const PANEL_ID = "app-nav-menu";
-const WIDE = "(min-width: 1024px)";
+// Tailwind's lg, which is in rem and so follows the browser's font size.
+const WIDE = "(min-width: 64rem)";
 const PURPLE = "text-purple-700 dark:text-purple-400 bg-purple-50 font-semibold";
 const ACTIVE: Record<AppSection, string> = {
   dashboard: "text-blue-700 dark:text-blue-400 bg-blue-50 font-semibold",
@@ -48,7 +49,7 @@ export default function AppNav({
     if (!open) return;
     const wide = window.matchMedia(WIDE);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+      if (e.key !== "Escape" || e.isComposing || e.defaultPrevented) return;
       onOpenChange(false);
       toggleRef.current?.focus();
     };
